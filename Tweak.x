@@ -476,240 +476,229 @@ static void TTGUnclip(UIView *v) {
 - (void)setFrame:(CGRect)f { %orig(TTGStretch((UIView *)self, f)); }
 %end
 
-
-// ---- 1.12: discover the visible right-hand action column, not private button classes ----
-static char kActionGlassKey, kActionStyleKey, kActionScanKey;
+// ---- 1.12: apply action glass on first display and after reuse/state updates ----
+static char kActionGlassKey;
+static char kActionStyleKey;
+static char kActionPendingKey;
 static const NSInteger kActionGlassTag = 0x61A57;
 
-static NSString *TTGActionText(UIView *view) {
-    NSMutableString *text = [NSMutableString string];
-    for (NSString *key in @[@"accessibilityLabel", @"accessibilityIdentifier", @"imageNameString"]) {
-        SEL selector = NSSelectorFromString(key);
-        if (![view respondsToSelector:selector]) continue;
-        @try {
-            id value = ((id (*)(id, SEL))objc_msgSend)(view, selector);
-            if ([value isKindOfClass:NSString.class]) [text appendFormat:@" %@", value];
-        } @catch (__unused NSException *exception) {}
-    }
-    return text;
-}
-
-static BOOL TTGContainsAny(NSString *text, NSArray<NSString *> *words) {
-    for (NSString *word in words) if ([text containsString:word]) return YES;
-    return NO;
-}
-
-static BOOL TTGActionExcluded(NSString *text) {
-    return TTGContainsAny(text.lowercaseString, @[@"avatar", @"follow", @"music", @"disc", @"record", @"download",
-        @"profilbild", @"folgen", @"musik", @"متابعة", @"موسيقى", @"الصورة الشخصية"]);
-}
-
-static BOOL TTGActionNamed(NSString *text) {
-    NSString *name = [text stringByFoldingWithOptions:NSDiacriticInsensitiveSearch locale:nil].lowercaseString;
-    return TTGContainsAny(name, @[@"like", @"digg", @"heart", @"comment", @"collect", @"favorite", @"favourite",
-        @"bookmark", @"save", @"share", @"forward", @"gefallt mir", @"kommentar", @"favoriten", @"speichern",
-        @"teilen", @"اعجاب", @"تعليق", @"مفضلة", @"مفضله", @"مشاركة", @"مشاركه", @"حفظ"]);
-}
-
-static BOOL TTGCountBelow(UIView *view, UIView *icon, UIWindow *window, NSUInteger depth) {
-    if (depth > 4 || view.tag == kActionGlassTag || view.hidden || view.alpha < 0.01) return NO;
-    if ([view isKindOfClass:UILabel.class]) {
-        NSString *text = ((UILabel *)view).text;
-        CGRect labelRect = [view convertRect:view.bounds toView:window];
-        CGRect iconRect = [icon convertRect:icon.bounds toView:window];
-        BOOL number = [text rangeOfCharacterFromSet:NSCharacterSet.decimalDigitCharacterSet].location != NSNotFound;
-        return text.length && number && fabs(CGRectGetMidX(labelRect) - CGRectGetMidX(iconRect)) < 30 &&
-            CGRectGetMidY(labelRect) >= CGRectGetMaxY(iconRect) - 5 &&
-            CGRectGetMinY(labelRect) < CGRectGetMaxY(iconRect) + 38;
-    }
-    for (UIView *child in view.subviews)
-        if (TTGCountBelow(child, icon, window, depth + 1)) return YES;
-    return NO;
-}
-
-static void TTGActionDebug(NSArray<NSDictionary *> *matches, NSArray<NSString *> *diagnostics) {
-    static BOOL writtenMatches = NO, writtenDiagnostic = NO;
-    if (writtenMatches || (!matches.count && (writtenDiagnostic || !diagnostics.count))) return;
-    if (matches.count) writtenMatches = YES;
-    else writtenDiagnostic = YES;
-    NSMutableString *text = [NSMutableString stringWithString:@"Alaa_TikTok 1.12 matched action views\n"];
-    if (!matches.count) {
-        [text appendString:@"No full action column matched yet. Right-edge candidate classes and labels follow.\n"];
-        for (NSString *line in diagnostics) [text appendFormat:@"%@\n", line];
-    }
-    for (NSDictionary *match in matches) {
-        UIView *icon = match[@"icon"], *host = match[@"host"];
-        [text appendFormat:@"icon=%@ host=%@ labels=%@ mode=%@\n",
-            NSStringFromClass(icon.class), NSStringFromClass(host.class), match[@"text"],
-            [match[@"named"] boolValue] ? @"accessibility" : @"count-column"];
-    }
-    NSString *directory = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-    if (directory) [text writeToFile:[directory stringByAppendingPathComponent:@"alaa_tiktok_debug.txt"]
-                         atomically:YES encoding:NSUTF8StringEncoding error:nil];
-}
-
-static void TTGDecorateAction(NSDictionary *match) {
-    UIView *host = match[@"host"], *icon = match[@"icon"];
-    if (!host.window || ![icon isDescendantOfView:host]) return;
-    UIVisualEffectView *glass = objc_getAssociatedObject(host, &kActionGlassKey);
-    CGRect rect = [icon convertRect:icon.bounds toView:host];
-    CGFloat diameter = MAX(44, MIN(52, MAX(rect.size.width, rect.size.height) + 10));
-    if (!glass) {
-        glass = [[UIVisualEffectView alloc] initWithEffect:TTGEffect()];
-        glass.tag = kActionGlassTag;
-        glass.userInteractionEnabled = NO;
-        glass.isAccessibilityElement = NO;
-        glass.accessibilityElementsHidden = YES;
-        [host insertSubview:glass atIndex:0];
-        objc_setAssociatedObject(host, &kActionGlassKey, glass, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        objc_setAssociatedObject(host, &kActionStyleKey, @(TTGStyle()), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    } else if ([objc_getAssociatedObject(host, &kActionStyleKey) integerValue] != TTGStyle()) {
-        glass.effect = TTGEffect();
-        objc_setAssociatedObject(host, &kActionStyleKey, @(TTGStyle()), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-    if (host.subviews.firstObject != glass) [host sendSubviewToBack:glass];
-    CGRect frame = CGRectMake(CGRectGetMidX(rect) - diameter / 2, CGRectGetMidY(rect) - diameter / 2, diameter, diameter);
-    // No frame, transform, gesture, hit-test or content modifications on TikTok views.
-    if (!CGRectEqualToRect(glass.frame, frame)) glass.frame = frame;
-    glass.hidden = NO;
-    glass.layer.cornerRadius = diameter / 2;
-    glass.layer.cornerCurve = kCACornerCurveContinuous;
-    BOOL native = TTGStyle() == 0 && NSClassFromString(@"UIGlassEffect") != Nil;
-    glass.clipsToBounds = !native;
-    glass.overrideUserInterfaceStyle = TTGStyle() == 2 ? UIUserInterfaceStyleLight : UIUserInterfaceStyleDark;
-    glass.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.14].CGColor;
-    glass.layer.borderWidth = native ? 0 : 0.6;
-    TTGCapsule(glass, YES);
-}
-
-// Bounded breadth-first discovery also handles Swift/renamed feed cell classes.
-static void TTGScanActions(UIWindow *window) {
-    if (!window || window.hidden) return;
-    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:window];
-    NSMutableArray<NSDictionary *> *candidates = [NSMutableArray array];
-    NSMutableArray<UIVisualEffectView *> *existing = [NSMutableArray array];
-    NSMutableArray<NSString *> *diagnostics = [NSMutableArray array];
-    CGFloat width = window.bounds.size.width, height = window.bounds.size.height;
-    for (NSUInteger i = 0; i < queue.count && i < 3000; i++) {
-        UIView *view = queue[i];
-        if (view.tag == kActionGlassTag) { [existing addObject:(id)view]; continue; }
-        if (view.hidden || view.alpha < 0.01 || [view isKindOfClass:UITabBar.class] ||
-            [view isKindOfClass:UIVisualEffectView.class]) continue;
-        NSString *className = NSStringFromClass(view.class).lowercaseString;
-        if (TTGContainsAny(className, @[@"commentpanel", @"commentsheet", @"keyboard", @"alert", @"profileheader"])) continue;
-        if (queue.count < 3000) [queue addObjectsFromArray:view.subviews];
-        if (!TTGEnabled()) continue;
-        CGRect rect = [view convertRect:view.bounds toView:window];
-        CGFloat w = rect.size.width, h = rect.size.height;
-        if (w < 19 || w > 60 || h < 19 || h > 62 || CGRectGetMidX(rect) < width * 0.73 ||
-            CGRectGetMaxX(rect) > width + 2 || CGRectGetMidY(rect) < height * 0.15 ||
-            CGRectGetMaxY(rect) > height - 85) continue;
-        if (diagnostics.count < 50) [diagnostics addObject:[NSString stringWithFormat:@"%@ label=%@ rect=%@",
-            NSStringFromClass(view.class), TTGActionText(view), NSStringFromCGRect(rect)]];
-        BOOL iconLike = [view isKindOfClass:UIImageView.class] || [view isKindOfClass:UIControl.class] ||
-            TTGContainsAny(className, @[@"icon", @"button", @"animationview"]);
-        if (!iconLike || [view isKindOfClass:UILabel.class]) continue;
-        UIView *host = view;
-        NSMutableString *text = [NSMutableString stringWithString:TTGActionText(view)];
-        NSMutableString *types = [NSMutableString stringWithString:className];
-        BOOL inFeed = NO, blocked = NO;
-        for (UIView *parent = view.superview; parent && parent != window; parent = parent.superview) {
-            NSString *name = NSStringFromClass(parent.class).lowercaseString;
-            if (TTGContainsAny(name, @[@"commentpanel", @"commentsheet", @"profileheader", @"navigationbar", @"toolbar"])) { blocked = YES; break; }
-            if (TTGContainsAny(name, @[@"feed", @"aweme", @"playinteraction"])) inFeed = YES;
-            if (parent.bounds.size.width <= 115 && parent.bounds.size.height <= 125 && parent.bounds.size.width >= w &&
-                parent.bounds.size.height >= h && ![parent isKindOfClass:UIImageView.class]) {
-                host = parent;
-                [text appendFormat:@" %@", TTGActionText(parent)];
-                [types appendFormat:@" %@", name];
-            }
-        }
-        if (blocked || TTGActionExcluded([text stringByAppendingString:types])) continue;
-        // UIImageView contents render under its children, so its glass must be a sibling.
-        if (host == view && [view isKindOfClass:UIImageView.class]) {
-            UIView *parent = view.superview;
-            if (!parent || parent.bounds.size.width > 115 || parent.bounds.size.height > 150) continue;
-            host = parent;
-        }
-        BOOL named = TTGActionNamed(text);
-        BOOL count = TTGCountBelow(host, view, window, 0);
-        if (!named && !count) continue;
-        // AX matches need no private feed class name; geometry-only matches must
-        // form a multi-item vertical column below, preventing random toolbar edits.
-        [candidates addObject:@{@"icon":view, @"host":host, @"text":[text copy], @"named":@(named),
-            @"count":@(count), @"feed":@(inFeed), @"rect":[NSValue valueWithCGRect:rect]}];
-    }
-
-    // Deduplicate nested image/icon/control views. Prefer AX identities, then images.
-    [candidates sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
-        NSInteger sa = [a[@"named"] boolValue] * 2 + [a[@"icon"] isKindOfClass:UIImageView.class];
-        NSInteger sb = [b[@"named"] boolValue] * 2 + [b[@"icon"] isKindOfClass:UIImageView.class];
-        return sa > sb ? NSOrderedAscending : sa < sb ? NSOrderedDescending : NSOrderedSame;
-    }];
-    NSMutableArray<NSDictionary *> *unique = [NSMutableArray array];
-    for (NSDictionary *candidate in candidates) {
-        CGRect rect = [candidate[@"rect"] CGRectValue]; BOOL duplicate = NO;
-        for (NSDictionary *other in unique) {
-            CGRect r = [other[@"rect"] CGRectValue];
-            if (candidate[@"host"] == other[@"host"] ||
-                (fabs(CGRectGetMidX(rect)-CGRectGetMidX(r)) < 18 && fabs(CGRectGetMidY(rect)-CGRectGetMidY(r)) < 22)) {
-                duplicate = YES; break;
-            }
-        }
-        if (!duplicate) [unique addObject:candidate];
-    }
-    NSMutableArray *matches = [NSMutableArray array];
-    for (NSDictionary *candidate in unique) {
-        CGRect rect = [candidate[@"rect"] CGRectValue]; NSUInteger neighbours = 0;
-        for (NSDictionary *other in unique) {
-            CGRect r = [other[@"rect"] CGRectValue];
-            CGFloat dy = fabs(CGRectGetMidY(rect) - CGRectGetMidY(r));
-            if (fabs(CGRectGetMidX(rect)-CGRectGetMidX(r)) < 22 && dy > 30 && dy < 300) neighbours++;
-        }
-        // At least three aligned actions, with count labels or semantic identity.
-        if (neighbours >= 2 && ([candidate[@"named"] boolValue] || [candidate[@"count"] boolValue])) {
-            [matches addObject:candidate];
-        }
-    }
-    NSMutableSet *activeHosts = [NSMutableSet set];
-    for (NSDictionary *match in matches) { TTGDecorateAction(match); [activeHosts addObject:match[@"host"]]; }
-    for (UIVisualEffectView *glass in existing) if (![activeHosts containsObject:glass.superview]) glass.hidden = YES;
-    TTGActionDebug(matches, diagnostics);
-}
-
-// No timer or constant full-tree scan. Coalesce layout/attachment events per window,
-// with a 350ms cooldown. Global base hooks survive TikTok private class renaming.
-static void TTGQueueActionScan(UIView *view) {
-    if (view.tag == kActionGlassTag || [view isKindOfClass:UIVisualEffectView.class]) return;
-    UIWindow *window = view.window;
-    if (!window || window.hidden) return;
-    BOOL root = [view isKindOfClass:UIWindow.class];
-    NSString *name = NSStringFromClass(view.class).lowercaseString;
-    BOOL feed = TTGContainsAny(name, @[@"feed", @"aweme", @"playinteraction"]);
-    BOOL rightIcon = view.bounds.size.width >= 19 && view.bounds.size.width <= 115 &&
-        view.bounds.size.height >= 19 && view.bounds.size.height <= 150 &&
-        ([view isKindOfClass:UIControl.class] || [view isKindOfClass:UIImageView.class]);
-    if (!root && !feed && !rightIcon) return;
-    if ([objc_getAssociatedObject(window, &kActionScanKey) boolValue]) return;
-    objc_setAssociatedObject(window, &kActionScanKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    __weak UIWindow *weakWindow = window;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.08 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        UIWindow *strongWindow = weakWindow;
-        if (!strongWindow) return;
-        TTGScanActions(strongWindow);
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.35 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            objc_setAssociatedObject(strongWindow, &kActionScanKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        });
+static void TTGActionDebug(UIView *button) {
+    static NSMutableSet<NSString *> *lines;
+    static BOOL queued = NO, written = NO;
+    if (written) return;
+    if (!lines) lines = [NSMutableSet set];
+    NSString *label = button.accessibilityLabel ?: @"";
+    NSString *identifier = button.accessibilityIdentifier ?: @"";
+    [lines addObject:[NSString stringWithFormat:@"%@ label=%@ id=%@", NSStringFromClass(button.class), label, identifier]];
+    if (queued) return;
+    queued = YES;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        written = YES;
+        NSString *directory = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+        NSString *text = [@"Alaa_TikTok 1.12 matched action buttons\n" stringByAppendingString:
+            [[[lines allObjects] sortedArrayUsingSelector:@selector(compare:)] componentsJoinedByString:@"\n"]];
+        if (directory) [text writeToFile:[directory stringByAppendingPathComponent:@"alaa_tiktok_debug.txt"]
+            atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        lines = nil;
     });
 }
 
-%hook UIView
+// TikTok has shipped both aweImageView and imageView for AWEFeedVideoButton.
+// Only call known object-valued getters; never use unchecked private ivars/KVC.
+static id TTGActionObject(id object, NSString *name) {
+    SEL selector = NSSelectorFromString(name);
+    if (!object || ![object respondsToSelector:selector]) return nil;
+    @try { return ((id (*)(id, SEL))objc_msgSend)(object, selector); }
+    @catch (__unused NSException *exception) { return nil; }
+}
+
+static BOOL TTGActionIdentity(UIView *button) {
+    NSMutableString *identity = [NSMutableString string];
+    for (NSString *key in @[@"imageNameString", @"accessibilityIdentifier", @"accessibilityLabel"]) {
+        id value = TTGActionObject(button, key);
+        if ([value isKindOfClass:NSString.class]) [identity appendFormat:@" %@", value];
+    }
+    NSString *name = [identity stringByFoldingWithOptions:NSDiacriticInsensitiveSearch locale:nil].lowercaseString;
+    for (NSString *excluded in @[@"avatar", @"follow", @"music", @"disc", @"download", @"folgen", @"musik", @"متابعة", @"موسيقى"])
+        if ([name containsString:excluded]) return NO;
+    for (NSString *action in @[@"like", @"digg", @"heart", @"comment", @"collect", @"favorite", @"favourite", @"bookmark", @"save", @"share", @"forward", @"gefallt mir", @"kommentar", @"favoriten", @"teilen", @"speichern", @"اعجاب", @"تعليق", @"مفضلة", @"مشاركة", @"حفظ"])
+        if ([name containsString:action]) return YES;
+    return NO; // unknown buttons stay native
+}
+
+static BOOL TTGActionInFeed(UIView *button) {
+    UIWindow *window = button.window;
+    if (!window || button.bounds.size.width < 24 || button.bounds.size.width > 100 ||
+        button.bounds.size.height < 24 || button.bounds.size.height > 150) return NO;
+    CGRect rect = [button convertRect:button.bounds toView:window];
+    // Never decorate comments-panel/toolbars/profile actions.
+    if (CGRectGetMidX(rect) < CGRectGetWidth(window.bounds) * 0.65 ||
+        CGRectGetMidY(rect) < 80 || CGRectGetMidY(rect) > CGRectGetHeight(window.bounds) - 85) return NO;
+    BOOL feed = NO;
+    for (UIView *parent = button.superview; parent; parent = parent.superview) {
+        NSString *name = NSStringFromClass(parent.class).lowercaseString;
+        if ([parent isKindOfClass:UITabBar.class] || [name containsString:@"commentpanel"] ||
+            [name containsString:@"commentsheet"] || [name containsString:@"profile"]) return NO;
+        if ([name containsString:@"feed"] || [name containsString:@"playinteraction"]) feed = YES;
+    }
+    return feed;
+}
+
+// Some TikTok builds lazily fill imageView/aweImageView only on highlight.
+// Inspect just this button's tiny icon subtree, never the full window hierarchy.
+static UIView *TTGActionIcon(UIView *root, NSUInteger depth) {
+    if (depth > 4) return nil;
+    for (UIView *child in root.subviews) {
+        if (child.tag == kActionGlassTag || child.hidden || child.alpha < 0.01 ||
+            [child isKindOfClass:UIVisualEffectView.class]) continue;
+        CGFloat width = child.bounds.size.width, height = child.bounds.size.height;
+        if ([child isKindOfClass:UIImageView.class] && width >= 12 && width <= 60 && height >= 12 && height <= 60) return child;
+        UIView *found = TTGActionIcon(child, depth + 1);
+        if (found) return found;
+    }
+    return nil;
+}
+
+static void TTGApplyActionGlass(UIView *button) {
+    UIVisualEffectView *glass = objc_getAssociatedObject(button, &kActionGlassKey);
+    if (!TTGEnabled() || !TTGActionIdentity(button) || !TTGActionInFeed(button)) {
+        glass.hidden = YES;
+        return;
+    }
+
+    UIView *icon = nil;
+    for (NSString *key in @[@"aweImageView", @"imageView"]) {
+        id value = TTGActionObject(button, key);
+        if ([value isKindOfClass:UIView.class] && value != button &&
+            [value isDescendantOfView:button] && ![value isHidden] &&
+            [value bounds].size.width >= 8 && [value bounds].size.height >= 8) {
+            icon = value;
+            break;
+        }
+    }
+    // Do not guess an icon's position: counts must remain below the circle.
+    if (!icon) icon = TTGActionIcon(button, 0);
+    if (!icon) return; // retain an existing circle during transient image replacement
+    CGRect iconRect = [icon convertRect:icon.bounds toView:button];
+    CGFloat diameter = MIN(52, MIN(button.bounds.size.width, MAX(44, MAX(iconRect.size.width, iconRect.size.height) + 10)));
+    diameter = MIN(diameter, button.bounds.size.height);
+    CGFloat x = MAX(CGRectGetMinX(button.bounds), MIN(CGRectGetMidX(iconRect) - diameter / 2, CGRectGetMaxX(button.bounds) - diameter));
+    CGFloat y = MAX(CGRectGetMinY(button.bounds), MIN(CGRectGetMidY(iconRect) - diameter / 2, CGRectGetMaxY(button.bounds) - diameter));
+
+    if (!glass) {
+        glass = [[UIVisualEffectView alloc] initWithEffect:TTGEffect()];
+        glass.tag = kActionGlassTag;
+        glass.userInteractionEnabled = NO; // original hit testing and gestures stay intact
+        glass.isAccessibilityElement = NO;
+        glass.accessibilityElementsHidden = YES;
+        [button insertSubview:glass atIndex:0]; // no icon/label reparenting
+        objc_setAssociatedObject(button, &kActionGlassKey, glass, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(button, &kActionStyleKey, @(TTGStyle()), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    } else if ([objc_getAssociatedObject(button, &kActionStyleKey) integerValue] != TTGStyle()) {
+        glass.effect = TTGEffect();
+        objc_setAssociatedObject(button, &kActionStyleKey, @(TTGStyle()), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    glass.hidden = NO;
+    if (button.subviews.firstObject != glass) [button sendSubviewToBack:glass];
+    CGRect frame = CGRectMake(x, y, diameter, diameter);
+    if (!CGRectEqualToRect(glass.frame, frame)) glass.frame = frame;
+    glass.layer.cornerRadius = diameter / 2;
+    glass.layer.cornerCurve = kCACornerCurveContinuous;
+    BOOL nativeGlass = TTGStyle() == 0 && NSClassFromString(@"UIGlassEffect") != Nil;
+    glass.clipsToBounds = !nativeGlass;
+    glass.overrideUserInterfaceStyle = TTGStyle() == 2 ? UIUserInterfaceStyleLight : UIUserInterfaceStyleDark;
+    glass.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.14].CGColor;
+    glass.layer.borderWidth = nativeGlass ? 0 : 0.6;
+    TTGCapsule(glass, YES);
+    TTGActionDebug(button);
+}
+
+// Attach/layout happen before TikTok finishes its lazy icon/model binding.
+// A bounded next-turn + 120ms + 500ms settle pass covers first display without
+// waiting for a touch. One batch per button, weak captures, no permanent timer.
+static void TTGQueueActionGlass(UIView *button) {
+    if (!button.window || [objc_getAssociatedObject(button, &kActionPendingKey) boolValue]) return;
+    objc_setAssociatedObject(button, &kActionPendingKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    __weak UIView *weakButton = button;
+    for (NSNumber *delay in @[@0.0, @0.12, @0.5]) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)),
+            dispatch_get_main_queue(), ^{
+                UIView *strongButton = weakButton;
+                if (!strongButton) return;
+                if (strongButton.window) {
+                    [strongButton layoutIfNeeded];
+                    TTGApplyActionGlass(strongButton);
+                }
+                if (delay.doubleValue >= 0.5)
+                    objc_setAssociatedObject(strongButton, &kActionPendingKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            });
+    }
+}
+
+// Only traverse the current feed cell on display/model/layout callbacks.
+// This is a small fallback for cells attaching preconfigured buttons together.
+static void TTGPrepareFeedActions(UIView *root) {
+    if (!root.window) return;
+    Class actionClass = NSClassFromString(@"AWEFeedVideoButton");
+    if (!actionClass) return;
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
+    for (NSUInteger i = 0; i < queue.count && i < 1000; i++) {
+        UIView *view = queue[i];
+        if (view.tag == kActionGlassTag || [view isKindOfClass:UIVisualEffectView.class]) continue;
+        if ([view isKindOfClass:actionClass]) { TTGQueueActionGlass(view); continue; }
+        if (queue.count < 1000) [queue addObjectsFromArray:view.subviews];
+    }
+}
+
+%hook AWEFeedVideoButton
 - (void)layoutSubviews {
     %orig;
-    TTGQueueActionScan(self);
+    TTGApplyActionGlass((UIView *)self);
+    TTGQueueActionGlass((UIView *)self);
 }
 - (void)didMoveToWindow {
     %orig;
-    TTGQueueActionScan(self);
+    if (![(UIView *)self window]) {
+        [objc_getAssociatedObject(self, &kActionGlassKey) setHidden:YES];
+        return;
+    }
+    [(UIView *)self setNeedsLayout];
+    TTGQueueActionGlass((UIView *)self);
+}
+- (void)didMoveToSuperview {
+    %orig;
+    TTGQueueActionGlass((UIView *)self);
+}
+- (void)setImageNameString:(NSString *)name {
+    %orig;
+    [(UIView *)self setNeedsLayout];
+    TTGQueueActionGlass((UIView *)self);
+}
+- (void)setSelected:(BOOL)selected {
+    %orig;
+    [(UIView *)self setNeedsLayout];
+    TTGQueueActionGlass((UIView *)self);
+}
+- (void)setHighlighted:(BOOL)highlighted {
+    %orig;
+    TTGQueueActionGlass((UIView *)self);
+}
+%end
+
+%hook AWEFeedCellViewController
+- (void)viewDidLayoutSubviews {
+    %orig;
+    UIViewController *controller = (UIViewController *)self;
+    if (controller.isViewLoaded) TTGPrepareFeedActions(controller.view);
+}
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    UIViewController *controller = (UIViewController *)self;
+    if (controller.isViewLoaded) TTGPrepareFeedActions(controller.view);
+}
+- (void)setModel:(id)model {
+    %orig;
+    UIViewController *controller = (UIViewController *)self;
+    if (controller.isViewLoaded) TTGPrepareFeedActions(controller.view);
 }
 %end
