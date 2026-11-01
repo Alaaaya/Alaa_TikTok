@@ -475,3 +475,111 @@ static void TTGUnclip(UIView *v) {
 %hook TTKMediaBusinessCoverImageView
 - (void)setFrame:(CGRect)f { %orig(TTGStretch((UIView *)self, f)); }
 %end
+
+// ---- 1.11: feed action glass, independent of the unchanged bottom tab bar ----
+static char kActionGlassKey;
+static char kActionStyleKey;
+
+// TikTok has shipped both aweImageView and imageView for AWEFeedVideoButton.
+// Only call known object-valued getters; never use unchecked private ivars/KVC.
+static id TTGActionObject(id object, NSString *name) {
+    SEL selector = NSSelectorFromString(name);
+    if (!object || ![object respondsToSelector:selector]) return nil;
+    @try { return ((id (*)(id, SEL))objc_msgSend)(object, selector); }
+    @catch (__unused NSException *exception) { return nil; }
+}
+
+static BOOL TTGActionIdentity(UIView *button) {
+    NSMutableString *identity = [NSMutableString string];
+    for (NSString *key in @[@"imageNameString", @"accessibilityIdentifier"]) {
+        id value = TTGActionObject(button, key);
+        if ([value isKindOfClass:NSString.class]) [identity appendFormat:@" %@", value];
+    }
+    NSString *name = identity.lowercaseString;
+    for (NSString *excluded in @[@"avatar", @"follow", @"music", @"disc", @"download"])
+        if ([name containsString:excluded]) return NO;
+    for (NSString *action in @[@"like", @"digg", @"heart", @"comment", @"collect", @"favorite", @"favourite", @"bookmark", @"share", @"forward"])
+        if ([name containsString:action]) return YES;
+    return NO; // unknown buttons stay native
+}
+
+static BOOL TTGActionInFeed(UIView *button) {
+    UIWindow *window = button.window;
+    if (!window || button.bounds.size.width < 24 || button.bounds.size.width > 100 ||
+        button.bounds.size.height < 24 || button.bounds.size.height > 150) return NO;
+    CGRect rect = [button convertRect:button.bounds toView:window];
+    // Never decorate comments-panel/toolbars/profile actions.
+    if (CGRectGetMidX(rect) < CGRectGetWidth(window.bounds) * 0.65 ||
+        CGRectGetMidY(rect) < 80 || CGRectGetMidY(rect) > CGRectGetHeight(window.bounds) - 85) return NO;
+    BOOL feed = NO;
+    for (UIView *parent = button.superview; parent; parent = parent.superview) {
+        NSString *name = NSStringFromClass(parent.class).lowercaseString;
+        if ([parent isKindOfClass:UITabBar.class] || [name containsString:@"commentpanel"] ||
+            [name containsString:@"commentsheet"] || [name containsString:@"profile"]) return NO;
+        if ([name containsString:@"feed"] || [name containsString:@"playinteraction"]) feed = YES;
+    }
+    return feed;
+}
+
+static void TTGApplyActionGlass(UIView *button) {
+    UIVisualEffectView *glass = objc_getAssociatedObject(button, &kActionGlassKey);
+    if (!TTGEnabled() || !TTGActionIdentity(button) || !TTGActionInFeed(button)) {
+        glass.hidden = YES;
+        return;
+    }
+
+    UIView *icon = nil;
+    for (NSString *key in @[@"aweImageView", @"imageView"]) {
+        id value = TTGActionObject(button, key);
+        if ([value isKindOfClass:UIView.class] && value != button &&
+            [value isDescendantOfView:button] && ![value isHidden] &&
+            [value bounds].size.width >= 8 && [value bounds].size.height >= 8) {
+            icon = value;
+            break;
+        }
+    }
+    // Do not guess an icon's position: counts must remain below the circle.
+    if (!icon) { glass.hidden = YES; return; }
+    CGRect iconRect = [icon convertRect:icon.bounds toView:button];
+    CGFloat diameter = MIN(52, MIN(button.bounds.size.width, MAX(44, MAX(iconRect.size.width, iconRect.size.height) + 10)));
+    diameter = MIN(diameter, button.bounds.size.height);
+    CGFloat x = MAX(CGRectGetMinX(button.bounds), MIN(CGRectGetMidX(iconRect) - diameter / 2, CGRectGetMaxX(button.bounds) - diameter));
+    CGFloat y = MAX(CGRectGetMinY(button.bounds), MIN(CGRectGetMidY(iconRect) - diameter / 2, CGRectGetMaxY(button.bounds) - diameter));
+
+    if (!glass) {
+        glass = [[UIVisualEffectView alloc] initWithEffect:TTGEffect()];
+        glass.userInteractionEnabled = NO; // original hit testing and gestures stay intact
+        glass.isAccessibilityElement = NO;
+        glass.accessibilityElementsHidden = YES;
+        [button insertSubview:glass atIndex:0]; // no icon/label reparenting
+        objc_setAssociatedObject(button, &kActionGlassKey, glass, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(button, &kActionStyleKey, @(TTGStyle()), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    } else if ([objc_getAssociatedObject(button, &kActionStyleKey) integerValue] != TTGStyle()) {
+        glass.effect = TTGEffect();
+        objc_setAssociatedObject(button, &kActionStyleKey, @(TTGStyle()), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    glass.hidden = NO;
+    if (button.subviews.firstObject != glass) [button sendSubviewToBack:glass];
+    glass.frame = CGRectMake(x, y, diameter, diameter);
+    glass.layer.cornerRadius = diameter / 2;
+    glass.layer.cornerCurve = kCACornerCurveContinuous;
+    BOOL nativeGlass = TTGStyle() == 0 && NSClassFromString(@"UIGlassEffect") != Nil;
+    glass.clipsToBounds = !nativeGlass;
+    glass.overrideUserInterfaceStyle = TTGStyle() == 2 ? UIUserInterfaceStyleLight : UIUserInterfaceStyleDark;
+    glass.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.14].CGColor;
+    glass.layer.borderWidth = nativeGlass ? 0 : 0.6;
+    TTGCapsule(glass, YES);
+}
+
+// Public tweak headers (BHTikTok, Unicorn) identify this as the feed action
+// button class. Logos safely skips an absent class; no global UIView hook.
+%hook AWEFeedVideoButton
+- (void)layoutSubviews {
+    %orig;
+    TTGApplyActionGlass((UIView *)self);
+}
+- (void)didMoveToWindow {
+    %orig;
+    [(UIView *)self setNeedsLayout];
+}
+%end
