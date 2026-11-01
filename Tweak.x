@@ -527,12 +527,16 @@ static BOOL TTGCountBelow(UIView *view, UIView *icon, UIWindow *window, NSUInteg
     return NO;
 }
 
-static void TTGActionDebug(NSArray<NSDictionary *> *matches) {
-    if (!matches.count) return; // log the first actual match, not an empty launch tree
-    static BOOL written = NO;
-    if (written) return;
-    written = YES;
+static void TTGActionDebug(NSArray<NSDictionary *> *matches, NSArray<NSString *> *diagnostics) {
+    static BOOL writtenMatches = NO, writtenDiagnostic = NO;
+    if (writtenMatches || (!matches.count && (writtenDiagnostic || !diagnostics.count))) return;
+    if (matches.count) writtenMatches = YES;
+    else writtenDiagnostic = YES;
     NSMutableString *text = [NSMutableString stringWithString:@"Alaa_TikTok 1.12 matched action views\n"];
+    if (!matches.count) {
+        [text appendString:@"No full action column matched yet. Right-edge candidate classes and labels follow.\n"];
+        for (NSString *line in diagnostics) [text appendFormat:@"%@\n", line];
+    }
     for (NSDictionary *match in matches) {
         UIView *icon = match[@"icon"], *host = match[@"host"];
         [text appendFormat:@"icon=%@ host=%@ labels=%@ mode=%@\n",
@@ -584,6 +588,7 @@ static void TTGScanActions(UIWindow *window) {
     NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:window];
     NSMutableArray<NSDictionary *> *candidates = [NSMutableArray array];
     NSMutableArray<UIVisualEffectView *> *existing = [NSMutableArray array];
+    NSMutableArray<NSString *> *diagnostics = [NSMutableArray array];
     CGFloat width = window.bounds.size.width, height = window.bounds.size.height;
     for (NSUInteger i = 0; i < queue.count && i < 3000; i++) {
         UIView *view = queue[i];
@@ -599,6 +604,8 @@ static void TTGScanActions(UIWindow *window) {
         if (w < 19 || w > 60 || h < 19 || h > 62 || CGRectGetMidX(rect) < width * 0.73 ||
             CGRectGetMaxX(rect) > width + 2 || CGRectGetMidY(rect) < height * 0.15 ||
             CGRectGetMaxY(rect) > height - 85) continue;
+        if (diagnostics.count < 50) [diagnostics addObject:[NSString stringWithFormat:@"%@ label=%@ rect=%@",
+            NSStringFromClass(view.class), TTGActionText(view), NSStringFromCGRect(rect)]];
         BOOL iconLike = [view isKindOfClass:UIImageView.class] || [view isKindOfClass:UIControl.class] ||
             TTGContainsAny(className, @[@"icon", @"button", @"animationview"]);
         if (!iconLike || [view isKindOfClass:UILabel.class]) continue;
@@ -667,7 +674,7 @@ static void TTGScanActions(UIWindow *window) {
     NSMutableSet *activeHosts = [NSMutableSet set];
     for (NSDictionary *match in matches) { TTGDecorateAction(match); [activeHosts addObject:match[@"host"]]; }
     for (UIVisualEffectView *glass in existing) if (![activeHosts containsObject:glass.superview]) glass.hidden = YES;
-    TTGActionDebug(matches);
+    TTGActionDebug(matches, diagnostics);
 }
 
 // No timer or constant full-tree scan. Coalesce layout/attachment events per window,
