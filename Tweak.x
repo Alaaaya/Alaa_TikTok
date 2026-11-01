@@ -512,6 +512,16 @@ static id TTGActionObject(id object, NSString *name) {
     @catch (__unused NSException *exception) { return nil; }
 }
 
+static BOOL TTGActionHasCount(UIView *view, NSUInteger depth) {
+    if (depth > 4 || view.tag == kActionGlassTag) return NO;
+    if ([view isKindOfClass:UILabel.class]) {
+        NSString *text = ((UILabel *)view).text;
+        return text.length && [text rangeOfCharacterFromSet:NSCharacterSet.decimalDigitCharacterSet].location != NSNotFound;
+    }
+    for (UIView *child in view.subviews) if (TTGActionHasCount(child, depth + 1)) return YES;
+    return NO;
+}
+
 static BOOL TTGActionIdentity(UIView *button) {
     NSMutableString *identity = [NSMutableString string];
     for (NSString *key in @[@"imageNameString", @"accessibilityIdentifier", @"accessibilityLabel"]) {
@@ -523,7 +533,10 @@ static BOOL TTGActionIdentity(UIView *button) {
         if ([name containsString:excluded]) return NO;
     for (NSString *action in @[@"like", @"digg", @"heart", @"comment", @"collect", @"favorite", @"favourite", @"bookmark", @"save", @"share", @"forward", @"gefallt mir", @"kommentar", @"favoriten", @"teilen", @"speichern", @"اعجاب", @"تعليق", @"مفضلة", @"مشاركة", @"حفظ"])
         if ([name containsString:action]) return YES;
-    return NO; // unknown buttons stay native
+    // The confirmed action class may not populate its image-name getter until
+    // highlight. A count within this exact button is a safe initial-display
+    // fallback; TTGActionInFeed separately enforces the right-edge feed column.
+    return TTGActionHasCount(button, 0);
 }
 
 static BOOL TTGActionInFeed(UIView *button) {
