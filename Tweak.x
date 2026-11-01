@@ -572,57 +572,152 @@ static UIView *TTGActionIcon(UIView *root, NSUInteger depth) {
     return nil;
 }
 
+
+static char kGlyphIconKey, kGlyphOpacityKey, kGlyphImageKey, kGlyphSizeKey, kGlyphModeKey, kGlyphLikedKey;
+
+// These effects are deliberately glyph-shaped, never circles or capsules.
+static UIVisualEffect *TTGGlyphEffect(BOOL liked) {
+    Class cls = NSClassFromString(@"UIGlassEffect");
+    if (cls && [cls respondsToSelector:@selector(effectWithStyle:)]) {
+        id effect = ((id (*)(id, SEL, NSInteger))objc_msgSend)(cls, @selector(effectWithStyle:), 1);
+        if ([effect respondsToSelector:@selector(setTintColor:)])
+            ((void (*)(id, SEL, id))objc_msgSend)(effect, @selector(setTintColor:),
+                liked ? [UIColor colorWithRed:1 green:0.12 blue:0.24 alpha:0.30] : nil);
+        return effect;
+    }
+    return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];
+}
+
+static void TTGRestoreGlyph(UIView *button) {
+    UIImageView *icon = objc_getAssociatedObject(button, &kGlyphIconKey);
+    UIView *carrier = objc_getAssociatedObject(icon, &kActionGlassKey);
+    NSNumber *opacity = objc_getAssociatedObject(icon, &kGlyphOpacityKey);
+    if (opacity) icon.layer.opacity = opacity.floatValue;
+    [carrier removeFromSuperview];
+    objc_setAssociatedObject(icon, &kActionGlassKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(icon, &kGlyphOpacityKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(button, &kGlyphIconKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+// Rasterize only the template alpha for an inexpensive cached 0.65pt silhouette
+// stroke. The glass itself remains a live native effect, masked by UIImageView.
+static UIImage *TTGGlyphEdge(UIImage *image, CGSize size, UIViewContentMode mode) {
+    if (!image || size.width <= 0 || size.height <= 0) return nil;
+    UIImageView *shape = [[UIImageView alloc] initWithFrame:(CGRect){CGPointZero, size}];
+    shape.image = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    shape.tintColor = UIColor.whiteColor;
+    shape.contentMode = mode;
+    shape.clipsToBounds = YES;
+    UIGraphicsBeginImageContextWithOptions(size, NO, 0);
+    [shape.layer renderInContext:UIGraphicsGetCurrentContext()];
+    UIImage *alpha = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    CGSize canvas = CGSizeMake(size.width + 2, size.height + 2);
+    UIGraphicsBeginImageContextWithOptions(canvas, NO, 0);
+    for (NSInteger dx = -1; dx <= 1; dx++) for (NSInteger dy = -1; dy <= 1; dy++) {
+        if (dx || dy) [alpha drawInRect:CGRectMake(1 + dx * 0.65, 1 + dy * 0.65, size.width, size.height)];
+    }
+    [alpha drawInRect:CGRectMake(1, 1, size.width, size.height) blendMode:kCGBlendModeDestinationOut alpha:1];
+    UIImage *edge = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return edge;
+}
+
 static void TTGApplyActionGlass(UIView *button) {
-    UIVisualEffectView *glass = objc_getAssociatedObject(button, &kActionGlassKey);
-    if (!TTGEnabled() || !TTGActionIdentity(button) || !TTGActionInFeed(button)) {
-        glass.hidden = YES;
+    if (!TTGEnabled() || !button.window || !TTGActionIdentity(button) || !TTGActionInFeed(button)) {
+        TTGRestoreGlyph(button);
         return;
     }
-
-    UIView *icon = nil;
+    UIImageView *icon = nil;
     for (NSString *key in @[@"aweImageView", @"imageView"]) {
         id value = TTGActionObject(button, key);
-        if ([value isKindOfClass:UIView.class] && value != button &&
+        if ([value isKindOfClass:UIImageView.class] && value != button &&
             [value isDescendantOfView:button] && ![value isHidden] &&
-            [value bounds].size.width >= 8 && [value bounds].size.height >= 8) {
-            icon = value;
-            break;
-        }
+            [value bounds].size.width >= 8 && [value bounds].size.height >= 8) { icon = value; break; }
     }
-    // Do not guess an icon's position: counts must remain below the circle.
-    if (!icon) icon = TTGActionIcon(button, 0);
-    if (!icon) return; // retain an existing circle during transient image replacement
-    CGRect iconRect = [icon convertRect:icon.bounds toView:button];
-    CGFloat diameter = MIN(52, MIN(button.bounds.size.width, MAX(44, MAX(iconRect.size.width, iconRect.size.height) + 10)));
-    diameter = MIN(diameter, button.bounds.size.height);
-    CGFloat x = MAX(CGRectGetMinX(button.bounds), MIN(CGRectGetMidX(iconRect) - diameter / 2, CGRectGetMaxX(button.bounds) - diameter));
-    CGFloat y = MAX(CGRectGetMinY(button.bounds), MIN(CGRectGetMidY(iconRect) - diameter / 2, CGRectGetMaxY(button.bounds) - diameter));
-
-    if (!glass) {
-        glass = [[UIVisualEffectView alloc] initWithEffect:TTGEffect()];
-        glass.tag = kActionGlassTag;
-        glass.userInteractionEnabled = NO; // original hit testing and gestures stay intact
-        glass.isAccessibilityElement = NO;
-        glass.accessibilityElementsHidden = YES;
-        [button insertSubview:glass atIndex:0]; // no icon/label reparenting
-        objc_setAssociatedObject(button, &kActionGlassKey, glass, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        objc_setAssociatedObject(button, &kActionStyleKey, @(TTGStyle()), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    } else if ([objc_getAssociatedObject(button, &kActionStyleKey) integerValue] != TTGStyle()) {
-        glass.effect = TTGEffect();
-        objc_setAssociatedObject(button, &kActionStyleKey, @(TTGStyle()), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if (!icon) icon = (UIImageView *)TTGActionIcon(button, 0);
+    UIImage *image = (icon.highlighted && icon.highlightedImage) ? icon.highlightedImage : icon.image;
+    if (!icon || !image || !icon.superview) return; // next settle pass retries lazy icon binding
+    UIImageView *previous = objc_getAssociatedObject(button, &kGlyphIconKey);
+    if (previous && previous != icon) TTGRestoreGlyph(button);
+    objc_setAssociatedObject(button, &kGlyphIconKey, icon, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    UIView *carrier = objc_getAssociatedObject(icon, &kActionGlassKey);
+    BOOL created = !carrier;
+    if (!carrier) {
+        carrier = [UIView new];
+        carrier.tag = kActionGlassTag;
+        carrier.userInteractionEnabled = NO;
+        carrier.isAccessibilityElement = NO;
+        carrier.accessibilityElementsHidden = YES;
+        carrier.backgroundColor = UIColor.clearColor;
+        UIVisualEffectView *effect = [[UIVisualEffectView alloc] initWithEffect:nil];
+        effect.tag = 1;
+        effect.userInteractionEnabled = NO;
+        UIImageView *mask = [UIImageView new];
+        mask.tintColor = UIColor.whiteColor;
+        effect.maskView = mask;
+        [carrier addSubview:effect];
+        UIImageView *highlight = [UIImageView new];
+        highlight.tag = 2;
+        highlight.contentMode = UIViewContentModeScaleToFill;
+        highlight.alpha = 0.42;
+        [carrier addSubview:highlight];
+        // Subtle inner light, not a replacement white solid glyph.
+        UIImageView *light = [UIImageView new];
+        light.tag = 3;
+        light.alpha = 0.08;
+        light.tintColor = UIColor.whiteColor;
+        [carrier addSubview:light];
+        objc_setAssociatedObject(icon, &kActionGlassKey, carrier, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(icon, &kGlyphOpacityKey, @(icon.layer.opacity), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    glass.hidden = NO;
-    if (button.subviews.firstObject != glass) [button sendSubviewToBack:glass];
-    CGRect frame = CGRectMake(x, y, diameter, diameter);
-    if (!CGRectEqualToRect(glass.frame, frame)) glass.frame = frame;
-    glass.layer.cornerRadius = diameter / 2;
-    glass.layer.cornerCurve = kCACornerCurveContinuous;
-    BOOL nativeGlass = TTGStyle() == 0 && NSClassFromString(@"UIGlassEffect") != Nil;
-    glass.clipsToBounds = !nativeGlass;
-    glass.overrideUserInterfaceStyle = TTGStyle() == 2 ? UIUserInterfaceStyleLight : UIUserInterfaceStyleDark;
-    glass.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.14].CGColor;
-    glass.layer.borderWidth = nativeGlass ? 0 : 0.6;
-    TTGCapsule(glass, YES);
+    if (carrier.superview != icon.superview) {
+        [carrier removeFromSuperview];
+        [icon.superview insertSubview:carrier aboveSubview:icon];
+    }
+    CGSize size = icon.bounds.size;
+    CGRect bounds = CGRectMake(0, 0, size.width + 2, size.height + 2);
+    if (!CGRectEqualToRect(carrier.bounds, bounds)) carrier.bounds = bounds;
+    if (!CGPointEqualToPoint(carrier.center, icon.center)) carrier.center = icon.center;
+    if (!CGAffineTransformEqualToTransform(carrier.transform, icon.transform)) carrier.transform = icon.transform;
+    carrier.hidden = icon.hidden;
+    carrier.alpha = icon.alpha;
+    UIVisualEffectView *effect = (id)[carrier viewWithTag:1];
+    UIImageView *edge = (id)[carrier viewWithTag:2], *light = (id)[carrier viewWithTag:3];
+    UIImageView *mask = (id)effect.maskView;
+    CGRect content = CGRectMake(1, 1, size.width, size.height);
+    effect.frame = bounds;
+    mask.frame = content;
+    mask.contentMode = icon.contentMode;
+    light.frame = content;
+    light.contentMode = icon.contentMode;
+    edge.frame = bounds;
+    UIImage *oldImage = objc_getAssociatedObject(carrier, &kGlyphImageKey);
+    NSValue *oldSize = objc_getAssociatedObject(carrier, &kGlyphSizeKey);
+    NSNumber *oldMode = objc_getAssociatedObject(carrier, &kGlyphModeKey);
+    if (created || image != oldImage || !CGSizeEqualToSize(oldSize.CGSizeValue, size) || oldMode.integerValue != icon.contentMode) {
+        UIImage *template = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+        mask.image = template;
+        light.image = template;
+        edge.image = TTGGlyphEdge(image, size, icon.contentMode);
+        objc_setAssociatedObject(carrier, &kGlyphImageKey, image, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(carrier, &kGlyphSizeKey, [NSValue valueWithCGSize:size], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(carrier, &kGlyphModeKey, @(icon.contentMode), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    NSString *name = [TTGActionObject(button, @"imageNameString") lowercaseString];
+    BOOL heart = [name containsString:@"like"] || [name containsString:@"heart"] || [name containsString:@"digg"];
+    BOOL selected = [button isKindOfClass:UIControl.class] && ((UIControl *)button).selected;
+    BOOL liked = heart && (selected || [name containsString:@"after"] || [name containsString:@"selected"] || [name containsString:@"liked"]);
+    NSNumber *oldLiked = objc_getAssociatedObject(carrier, &kGlyphLikedKey);
+    if (created || !oldLiked || oldLiked.boolValue != liked) {
+        effect.effect = TTGGlyphEffect(liked);
+        light.tintColor = liked ? [UIColor colorWithRed:1 green:0.15 blue:0.25 alpha:1] : UIColor.whiteColor;
+        light.alpha = liked ? 0.18 : 0.08;
+        objc_setAssociatedObject(carrier, &kGlyphLikedKey, @(liked), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    // Keep UIKit's image/state intact for future reuse, but suppress solid paint.
+    // Only its visual layer changes; original layout and hit areas are untouched.
+    icon.layer.opacity = 0;
     TTGActionDebug(button);
 }
 
@@ -672,7 +767,7 @@ static void TTGPrepareFeedActions(UIView *root) {
 - (void)didMoveToWindow {
     %orig;
     if (![(UIView *)self window]) {
-        [objc_getAssociatedObject(self, &kActionGlassKey) setHidden:YES];
+        TTGRestoreGlyph((UIView *)self);
         return;
     }
     [(UIView *)self setNeedsLayout];
@@ -713,5 +808,19 @@ static void TTGPrepareFeedActions(UIView *root) {
     %orig;
     UIViewController *controller = (UIViewController *)self;
     if (controller.isViewLoaded) TTGPrepareFeedActions(controller.view);
+}
+%end
+
+
+// Track lazy/reused icon replacement without a window-wide traversal.
+%hook UIImageView
+- (void)setImage:(UIImage *)image {
+    %orig;
+    if (objc_getAssociatedObject(self, &kActionGlassKey)) {
+        Class buttonClass = NSClassFromString(@"AWEFeedVideoButton");
+        for (UIView *parent = [(UIView *)self superview]; parent; parent = parent.superview) {
+            if (buttonClass && [parent isKindOfClass:buttonClass]) { TTGQueueActionGlass(parent); break; }
+        }
+    }
 }
 %end
