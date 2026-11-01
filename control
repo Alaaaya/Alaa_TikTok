@@ -1,8 +1,8 @@
 Package: com.alaaaya.tiktokglass
 Name: Alaa_TikTok
-Version: 1.12
+Version: 1.13
 Architecture: iphoneos-arm64
-Description: Floating liquid glass tab bar and glass action glyphs for TikTok
+Description: Original clear Liquid Glass tab bar; native feed action icons restored.
 Maintainer: Alaaaya
 Author: Alaaaya
 Section: Tweaks
