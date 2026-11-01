@@ -478,7 +478,6 @@ static void TTGUnclip(UIView *v) {
 
 // ---- 1.12: apply action glass on first display and after reuse/state updates ----
 static char kActionGlassKey;
-static char kActionStyleKey;
 static char kActionPendingKey;
 static const NSInteger kActionGlassTag = 0x61A57;
 
@@ -704,10 +703,13 @@ static void TTGApplyActionGlass(UIView *button) {
         objc_setAssociatedObject(carrier, &kGlyphSizeKey, [NSValue valueWithCGSize:size], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         objc_setAssociatedObject(carrier, &kGlyphModeKey, @(icon.contentMode), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    NSString *name = [TTGActionObject(button, @"imageNameString") lowercaseString];
+    id imageName = TTGActionObject(button, @"imageNameString");
+    NSString *name = [imageName isKindOfClass:NSString.class] ? [imageName lowercaseString] : @"";
     BOOL heart = [name containsString:@"like"] || [name containsString:@"heart"] || [name containsString:@"digg"];
     BOOL selected = [button isKindOfClass:UIControl.class] && ((UIControl *)button).selected;
-    BOOL liked = heart && (selected || [name containsString:@"after"] || [name containsString:@"selected"] || [name containsString:@"liked"]);
+    BOOL liked = heart && (selected || [name containsString:@"after"] ||
+        ([name containsString:@"selected"] && ![name containsString:@"unselected"]) ||
+        ([name containsString:@"liked"] && ![name containsString:@"unliked"]));
     NSNumber *oldLiked = objc_getAssociatedObject(carrier, &kGlyphLikedKey);
     if (created || !oldLiked || oldLiked.boolValue != liked) {
         effect.effect = TTGGlyphEffect(liked);
