@@ -96,8 +96,8 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         TTJokerPet *pet=[TTJokerPet shared];[pet attach:vc];[pet refresh];
         Check(pet.frames.count==4,@"four original cached sprite frames");
         Check(![UIImagePNGRepresentation(pet.frames[0]) isEqual:UIImagePNGRepresentation(pet.frames[1])],@"animated sprite frames differ");
-        pet.sprite.center=CGPointMake(100,120);pet.velocity=CGPointMake(500,0);
-        for(int i=0;i<180;i++){[pet advance:.033];}
+        pet.sprite.center=CGPointMake(100,120);[pet begin:@"fall" duration:10];pet.randomSeed=123;pet.velocity=CGPointMake(0,0);
+        for(int i=0;i<34;i++){[pet advance:.033];}
         Check(fabs(pet.sprite.center.y-[pet floorY])<.1,@"gravity floor clamp");
         Check(pet.sprite.center.x>=pet.sprite.bounds.size.width/2,@"edge clamp");
         pet.covered=YES;[pet refresh];Check((!pet.link || pet.link.paused) && pet.sprite.hidden,@"pause when settings cover mascot");
@@ -131,13 +131,15 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         Check(TTPackLoad(imported).count==46,@"all 46 PNG frames persisted");
         [D() setObject:imported forKey:@"tt.pet.pack"];[pet refresh];
         Check(pet.packFrames.count==46,@"active imported pack");
+        Check([pet.packActions[@"walk"][0][0] integerValue]==3,@"custom actions frame indices persisted");
+        Check([pet.packActions[@"walk"][0][3] integerValue]==112,@"custom pose anchor persisted");
         for(NSString *state in @[@"stand",@"walk",@"fall",@"drag",@"sit",@"climb"]) {
             [pet updateSprite:state];Check(pet.sprite.image!=nil && [pet.state isEqual:state],@"all six sprite states");
         }
         [D() setBool:YES forKey:@"tt.pet.enabled"];[pet refresh];pet.sprite.center=CGPointMake(90,[pet floorY]);
         [pet updateSprite:@"walk"];ShotView(self.window,@"pack-walk");
         [pet updateSprite:@"drag"];ShotView(self.window,@"pack-drag");
-        for(NSString *bad in @[@"traversal.zip",@"symlink.zip",@"duplicate.zip",@"badpng.zip",@"missing.zip",@"oversize.zip"]){
+        for(NSString *bad in @[@"traversal.zip",@"symlink.zip",@"duplicate.zip",@"badpng.zip",@"missing.zip",@"oversize.zip",@"xxe.zip",@"entity.zip",@"deepxml.zip",@"badxml.zip",@"largexml.zip"]){
             packError=nil;
             Check(TTPackImport([NSURL fileURLWithPath:[fixtures stringByAppendingPathComponent:bad]],&packError)==nil && packError!=nil,@"unsafe ZIP rejected");
         }
@@ -145,6 +147,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         Check(folder && TTPackLoad(folder).count==1,@"minimal folder pack imported");
         [D() setObject:folder forKey:@"tt.pet.pack"];[pet refresh];[pet updateSprite:@"climb"];
         Check(pet.sprite.image==pet.packFrames[@1],@"missing pose falls back to stand");
+        #include "mascot_smoke.inc"
         [D() setObject:@"" forKey:@"tt.pet.pack"];[pet refresh];Check(!pet.packFrames,@"original default restored");
         [D() setBool:NO forKey:@"tt.pet.enabled"];[pet refresh];
         // Persisted artwork, cache reload, target isolation and reset.

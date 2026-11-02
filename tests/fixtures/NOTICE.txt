@@ -1,0 +1,4 @@
+Goku pack supplied for device reproduction by Alaa.
+Character art attributed by source to aki1iniriki.
+https://shimejis.xyz/directory/shimeji/dragon-ball-z-goku-by-aki-1-iniriki
+Test fixture only; not included in Joker release packages.

@@ -1,4 +1,4 @@
-// Original pack loader. Only bounded PNG pixels are imported. XML is never executed.
+// Original pack loader. Only bounded PNG pixels and sanitized pose indices are imported. XML is never executed.
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <ImageIO/ImageIO.h>
 #include "vendor/ZipArchive/minizip/compat/unzip.h"
@@ -22,8 +22,9 @@ static NSInteger TTPackFrameNumber(NSString *name) {
     if(![leaf hasPrefix:@"shime"] || ![leaf hasSuffix:@".png"])return 0;
     NSString *digits=[leaf substringWithRange:NSMakeRange(5,leaf.length-9)];
     NSInteger n=digits.integerValue;
-    return n>=1 && n<=46 && [digits isEqualToString:[@(n) stringValue]]?n:0;
+    return n>=1 && n<=256 && [digits isEqualToString:[@(n) stringValue]]?n:0;
 }
+#include "MascotXML.inc"
 static NSData *TTPackCleanPNG(NSData *data) {
     if(data.length>4*1024*1024 || data.length<8)return nil;
     const unsigned char *bytes=data.bytes;
@@ -62,6 +63,7 @@ static NSString *TTPackImport(NSURL *url,NSError **error) {
             if(size>4*1024*1024 || total>64*1024*1024){ok=NO;break;}
             NSInteger frame=TTPackFrameNumber(item.lastPathComponent);
             if(frame && !TTPackSaveFrame([NSData dataWithContentsOfURL:item options:NSDataReadingMappedIfSafe error:nil],frame,stage)){ok=NO;break;}
+            if(TTPackIsActions(item.path) && !TTPackSaveActions([NSData dataWithContentsOfURL:item options:NSDataReadingMappedIfSafe error:nil],stage)){ok=NO;break;}
         }
         if(enumerationFailed)ok=NO;
     } else {
@@ -77,14 +79,14 @@ static NSString *TTPackImport(NSURL *url,NSError **error) {
             if(!TTPackSafePath(path) || ((info.external_fa>>16)&0170000)==0120000 || (info.flag&1) ||
                info.uncompressed_size>4*1024*1024 || total>64*1024*1024){ok=NO;break;}
             NSInteger frame=TTPackFrameNumber(path);
-            if(frame) {
+            if(frame || TTPackIsActions(path)) {
                 if(unzOpenCurrentFile(zip)!=UNZ_OK){ok=NO;break;}
                 NSMutableData *data=[NSMutableData new];unsigned char buffer[16384];int n=0;
                 while((n=unzReadCurrentFile(zip,buffer,sizeof(buffer)))>0) {
                     if(data.length+(NSUInteger)n>4*1024*1024){ok=NO;break;}
                     [data appendBytes:buffer length:(NSUInteger)n];
                 }
-                if(n<0 || unzCloseCurrentFile(zip)!=UNZ_OK || !ok || !TTPackSaveFrame(data,frame,stage)){ok=NO;break;}
+                if(n<0 || unzCloseCurrentFile(zip)!=UNZ_OK || !ok || !(frame?TTPackSaveFrame(data,frame,stage):TTPackSaveActions(data,stage))){ok=NO;break;}
             }
             rc=unzGoToNextFile(zip);
         }
@@ -107,7 +109,7 @@ static NSString *TTPackImport(NSURL *url,NSError **error) {
 static NSDictionary<NSNumber *,UIImage *> *TTPackLoad(NSString *pack) {
     if(!pack.length || ![TTPackIDs() containsObject:pack])return nil;
     NSMutableDictionary *frames=[NSMutableDictionary new];
-    for(NSInteger n=1;n<=46;n++){
+    for(NSInteger n=1;n<=256;n++){
         UIImage *im=[UIImage imageWithContentsOfFile:[[TTPackRoot() stringByAppendingPathComponent:pack] stringByAppendingPathComponent:[NSString stringWithFormat:@"shime%ld.png",(long)n]]];
         if(im)frames[@(n)]=im;
     }
