@@ -475,7 +475,7 @@ static void TTGUnclip(UIView *v) {
 %hook TTKMediaBusinessCoverImageView
 - (void)setFrame:(CGRect)f { %orig(TTGStretch((UIView *)self, f)); }
 %end
-// ---- 1.14: apply action glass on first display and after reuse/state updates ----
+// ---- 1.15: apply action glass on first display and after reuse/state updates ----
 static char kActionPendingKey;
 static const NSInteger kActionGlassTag = 0x61A57;
 
@@ -494,7 +494,7 @@ static void TTGActionDebug(UIView *button) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         written = YES;
         NSString *directory = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-        NSString *text = [@"Alaa_TikTok 1.14 matched action buttons\n" stringByAppendingString:
+        NSString *text = [@"Alaa_TikTok 1.15 matched action buttons\n" stringByAppendingString:
             [[[lines allObjects] sortedArrayUsingSelector:@selector(compare:)] componentsJoinedByString:@"\n"]];
         if (directory) [text writeToFile:[directory stringByAppendingPathComponent:@"alaa_tiktok_debug.txt"]
             atomically:YES encoding:NSUTF8StringEncoding error:nil];
@@ -565,6 +565,8 @@ static char kGlyphStateKey, kGlyphBusyKey;
 @property(nonatomic) CGSize sourceSize;
 @property(nonatomic) UIViewContentMode sourceMode;
 @property(nonatomic) BOOL liked;
+@property(nonatomic) CGFloat sourceScale;
+@property(nonatomic, strong) CALayer *silhouetteClip;
 @property(nonatomic, strong) UIVisualEffectView *glass;
 @property(nonatomic, strong) UIImageView *glassMask;
 @property(nonatomic, strong) UIImageView *body;
@@ -585,32 +587,72 @@ static UIVisualEffect *TTGGlyphEffect(BOOL liked) {
     return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];
 }
 
-// Mask-only drawing, cached per image/size/mode. No snapshots of video, no private
-// rendering APIs. Supersampled alpha dilation creates a real silhouette rim,
-// including the comment tail and bookmark notch, instead of a rectangular border.
-static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewContentMode mode) {
-    if (!image || size.width <= 0 || size.height <= 0) return nil;
-    CGSize canvas = CGSizeMake(size.width + 4, size.height + 4);
-    UIImageView *template = [[UIImageView alloc] initWithFrame:(CGRect){CGPointZero, size}];
-    template.image = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-    template.tintColor = UIColor.whiteColor;
-    template.contentMode = mode;
-    template.clipsToBounds = YES;
-    UIGraphicsBeginImageContextWithOptions(canvas, NO, 0);
-    CGContextRef context = UIGraphicsGetCurrentContext();
-    CGContextTranslateCTM(context, 2, 2);
-    [template.layer renderInContext:context];
-    UIImage *alpha = UIGraphicsGetImageFromCurrentImageContext();
+// Rasterize the image itself, never UIImageView.layer (which may include shadows,
+// animations or cached effects). All masks share exact screen-pixel dimensions.
+static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewContentMode mode, CGFloat scale) {
+    if (!image || size.width <= 0 || size.height <= 0 || scale <= 0) return nil;
+    size = CGSizeMake(round(size.width * scale) / scale, round(size.height * scale) / scale);
+    CGSize natural = image.size;
+    if (natural.width <= 0 || natural.height <= 0) return nil;
+    CGRect draw = (CGRect){CGPointZero, size};
+    if (mode == UIViewContentModeScaleAspectFit || mode == UIViewContentModeScaleAspectFill) {
+        CGFloat x = size.width / natural.width, y = size.height / natural.height;
+        CGFloat ratio = mode == UIViewContentModeScaleAspectFit ? MIN(x, y) : MAX(x, y);
+        draw.size = CGSizeMake(natural.width * ratio, natural.height * ratio);
+        draw.origin = CGPointMake((size.width - draw.size.width) / 2, (size.height - draw.size.height) / 2);
+    } else if (mode != UIViewContentModeScaleToFill && mode != UIViewContentModeRedraw) {
+        draw.size = natural;
+        draw.origin = CGPointMake((size.width - natural.width) / 2, (size.height - natural.height) / 2);
+        if (mode == UIViewContentModeTop || mode == UIViewContentModeTopLeft || mode == UIViewContentModeTopRight) draw.origin.y = 0;
+        if (mode == UIViewContentModeBottom || mode == UIViewContentModeBottomLeft || mode == UIViewContentModeBottomRight) draw.origin.y = size.height - natural.height;
+        if (mode == UIViewContentModeLeft || mode == UIViewContentModeTopLeft || mode == UIViewContentModeBottomLeft) draw.origin.x = 0;
+        if (mode == UIViewContentModeRight || mode == UIViewContentModeTopRight || mode == UIViewContentModeBottomRight) draw.origin.x = size.width - natural.width;
+    }
+    UIGraphicsBeginImageContextWithOptions(size, NO, scale);
+    [[image imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] drawInRect:draw];
+    UIImage *raw = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    UIGraphicsBeginImageContextWithOptions(canvas, NO, 0);
+    if (!raw.CGImage) return nil;
+    size_t width = CGImageGetWidth(raw.CGImage), height = CGImageGetHeight(raw.CGImage);
+    if (!width || !height || width > 512 || height > 512) return nil;
+    NSMutableData *pixels = [NSMutableData dataWithLength:width * height * 4];
+    CGColorSpaceRef color = CGColorSpaceCreateDeviceRGB();
+    CGContextRef bitmap = CGBitmapContextCreate(pixels.mutableBytes, width, height, 8, width * 4, color,
+        kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+    CGColorSpaceRelease(color);
+    if (!bitmap) return nil;
+    CGContextDrawImage(bitmap, CGRectMake(0, 0, width, height), raw.CGImage);
+    uint8_t *bytes = pixels.mutableBytes;
+    // Discard diffuse shadow alpha, retain a one-screen-pixel antialiased edge.
+    // RGB is irrelevant: the result is a clean white silhouette, not a grey icon.
+    for (size_t i = 0; i < width * height; i++) {
+        CGFloat a = bytes[i * 4 + 3] / 255.0;
+        a = MAX(0, MIN(1, (a - 0.22) / 0.40));
+        uint8_t value = (uint8_t)round(a * 255);
+        bytes[i * 4] = value; bytes[i * 4 + 1] = value;
+        bytes[i * 4 + 2] = value; bytes[i * 4 + 3] = value;
+    }
+    CGImageRef clean = CGBitmapContextCreateImage(bitmap);
+    CGContextRelease(bitmap);
+    if (!clean) return nil;
+    UIImage *alpha = [UIImage imageWithCGImage:clean scale:scale orientation:UIImageOrientationUp];
+    CGImageRelease(clean);
+    // Inner bevel only. Nothing protrudes outside the glyph silhouette.
+    CGFloat step = round(0.85 * scale) / scale;
+    UIGraphicsBeginImageContextWithOptions(size, NO, scale);
+    [alpha drawAtPoint:CGPointZero];
     for (NSInteger x = -1; x <= 1; x++) for (NSInteger y = -1; y <= 1; y++)
-        [alpha drawAtPoint:CGPointMake(x * 0.8, y * 0.8)];
-    [alpha drawAtPoint:CGPointZero blendMode:kCGBlendModeDestinationOut alpha:1];
+        if (x || y) [alpha drawAtPoint:CGPointMake(x * step, y * step) blendMode:kCGBlendModeDestinationIn alpha:1];
+    UIImage *eroded = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    UIGraphicsBeginImageContextWithOptions(size, NO, scale);
+    [alpha drawAtPoint:CGPointZero];
+    [eroded drawAtPoint:CGPointZero blendMode:kCGBlendModeDestinationOut alpha:1];
     UIImage *rim = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    UIGraphicsBeginImageContextWithOptions(canvas, NO, 0);
+    UIGraphicsBeginImageContextWithOptions(size, NO, scale);
     [alpha drawAtPoint:CGPointZero];
-    [alpha drawAtPoint:CGPointMake(-0.9, -0.9) blendMode:kCGBlendModeDestinationOut alpha:1];
+    [alpha drawAtPoint:CGPointMake(-step, -step) blendMode:kCGBlendModeDestinationOut alpha:1];
     UIImage *inner = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     return alpha && rim && inner ? @[alpha, rim, inner] : nil;
@@ -625,30 +667,35 @@ static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewCont
     self.isAccessibilityElement = NO;
     self.accessibilityElementsHidden = YES;
     self.backgroundColor = UIColor.clearColor;
+    self.clipsToBounds = YES;
+    _silhouetteClip = [CALayer layer];
+    self.layer.mask = _silhouetteClip;
     _glass = [[UIVisualEffectView alloc] initWithEffect:TTGGlyphEffect(NO)];
     _glass.userInteractionEnabled = NO;
+    _glass.clipsToBounds = YES;
     _glassMask = [UIImageView new];
     _glassMask.tintColor = UIColor.whiteColor;
     _glass.maskView = _glassMask;
     [self addSubview:_glass];
     _body = [UIImageView new];
-    _body.tintColor = [UIColor colorWithWhite:1 alpha:0.08];
+    _body.tintColor = [UIColor colorWithWhite:1 alpha:0.16];
     [self addSubview:_body];
     _innerShadow = [UIImageView new];
     _innerShadow.tintColor = [UIColor colorWithWhite:0 alpha:0.30];
     _innerShadow.layer.shadowColor = UIColor.blackColor.CGColor;
-    _innerShadow.layer.shadowOpacity = 0.18;
+    _innerShadow.layer.shadowOpacity = 0; // no shadow bleed beyond the exact alpha mask
+    _innerShadow.clipsToBounds = YES;
     _innerShadow.layer.shadowRadius = 0.6;
     _innerShadow.layer.shadowOffset = CGSizeMake(0.35, 0.35);
     [self addSubview:_innerShadow];
     _rim = [CAGradientLayer layer];
     _rim.startPoint = CGPointMake(0, 0);
     _rim.endPoint = CGPointMake(1, 1);
-    _rim.colors = @[(id)[UIColor colorWithWhite:1 alpha:0.92].CGColor,
-        (id)[UIColor colorWithWhite:1 alpha:0.80].CGColor,
-        (id)[UIColor colorWithRed:0.75 green:0.94 blue:1 alpha:0.42].CGColor,
-        (id)[UIColor colorWithWhite:1 alpha:0.28].CGColor,
-        (id)[UIColor colorWithWhite:1 alpha:0.72].CGColor];
+    _rim.colors = @[(id)[UIColor colorWithWhite:1 alpha:1.0].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.95].CGColor,
+        (id)[UIColor colorWithRed:0.75 green:0.94 blue:1 alpha:0.88].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.60].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.88].CGColor];
     _rim.locations = @[@0, @0.24, @0.50, @0.74, @1];
     _rimMask = [CALayer layer];
     _rimMask.contentsScale = UIScreen.mainScreen.scale;
@@ -718,12 +765,20 @@ static void TTGSyncActionGlass(UIView *button) {
             glyph.sourceIcon = icon;
             glyph.savedAlpha = icon.alpha;
         }
-        BOOL changed = created || glyph.sourceImage != image || !CGSizeEqualToSize(glyph.sourceSize, rect.size) ||
+        CGFloat scale = button.window.screen.scale ?: UIScreen.mainScreen.scale;
+        // Snap once, then use identical point/pixel dimensions for every layer.
+        rect = CGRectMake(round(rect.origin.x * scale) / scale, round(rect.origin.y * scale) / scale,
+            round(rect.size.width * scale) / scale, round(rect.size.height * scale) / scale);
+        BOOL changed = glyph.sourceScale != scale || created || glyph.sourceImage != image || !CGSizeEqualToSize(glyph.sourceSize, rect.size) ||
             glyph.sourceMode != icon.contentMode;
         if (changed) {
-            NSArray<UIImage *> *masks = TTGGlyphMasks(image, rect.size, icon.contentMode);
+            NSArray<UIImage *> *masks = TTGGlyphMasks(image, rect.size, icon.contentMode, scale);
             if (masks.count != 3) { TTGRestoreGlyph(button); return; }
             glyph.glassMask.image = masks[0];
+            glyph.silhouetteClip.contents = (id)masks[0].CGImage;
+            glyph.silhouetteClip.contentsScale = scale;
+            glyph.rimMask.contentsScale = scale;
+            glyph.sourceScale = scale;
             glyph.body.image = [masks[0] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
             glyph.rimMask.contents = (id)masks[1].CGImage;
             glyph.innerShadow.image = [masks[2] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
@@ -745,13 +800,15 @@ static void TTGSyncActionGlass(UIView *button) {
         if (created || glyph.liked != liked) {
             glyph.glass.effect = TTGGlyphEffect(liked);
             glyph.body.tintColor = liked ? [UIColor colorWithRed:1 green:0.08 blue:0.20 alpha:0.30] :
-                [UIColor colorWithWhite:1 alpha:0.08];
+                [UIColor colorWithWhite:1 alpha:0.16];
             glyph.liked = liked;
         }
         [CATransaction begin];
         [CATransaction setDisableActions:YES];
-        CGRect frame = CGRectInset(rect, -2, -2);
+        CGRect frame = rect;
         if (!CGRectEqualToRect(glyph.frame, frame)) glyph.frame = frame;
+        glyph.silhouetteClip.frame = glyph.bounds;
+        glyph.silhouetteClip.contentsGravity = kCAGravityResize;
         glyph.glass.frame = glyph.bounds;
         glyph.glassMask.frame = glyph.bounds;
         glyph.body.frame = glyph.bounds;
