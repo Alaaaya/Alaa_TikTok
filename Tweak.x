@@ -1346,19 +1346,8 @@ static void TT122Recover(void) {
 }
 @end
 static UIVisualEffect *TTJokerGlass(void) {
-    // Native Liquid Glass on supported iOS, real live backdrop blur elsewhere.
-    Class cls=NSClassFromString(@"UIGlassEffect");SEL sel=NSSelectorFromString(@"effectWithStyle:");
-    if(cls && [cls respondsToSelector:sel]) {
-        NSMethodSignature *sig=[cls methodSignatureForSelector:sel];
-        if(sig.numberOfArguments==3 && sig.methodReturnType[0]=='@' &&
-           !strcmp([sig getArgumentTypeAtIndex:2],@encode(NSInteger))) {
-            NSInvocation *call=[NSInvocation invocationWithMethodSignature:sig];call.target=cls;call.selector=sel;
-            NSInteger style=1;[call setArgument:&style atIndex:2];[call invoke];
-            __unsafe_unretained id effect=nil;[call getReturnValue:&effect];
-            if([effect isKindOfClass:UIVisualEffect.class])return effect;
-        }
-    }
-    return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialDark];
+    // Stable dense live backdrop blur; clear native glass was unreadable over video.
+    return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];
 }
 // A custom, real-material sheet; no action-sheet emoji or developer-copy action.
 @interface TTGSettingsController : UIViewController
@@ -1379,6 +1368,7 @@ static UIVisualEffect *TTJokerGlass(void) {
 @property(nonatomic,strong) CAGradientLayer *specular;
 @property(nonatomic,strong) CAShapeLayer *edgeMask;
 @property(nonatomic,strong) CAGradientLayer *sheen;
+@property(nonatomic,strong) UIView *panelShadow;
 @end
 @implementation TTGSettingsController
 - (UILabel *)label:(NSString *)text size:(CGFloat)size weight:(UIFontWeight)weight {
@@ -1436,10 +1426,10 @@ static UIVisualEffect *TTJokerGlass(void) {
     NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3"];
     UIButton *tile=[UIButton buttonWithType:UIButtonTypeCustom];tile.tag=index;
     tile.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
-    tile.backgroundColor=[UIColor colorWithWhite:1 alpha:.035];tile.layer.cornerRadius=18;
-    tile.layer.cornerCurve=kCACornerCurveContinuous;tile.layer.borderWidth=.8;
-    tile.layer.borderColor=[UIColor colorWithWhite:1 alpha:.22].CGColor;tile.clipsToBounds=YES;
-    UIView *glass=[UIView new];glass.backgroundColor=[UIColor colorWithWhite:1 alpha:.025];
+    tile.backgroundColor=[UIColor colorWithWhite:1 alpha:.10];tile.layer.cornerRadius=18;
+    tile.layer.cornerCurve=kCACornerCurveContinuous;tile.layer.borderWidth=1.0/UIScreen.mainScreen.scale;
+    tile.layer.borderColor=[UIColor colorWithWhite:1 alpha:.48].CGColor;tile.clipsToBounds=YES;
+    UIView *glass=[UIView new];glass.backgroundColor=[UIColor colorWithWhite:1 alpha:.045];
     glass.userInteractionEnabled=NO;glass.translatesAutoresizingMaskIntoConstraints=NO;[tile addSubview:glass];
     UIImageView *icon=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbols[index]]];
     icon.tintColor=[UIColor colorWithRed:.86 green:.91 blue:1 alpha:1];icon.contentMode=UIViewContentModeScaleAspectFit;
@@ -1531,7 +1521,7 @@ static UIVisualEffect *TTJokerGlass(void) {
     [self.stack addArrangedSubview:[self row:@"الفيديو تحت الشريط" symbol:@"rectangle.expand.vertical" key:kPrefUnder defaultValue:YES tag:2]];
     [self.stack addArrangedSubview:[self row:@"إخفاء أسماء الأزرار" symbol:@"textformat" key:kPrefLabels defaultValue:YES tag:3]];
     UILabel *styleLabel = [self label:@"نمط الشريط" size:13 weight:UIFontWeightSemibold];
-    styleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.68];
+    styleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.88];
     [self.stack addArrangedSubview:styleLabel];
     UISegmentedControl *styles = [[UISegmentedControl alloc] initWithItems:@[@"زجاج", @"داكن", @"فاتح"]];
     styles.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
@@ -1556,7 +1546,7 @@ static UIVisualEffect *TTJokerGlass(void) {
         if(category==4) {
 
     UILabel *note = [self label:@"الإطفاء الكامل بيتطبّق بعد ما تسكّر TikTok وترجع تفتحه." size:12 weight:UIFontWeightRegular];
-    note.textColor = [UIColor colorWithWhite:1 alpha:0.52];
+    note.textColor = [UIColor colorWithWhite:1 alpha:0.80];
     UIView *footer = [UIView new]; footer.backgroundColor = [UIColor colorWithWhite:0 alpha:0.15];
     footer.layer.cornerRadius = 14; note.translatesAutoresizingMaskIntoConstraints = NO;
     [footer addSubview:note];
@@ -1596,30 +1586,36 @@ static UIVisualEffect *TTJokerGlass(void) {
     self.shade = shade; shade.frame = self.view.bounds;
     shade.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:shade];
+    self.panelShadow=[UIView new];self.panelShadow.userInteractionEnabled=NO;
+    self.panelShadow.layer.shadowColor=UIColor.blackColor.CGColor;
+    self.panelShadow.layer.shadowOpacity=.45;self.panelShadow.layer.shadowRadius=22;
+    self.panelShadow.layer.shadowOffset=CGSizeMake(0,10);
+    [self.view addSubview:self.panelShadow];
     self.panel = [[UIVisualEffectView alloc] initWithEffect:TTJokerGlass()];
     self.panel.translatesAutoresizingMaskIntoConstraints = NO;
     self.panel.layer.cornerRadius = 32;
     self.panel.layer.cornerCurve = kCACornerCurveContinuous;
     self.panel.clipsToBounds = YES;
-    self.panel.layer.borderWidth = 0.8;
+    self.panel.layer.borderWidth = 0;
     self.panel.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.65].CGColor;
     self.panel.contentView.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
-    self.panel.contentView.backgroundColor = [UIColor colorWithWhite:0 alpha:0.12];
+    self.panel.contentView.backgroundColor = [UIColor colorWithWhite:0 alpha:0.40];
     self.panel.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     [self.view addSubview:self.panel];
     self.sheen=[CAGradientLayer layer];
-    self.sheen.colors=@[(id)[UIColor colorWithWhite:1 alpha:.12].CGColor,
+    self.sheen.colors=@[(id)[UIColor colorWithWhite:1 alpha:.20].CGColor,
                         (id)[UIColor colorWithWhite:1 alpha:0].CGColor,
                         (id)[UIColor colorWithRed:.5 green:.7 blue:1 alpha:.045].CGColor];
-    self.sheen.startPoint=CGPointZero;self.sheen.endPoint=CGPointMake(1,1);
+    self.sheen.locations=@[@0,@.22,@1];
+    self.sheen.startPoint=CGPointMake(.5,0);self.sheen.endPoint=CGPointMake(.5,1);
     [self.panel.contentView.layer insertSublayer:self.sheen atIndex:0];
     self.specular=[CAGradientLayer layer];
     self.specular.colors=@[(id)[UIColor colorWithWhite:1 alpha:.9].CGColor,
-                           (id)[UIColor colorWithWhite:1 alpha:.12].CGColor,
-                           (id)[UIColor colorWithWhite:1 alpha:.50].CGColor];
+                           (id)[UIColor colorWithWhite:1 alpha:.28].CGColor,
+                           (id)[UIColor colorWithWhite:1 alpha:.70].CGColor];
     self.specular.startPoint=CGPointZero;self.specular.endPoint=CGPointMake(1,1);
     self.edgeMask=[CAShapeLayer layer];self.edgeMask.fillColor=UIColor.clearColor.CGColor;
-    self.edgeMask.strokeColor=UIColor.whiteColor.CGColor;self.edgeMask.lineWidth=1.1;
+    self.edgeMask.strokeColor=UIColor.whiteColor.CGColor;self.edgeMask.lineWidth=1.0/UIScreen.mainScreen.scale;
     self.specular.mask=self.edgeMask;[self.panel.layer addSublayer:self.specular];
     UIScrollView *scroll = [UIScrollView new]; scroll.translatesAutoresizingMaskIntoConstraints = NO;
     self.pageScroll=scroll;
@@ -1642,10 +1638,10 @@ static UIVisualEffect *TTJokerGlass(void) {
     self.pageTitle=title;
     title.textAlignment = NSTextAlignmentLeft;title.numberOfLines=1;title.adjustsFontSizeToFitWidth=YES;
     UILabel *subtitle = [self label:@"إعدادات الزجاج" size:13 weight:UIFontWeightMedium];
-    subtitle.textAlignment = NSTextAlignmentLeft; subtitle.textColor = [UIColor colorWithWhite:1 alpha:0.64];
+    subtitle.textAlignment = NSTextAlignmentLeft; subtitle.textColor = [UIColor colorWithWhite:1 alpha:0.86];
     UIButton *close = [UIButton buttonWithType:UIButtonTypeSystem];
     [close setImage:[UIImage systemImageNamed:@"xmark.circle.fill"] forState:UIControlStateNormal];
-    close.tintColor = [UIColor colorWithWhite:1 alpha:0.75]; close.accessibilityLabel = @"إغلاق";
+    close.tintColor = [UIColor colorWithWhite:1 alpha:0.92]; close.accessibilityLabel = @"إغلاق";
     [close addTarget:self action:@selector(close) forControlEvents:UIControlEventTouchUpInside];
     UIButton *back=[UIButton buttonWithType:UIButtonTypeSystem];self.backButton=back;
     [back setImage:[UIImage systemImageNamed:@"chevron.left"] forState:UIControlStateNormal];
@@ -1706,7 +1702,10 @@ static UIVisualEffect *TTJokerGlass(void) {
     ((TTJokerHeader *)self.pageHeader).home=self.category==-1;[self.pageHeader setNeedsLayout];[self.pageHeader layoutIfNeeded];
     self.pageTitle.textAlignment=NSTextAlignmentLeft;self.subtitle.textAlignment=NSTextAlignmentLeft;
     self.sheen.frame=self.panel.bounds;self.specular.frame=self.panel.bounds;self.edgeMask.frame=self.panel.bounds;
-    self.edgeMask.path=[UIBezierPath bezierPathWithRoundedRect:CGRectInset(self.panel.bounds,.65,.65) cornerRadius:31.5].CGPath;
+    CGFloat inset=self.edgeMask.lineWidth/2;
+    self.edgeMask.path=[UIBezierPath bezierPathWithRoundedRect:CGRectInset(self.panel.bounds,inset,inset) cornerRadius:32-inset].CGPath;
+    self.panelShadow.frame=self.panel.frame;
+    self.panelShadow.layer.shadowPath=[UIBezierPath bezierPathWithRoundedRect:self.panelShadow.bounds cornerRadius:32].CGPath;
     CGFloat width = MAX(200, self.panel.bounds.size.width - 24);
     CGFloat natural = [self.stack systemLayoutSizeFittingSize:CGSizeMake(width, UILayoutFittingCompressedSize.height)
         withHorizontalFittingPriority:UILayoutPriorityRequired verticalFittingPriority:UILayoutPriorityFittingSizeLevel].height + 94;

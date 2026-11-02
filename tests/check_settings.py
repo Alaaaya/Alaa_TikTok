@@ -36,7 +36,16 @@ assert 'TTToolRefresh();' in c
 print('PASS five LTR category tiles, scoped toggles, back/slide/reduced-motion, Joker display-only rename, safe persisted custom tool art')
 
 assert 'multiplier:.70' in s
-assert 'UIGlassEffect' in s and 'SystemThickMaterialDark' not in s
+assert 'SystemThinMaterialDark' in s and 'SystemThickMaterialDark' not in s
 assert 'self.closeView.frame=CGRectMake(hw-32' in s
 assert 'self.subviews[i].frame=CGRectMake((i%3)' in s
 assert "TTJokerHeader new" in s
+
+settings=s[s.index('// Physical LTR containers'):]
+assert 'SystemUltraThinMaterialDark' not in settings
+assert 'colorWithWhite:0 alpha:0.40' in settings
+assert 'self.panelShadow.layer.shadowPath=' in settings
+assert 'self.edgeMask.lineWidth=1.0/UIScreen.mainScreen.scale' in settings
+assert 'tile.backgroundColor=[UIColor colorWithWhite:1 alpha:.10]' in settings
+assert 'tile.layer.borderColor=[UIColor colorWithWhite:1 alpha:.48]' in settings
+print('PASS 1.34 dense blur, 40% dark tint, pixel edge, external unclipped shadow, lighter edged tiles')
