@@ -300,7 +300,7 @@ static void TTGExtend(UIView *v, CGFloat barTop, CGFloat bottom, UIView *skip, i
             sel = [[UIVisualEffectView alloc] initWithEffect:ge];
         } else {
             sel = [UIView new];
-            sel.backgroundColor = [UIColor colorWithWhite:1 alpha:0.065];
+            sel.backgroundColor = [UIColor colorWithWhite:1 alpha:0.16];
         }
         sel.tag = kSelTag;
         sel.userInteractionEnabled = NO;
@@ -463,6 +463,8 @@ static void TTGActionDebug(UIView *button) { TTGDiagnostic(button, @"glass attac
 static id TTGActionObject(id object, NSString *name) {
     SEL selector = NSSelectorFromString(name);
     if (!object || ![object respondsToSelector:selector]) return nil;
+    NSMethodSignature *signature = [object methodSignatureForSelector:selector];
+    if (!signature || signature.numberOfArguments != 2 || signature.methodReturnType[0] != '@') return nil;
     @try { return ((id (*)(id, SEL))objc_msgSend)(object, selector); }
     @catch (__unused NSException *exception) { return nil; }
 }
@@ -500,7 +502,7 @@ static BOOL TTGActionInFeed(UIView *button) {
         button.bounds.size.height < 24 || button.bounds.size.height > 150) return NO;
     CGRect rect = [button convertRect:button.bounds toView:window];
     // Never decorate comments-panel/toolbars/profile actions.
-    if ((CGRectGetMidX(rect) > CGRectGetWidth(window.bounds) * 0.30 && CGRectGetMidX(rect) < CGRectGetWidth(window.bounds) * 0.70) ||
+    if (CGRectGetMidX(rect) < CGRectGetWidth(window.bounds) * 0.65 ||
         CGRectGetMidY(rect) < 80 || CGRectGetMidY(rect) > CGRectGetHeight(window.bounds) - 85) return NO;
     BOOL feed = NO;
     for (UIView *parent = button.superview; parent; parent = parent.superview) {
@@ -581,13 +583,16 @@ static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewCont
     uint8_t *bytes = pixels.mutableBytes;
     // Discard diffuse shadow alpha, retain a one-screen-pixel antialiased edge.
     // RGB is irrelevant: the result is a clean white silhouette, not a grey icon.
+    size_t filledPixels = 0;
     for (size_t i = 0; i < width * height; i++) {
         CGFloat a = bytes[i * 4 + 3] / 255.0;
         a = MAX(0, MIN(1, (a - 0.22) / 0.40));
         uint8_t value = (uint8_t)round(a * 255);
+        if (value > 96) filledPixels++;
         bytes[i * 4] = value; bytes[i * 4 + 1] = value;
         bytes[i * 4 + 2] = value; bytes[i * 4 + 3] = value;
     }
+    if (filledPixels < 12) { CGContextRelease(bitmap); return nil; }
     CGImageRef clean = CGBitmapContextCreateImage(bitmap);
     CGContextRelease(bitmap);
     if (!clean) return nil;
@@ -673,7 +678,8 @@ static void TTGRestoreGlyph(UIView *button) {
 
 static UIImageView *TTGFindImage(UIView *view, NSUInteger depth) {
     if (depth > 4 || view.tag == kActionGlassTag || [view isKindOfClass:UIVisualEffectView.class]) return nil;
-    if ([view isKindOfClass:UIImageView.class] && view.bounds.size.width >= 8 && view.bounds.size.width <= 70)
+    if ([view isKindOfClass:UIImageView.class] && view.bounds.size.width >= 8 && view.bounds.size.width <= 70 &&
+        (((UIImageView *)view).image || ((UIImageView *)view).highlightedImage || ((UIImageView *)view).animationImages.count))
         return (UIImageView *)view;
     for (UIView *child in view.subviews) {
         UIImageView *found = TTGFindImage(child, depth + 1);
@@ -715,8 +721,7 @@ static UIImage *TTGSnapshotIcon(UIView *icon) {
         UIGraphicsBeginImageContextWithOptions(icon.bounds.size, NO, icon.window.screen.scale ?: UIScreen.mainScreen.scale);
         CGContextRef ctx = UIGraphicsGetCurrentContext();
         CGContextTranslateCTM(ctx, -icon.bounds.origin.x, -icon.bounds.origin.y);
-        CALayer *presentation = icon.layer.presentationLayer;
-        [(presentation ?: icon.layer) renderInContext:ctx];
+        [icon.layer renderInContext:ctx];
         image = UIGraphicsGetImageFromCurrentImageContext();
         UIGraphicsEndImageContext();
     } @catch (__unused NSException *e) {
@@ -791,7 +796,7 @@ static void TTGSyncActionGlass(UIView *button) {
             glyph.sourceMode != mode;
         if (changed) {
             NSArray<UIImage *> *masks = TTGGlyphMasks(image, rect.size, mode, scale);
-            if (masks.count != 3) { TTGDiagnostic(button, @"mask unavailable; retry visible"); if (!glyph) TTGRestoreGlyph(button); return; }
+            if (masks.count != 3) { TTGDiagnostic(button, @"mask unavailable; retry visible"); if (created) TTGRestoreGlyph(button); return; }
             glyph.glassMask.image = masks[0];
             glyph.silhouetteClip.contents = (id)masks[0].CGImage;
             glyph.silhouetteClip.contentsScale = scale;
@@ -932,7 +937,7 @@ static void TTGPrepareFeedActions(UIView *root) {
         UIView *view = queue[i];
         if (view.tag == kActionGlassTag || [view isKindOfClass:UIVisualEffectView.class] || !TTGVisible(view)) continue;
         if (TTGActionInFeed(view) && TTGActionIdentity(view)) {
-            TTGQueueActionGlass(view);
+            TTGSyncActionGlass(view);
         } else if (queue.count < 650) [queue addObjectsFromArray:view.subviews];
     }
 }
@@ -962,6 +967,7 @@ static void TTGPrepareFeedActions(UIView *root) {
     TTGPrepareFeedActions(root);
 }
 - (void)tick {
+    if (!self.roots.allObjects.count) { [self.timer invalidate]; self.timer = nil; return; }
     if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive || !TTGEnabled()) return;
     UIView *best = nil;
     CGFloat bestArea = 0;
@@ -1129,12 +1135,14 @@ static BOOL TTGFeedRoot(UIView *view) {
     UILayoutGuide *safe = self.view.safeAreaLayoutGuide;
     NSLayoutConstraint *height = [self.panel.heightAnchor constraintEqualToConstant:550];
     height.priority = UILayoutPriorityDefaultHigh;
+    NSLayoutConstraint *width = [self.panel.widthAnchor constraintEqualToAnchor:safe.widthAnchor constant:-28];
+    width.priority = UILayoutPriorityDefaultHigh;
     [NSLayoutConstraint activateConstraints:@[
         [self.panel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
         [self.panel.widthAnchor constraintLessThanOrEqualToConstant:430],
         [self.panel.leadingAnchor constraintGreaterThanOrEqualToAnchor:safe.leadingAnchor constant:14],
         [self.panel.trailingAnchor constraintLessThanOrEqualToAnchor:safe.trailingAnchor constant:-14],
-        [self.panel.widthAnchor constraintEqualToAnchor:safe.widthAnchor constant:-28],
+        width,
         [self.panel.bottomAnchor constraintEqualToAnchor:safe.bottomAnchor constant:-10],
         [self.panel.topAnchor constraintGreaterThanOrEqualToAnchor:safe.topAnchor constant:12],
         height,
@@ -1148,10 +1156,7 @@ static BOOL TTGFeedRoot(UIView *view) {
         [self.stack.bottomAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.bottomAnchor constant:-22],
         [self.stack.widthAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.widthAnchor constant:-40]
     ]];
-    // Narrow phone width fills; on iPad the optional equality yields to max width.
-    for (NSLayoutConstraint *c in self.view.constraints)
-        if (c.firstItem == self.panel && c.firstAttribute == NSLayoutAttributeWidth && c.secondItem == safe)
-            c.priority = UILayoutPriorityDefaultHigh;
+
 }
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
