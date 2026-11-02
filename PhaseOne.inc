@@ -44,6 +44,26 @@ static NSString *TT122Text(id model, NSArray *keys) {
     }
     return nil;
 }
+static double TT122Number(id object, NSString *key) {
+    SEL selector = NSSelectorFromString(key);
+    if (![object respondsToSelector:selector]) return 0;
+    NSMethodSignature *sig = [object methodSignatureForSelector:selector];
+    if (sig.numberOfArguments != 2) return 0;
+    const char *type = sig.methodReturnType;
+    @try {
+        if (type[0] == '@') {
+            id value = TTGActionObject(object,key); return [value isKindOfClass:NSNumber.class] ? [value doubleValue] : 0;
+        }
+        NSInvocation *call = [NSInvocation invocationWithMethodSignature:sig]; call.target=object;call.selector=selector;[call invoke];
+        if (!strcmp(type,@encode(double))) { double v=0;[call getReturnValue:&v];return v; }
+        if (!strcmp(type,@encode(float))) { float v=0;[call getReturnValue:&v];return v; }
+        if (!strcmp(type,@encode(long long))) { long long v=0;[call getReturnValue:&v];return v; }
+        if (!strcmp(type,@encode(unsigned long long))) { unsigned long long v=0;[call getReturnValue:&v];return v; }
+        if (!strcmp(type,@encode(int))) { int v=0;[call getReturnValue:&v];return v; }
+        if (!strcmp(type,@encode(unsigned int))) { unsigned int v=0;[call getReturnValue:&v];return v; }
+    } @catch (__unused NSException *e) {}
+    return 0;
+}
 static NSURL *TT122VideoURL(id model, NSInteger quality) {
     id video = TTGActionObject(model, @"video");
     if (quality == 0) {
@@ -58,10 +78,8 @@ static NSURL *TT122VideoURL(id model, NSInteger quality) {
         for (id variant in variants) {
             NSURL *u = TT122URL(TTGActionObject(variant, @"playURL"), 0);
             if (!u) u = TT122URL(TTGActionObject(variant, @"playAddr"), 0);
-            id rate = TTGActionObject(variant, @"bitRate");
-            double score = [rate isKindOfClass:NSNumber.class] ? [rate doubleValue] : 0;
-            id width = TTGActionObject(variant, @"width"), height = TTGActionObject(variant, @"height");
-            double pixels = ([width isKindOfClass:NSNumber.class] && [height isKindOfClass:NSNumber.class]) ? [width doubleValue]*[height doubleValue] : 0;
+            double score = TT122Number(variant, @"bitRate");
+            double pixels = TT122Number(variant, @"width") * TT122Number(variant, @"height");
             // HD prefers <=1080p where metadata exists; highest has no cap.
             if (quality == 1 && pixels > 1920.0*1080.0) continue;
             if (u && score >= bestScore) { best = u; bestScore = score; }
@@ -78,6 +96,7 @@ static NSURL *TT122VideoURL(id model, NSInteger quality) {
 @end
 @interface TT122Hub : NSObject <NSURLSessionDownloadDelegate>
 @property(nonatomic, weak) UIViewController *feed;
+@property(nonatomic, weak) id trackedModel;
 @property(nonatomic, strong) TT122Passthrough *overlay;
 @property(nonatomic, strong) UIButton *downloadButton;
 @property(nonatomic, strong) UIButton *eyeButton;
@@ -138,7 +157,8 @@ static UIView *TT122Material(CGRect frame) {
     CGRect r = [controller.view convertRect:controller.view.bounds toView:controller.view.window];
     CGRect visible = CGRectIntersection(r, controller.view.window.bounds);
     if (CGRectIsNull(visible) || visible.size.height < controller.view.window.bounds.size.height*.5) return;
-    if (self.feed != controller) { [self restoreUI]; [self.menu removeFromSuperview]; self.menu = nil; self.feed = controller; }
+    id currentModel = TTGActionObject(controller,@"model");
+    if (self.feed != controller || self.trackedModel != currentModel) { [self restoreUI]; [self.menu removeFromSuperview]; self.menu = nil; self.menuModel = nil; self.feed = controller; self.trackedModel=currentModel; }
     [self refresh];
     if (!self.timer) {
         __weak typeof(self) weak = self;
