@@ -688,6 +688,23 @@ static UIImageView *TTGFindImage(UIView *view, NSUInteger depth) {
     return nil;
 }
 
+static UIImage *TTGSymbolForAction(UIView *button) {
+    NSMutableString *identity = [NSMutableString stringWithString:NSStringFromClass(button.class)];
+    for (NSString *key in @[@"imageNameString", @"accessibilityIdentifier", @"accessibilityLabel"]) {
+        id value = TTGActionObject(button, key);
+        if ([value isKindOfClass:NSString.class]) [identity appendFormat:@" %@", value];
+    }
+    NSString *name = [identity stringByFoldingWithOptions:NSDiacriticInsensitiveSearch locale:nil].lowercaseString;
+    NSArray *sets = @[
+        @[@"bubble.right.fill", @"comment", @"kommentar", @"تعليق"],
+        @[@"bookmark.fill", @"collect", @"favorite", @"favourite", @"bookmark", @"save", @"speichern", @"favoriten", @"مفضلة", @"حفظ"],
+        @[@"arrowshape.turn.up.right.fill", @"share", @"forward", @"teilen", @"مشاركة"],
+        @[@"heart.fill", @"like", @"digg", @"heart", @"gefallt", @"اعجاب"]
+    ];
+    for (NSArray *set in sets) for (NSUInteger i = 1; i < set.count; i++)
+        if ([name containsString:set[i]]) return [UIImage systemImageNamed:set[0]];
+    return nil;
+}
 static char kSnapshotImageKey, kSnapshotTimeKey;
 static UIView *TTGCustomIcon(UIView *view, NSUInteger depth) {
     if (depth > 5 || view.tag == kActionGlassTag || view.hidden || [view isKindOfClass:UILabel.class] ||
@@ -751,6 +768,9 @@ static void TTGSyncActionGlass(UIView *button) {
             if ([candidate isKindOfClass:UIView.class] && candidate != button &&
                 [candidate isDescendantOfView:button] && [candidate tag] != kActionGlassTag) {
                 UIView *found = TTGFindImage(candidate, 0) ?: TTGCustomIcon(candidate, 0);
+                if (!found && ![key isEqualToString:@"containerView"] && !TTGActionHasCount(candidate, 0) &&
+                    [candidate bounds].size.width >= 12 && [candidate bounds].size.width <= 64 &&
+                    [candidate bounds].size.height >= 12 && [candidate bounds].size.height <= 64) found = candidate;
                 if (found) { icon = found; break; }
             }
         }
@@ -796,7 +816,12 @@ static void TTGSyncActionGlass(UIView *button) {
             glyph.sourceMode != mode;
         if (changed) {
             NSArray<UIImage *> *masks = TTGGlyphMasks(image, rect.size, mode, scale);
-            if (masks.count != 3) { TTGDiagnostic(button, @"mask unavailable; retry visible"); if (created) TTGRestoreGlyph(button); return; }
+            if (masks.count != 3) {
+                UIImage *symbol = TTGSymbolForAction(button);
+                masks = symbol ? TTGGlyphMasks(symbol, rect.size, UIViewContentModeScaleAspectFit, scale) : nil;
+                if (masks.count == 3) TTGDiagnostic(button, @"symbol mask for GPU-only renderer");
+                else { TTGDiagnostic(button, @"mask unavailable; retry visible"); if (created) TTGRestoreGlyph(button); return; }
+            }
             glyph.glassMask.image = masks[0];
             glyph.silhouetteClip.contents = (id)masks[0].CGImage;
             glyph.silhouetteClip.contentsScale = scale;
@@ -927,6 +952,8 @@ static void TTGChangedImage(UIView *view) {
 
 static BOOL TTGVisible(UIView *view) {
     if (!view.window || view.hidden || view.alpha < 0.01) return NO;
+    for (UIView *parent = view.superview; parent; parent = parent.superview)
+        if (parent.hidden || parent.alpha < 0.01) return NO;
     CGRect rect = [view convertRect:view.bounds toView:view.window];
     return !CGRectIsEmpty(CGRectIntersection(rect, view.window.bounds));
 }
