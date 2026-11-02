@@ -1253,6 +1253,7 @@ static void TT122Track(UIViewController *c);
 %end
 
 #include "PhaseOne.inc"
+#include "LaterFeatures.inc"
 static void TT122Track(UIViewController *c) { [[TT122Hub shared] track:c]; }
 
 %hook AWEFeedCellViewController
@@ -1375,6 +1376,7 @@ static void TT122Track(UIViewController *c) { [[TT122Hub shared] track:c]; }
     NSArray *featureKeys = @[@"tt122.download",@"tt122.eye",@"tt122.progress",@"tt122.standard",@"tt122.hd",@"tt122.highest",@"tt122.audio",@"tt122.copy"];
     for (NSInteger i=0;i<(NSInteger)featureKeys.count;i++)
         [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
+    [self.stack addArrangedSubview:[self row:@"إخفاء إعلانات الخلاصة" symbol:@"eye.slash" key:@"tt.extra.noads" defaultValue:NO tag:200]];
     UILabel *styleLabel = [self label:@"نمط الشريط" size:13 weight:UIFontWeightSemibold];
     styleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.68];
     [self.stack addArrangedSubview:styleLabel];
@@ -1466,6 +1468,7 @@ static void TT122Track(UIViewController *c) { [[TT122Hub shared] track:c]; }
         animations:^{ self.panel.transform = CGAffineTransformIdentity; self.panel.alpha = 1; self.shade.alpha = 1; } completion:nil];
 }
 - (void)changed:(UISwitch *)sender {
+    if (sender.tag == 200) { [D() setBool:sender.on forKey:@"tt.extra.noads"]; return; }
     if (sender.tag >= 100 && sender.tag < 108) {
         NSArray *features = @[@"tt122.download",@"tt122.eye",@"tt122.progress",@"tt122.standard",@"tt122.hd",@"tt122.highest",@"tt122.audio",@"tt122.copy"];
         [D() setBool:sender.on forKey:features[sender.tag-100]];
