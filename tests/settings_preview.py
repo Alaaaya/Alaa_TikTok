@@ -35,12 +35,18 @@ static void ShotView(UIView *view,NSString *name) {
     [UIImagePNGRepresentation(im) writeToFile:[folder stringByAppendingPathComponent:[name stringByAppendingString:@".png"]] atomically:YES];
 }
 static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,name);}
+@interface InstalledSettings:TTGSettingsController
+@end
+@implementation InstalledSettings
+- (BOOL)shijimaInstalled {return YES;}
+@end
 @interface PreviewApp:UIResponder<UIApplicationDelegate>
 @property(nonatomic,strong) UIWindow *window;
 @end
 @implementation PreviewApp
 - (BOOL)application:(UIApplication *)app didFinishLaunchingWithOptions:(NSDictionary *)options {
     [[UIView appearance] setSemanticContentAttribute:UISemanticContentAttributeForceRightToLeft];
+    [[UILabel appearance] setTextAlignment:NSTextAlignmentRight];
     self.window=[[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
     self.window.backgroundColor=[UIColor colorWithRed:.12 green:.16 blue:.22 alpha:1];
     CAGradientLayer *backdrop=[CAGradientLayer layer];backdrop.frame=self.window.bounds;
@@ -53,7 +59,8 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         Check(vc.stack.arrangedSubviews.count==1,@"one physical grid");
         NSInteger tiles=0;
         for(UIView *row in vc.stack.arrangedSubviews)for(UIView *v in row.subviews)if([v isKindOfClass:UIButton.class])tiles++;
-        Check(tiles==7,@"exactly seven tiles");
+        Check(tiles==6,@"six tiles when Shijima absent");
+        for(UIView *tile in vc.stack.arrangedSubviews.firstObject.subviews)Check(tile.tag!=5,@"no absent Shijima tile");
         Check(vc.pageHeader.superview==vc.panel.contentView,@"pinned header");
         [vc.view setNeedsLayout];[vc.view layoutIfNeeded];
         Check(vc.panel.bounds.size.width<=vc.view.bounds.size.width*.71,@"compact width");
@@ -67,10 +74,23 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
             Check(!vc.backButton.hidden,@"back on category");
             Check(vc.category==page && vc.stack.arrangedSubviews.count>0,@"category populated");
             Check(vc.panelHeight.constant>100,@"panel height");
+            [vc.view setNeedsLayout];[vc.view layoutIfNeeded];
+            CGRect backFrame=[vc.backButton convertRect:vc.backButton.bounds toView:vc.view];
+            CGRect titleFrame=[vc.pageTitle convertRect:vc.pageTitle.bounds toView:vc.view];
+            CGRect closeFrame=[vc.closeButton convertRect:vc.closeButton.bounds toView:vc.view];
+            Check(backFrame.origin.x<titleFrame.origin.x && CGRectGetMaxX(titleFrame)<=closeFrame.origin.x+1,@"all subpage header physical LTR");
+            Check(vc.pageTitle.textAlignment==NSTextAlignmentLeft,@"all subpage titles left aligned");
+            for(UIView *row in vc.stack.arrangedSubviews)if([row isKindOfClass:TTJokerRow.class]){
+                TTJokerRow *r=(TTJokerRow *)row;[r layoutIfNeeded];
+                Check(CGRectGetMaxX(r.icon.frame)<CGRectGetMinX(r.caption.frame) && CGRectGetMaxX(r.caption.frame)<=CGRectGetMinX(r.toggle.frame),@"all switches right icons left");
+            }
             Shot(vc,[NSString stringWithFormat:@"category-%ld",(long)page]);
             [vc showCategory:-1 animated:NO];
             Check(vc.category==-1 && vc.stack.arrangedSubviews.count==1,@"back restores grid");
         }
+        InstalledSettings *installed=[InstalledSettings new];[installed loadViewIfNeeded];
+        [installed showCategory:-1 animated:NO];
+        Check(installed.stack.arrangedSubviews.firstObject.subviews.count==7,@"installed Shijima tile retained");
         // Original mascot rendering, physics, settings, and pause-state smoke.
         [D() setBool:YES forKey:@"tt.pet.enabled"];
         TTJokerPet *pet=[TTJokerPet shared];[pet attach:vc];[pet refresh];

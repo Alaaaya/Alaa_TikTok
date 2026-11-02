@@ -1321,6 +1321,44 @@ static void TT122Recover(void) {
 }
 %end
 // Physical LTR containers also resist inherited RTL appearance overrides.
+// Scoped to Joker only. Never change TikTok's global language or appearance.
+static void TTJokerForceLTR(UIView *view) {
+    view.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    if([view isKindOfClass:UILabel.class]) ((UILabel *)view).textAlignment=NSTextAlignmentLeft;
+    if([view isKindOfClass:UIButton.class]) {
+        ((UIButton *)view).titleLabel.textAlignment=NSTextAlignmentLeft;
+
+    }
+    for(UIView *child in view.subviews) TTJokerForceLTR(child);
+}
+@interface TTJokerRoot : UIView
+@end
+@implementation TTJokerRoot
+- (UISemanticContentAttribute)semanticContentAttribute {return UISemanticContentAttributeForceLeftToRight;}
+- (UIUserInterfaceLayoutDirection)effectiveUserInterfaceLayoutDirection {return UIUserInterfaceLayoutDirectionLeftToRight;}
+- (void)layoutSubviews {[super layoutSubviews];TTJokerForceLTR(self);}
+@end
+@interface TTJokerLabel : UILabel
+@end
+@implementation TTJokerLabel
+- (NSTextAlignment)textAlignment {return NSTextAlignmentLeft;}
+- (void)setTextAlignment:(NSTextAlignment)value {[super setTextAlignment:NSTextAlignmentLeft];}
+- (UISemanticContentAttribute)semanticContentAttribute {return UISemanticContentAttributeForceLeftToRight;}
+@end
+@interface TTJokerRow : TTJokerRoot
+@property(nonatomic,weak) UIView *icon,*caption,*toggle;
+@end
+@implementation TTJokerRow
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGFloat w=self.bounds.size.width,h=self.bounds.size.height;
+    CGSize ts=[self.toggle sizeThatFits:CGSizeZero];
+    self.icon.frame=CGRectMake(16,(h-24)/2,24,24);
+    self.toggle.frame=CGRectMake(w-14-ts.width,(h-ts.height)/2,ts.width,ts.height);
+    self.caption.frame=CGRectMake(52,12,MAX(0,w-52-ts.width-26),MAX(0,h-24));
+}
+@end
+
 @interface TTJokerGrid : UIView
 @end
 @implementation TTJokerGrid
@@ -1404,7 +1442,7 @@ static UIVisualEffect *TTJokerGlass(void) {
 }
 
 - (UILabel *)label:(NSString *)text size:(CGFloat)size weight:(UIFontWeight)weight {
-    UILabel *label = [UILabel new];
+    UILabel *label = [TTJokerLabel new];
     label.text = text; label.font = [UIFont systemFontOfSize:size weight:weight];
     label.textColor = UIColor.whiteColor; label.numberOfLines = 0;
     label.textAlignment = NSTextAlignmentLeft;
@@ -1412,7 +1450,7 @@ static UIVisualEffect *TTJokerGlass(void) {
     return label;
 }
 - (UIView *)row:(NSString *)title symbol:(NSString *)symbol key:(NSString *)key defaultValue:(BOOL)value tag:(NSInteger)tag {
-    UIView *row = [UIView new];
+    TTJokerRow *row = [TTJokerRow new];
     row.backgroundColor = [UIColor colorWithWhite:1 alpha:0.045];
     row.layer.cornerRadius = 18; row.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     UIImageView *icon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbol]];
@@ -1423,19 +1461,10 @@ static UIVisualEffect *TTJokerGlass(void) {
     toggle.accessibilityLabel = title;
     toggle.onTintColor = [UIColor colorWithRed:0.78 green:0.70 blue:0.51 alpha:1];
     [toggle addTarget:self action:@selector(changed:) forControlEvents:UIControlEventValueChanged];
-    for (UIView *view in @[icon, label, toggle]) { view.translatesAutoresizingMaskIntoConstraints = NO; [row addSubview:view]; }
-    [NSLayoutConstraint activateConstraints:@[
-        [row.heightAnchor constraintGreaterThanOrEqualToConstant:62],
-        [icon.leftAnchor constraintEqualToAnchor:row.leftAnchor constant:16],
-        [icon.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
-        [icon.widthAnchor constraintEqualToConstant:24], [icon.heightAnchor constraintEqualToConstant:24],
-        [toggle.rightAnchor constraintEqualToAnchor:row.rightAnchor constant:-14],
-        [toggle.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
-        [label.leftAnchor constraintEqualToAnchor:icon.rightAnchor constant:12],
-        [label.rightAnchor constraintEqualToAnchor:toggle.leftAnchor constant:-12],
-        [label.topAnchor constraintEqualToAnchor:row.topAnchor constant:12],
-        [label.bottomAnchor constraintEqualToAnchor:row.bottomAnchor constant:-12]
-    ]];
+    row.icon=icon;row.caption=label;row.toggle=toggle;
+    for(UIView *view in @[icon,label,toggle]) [row addSubview:view];
+    [row.heightAnchor constraintEqualToConstant:78].active=YES;
+    TTJokerForceLTR(row);
     return row;
 }
 - (UIButton *)iconRow:(NSString *)title tag:(NSInteger)tag {
@@ -1514,8 +1543,8 @@ static UIVisualEffect *TTJokerGlass(void) {
     if(back) {
         TTJokerGrid *grid=[TTJokerGrid new];
         grid.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
-        [grid.heightAnchor constraintEqualToConstant:274].active=YES;
-        for(NSInteger i=0;i<7;i++)[grid addSubview:[self categoryTile:i]];
+        [grid.heightAnchor constraintEqualToConstant:([self shijimaInstalled]?274:180)].active=YES;
+        for(NSInteger i=0;i<7;i++){if(i==5 && ![self shijimaInstalled])continue;[grid addSubview:[self categoryTile:i]];}
         [self.stack addArrangedSubview:grid];
     } else {
     NSArray *featureTitles = @[@"زر التنزيل العائم",@"زر إخفاء العناصر",@"حلقة تقدم التنزيل",@"تنزيل عادي",@"تنزيل HD",@"أعلى جودة متاحة",@"تنزيل الصوت (ملفات)",@"قائمة النسخ"];
@@ -1641,7 +1670,7 @@ static UIVisualEffect *TTJokerGlass(void) {
             UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification,self.pageTitle);}];
 }
 - (void)loadView {
-    self.view = [UIView new]; self.view.backgroundColor = UIColor.clearColor;
+    self.view = [TTJokerRoot new]; self.view.backgroundColor = UIColor.clearColor;
     self.view.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     self.view.accessibilityViewIsModal = YES;
     self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
@@ -1757,8 +1786,7 @@ static UIVisualEffect *TTJokerGlass(void) {
 
 }
 - (void)forceLTR:(UIView *)view {
-    view.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
-    for (UIView *child in view.subviews) [self forceLTR:child];
+    TTJokerForceLTR(view);
 }
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
