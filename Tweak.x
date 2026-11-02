@@ -452,7 +452,7 @@ static void TTGDiagnostic(UIView *view, NSString *reason) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         pending = NO;
         NSString *dir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-        NSString *text = [@"Alaa_TikTok 1.18 class/source diagnostics\n" stringByAppendingString:[events.array componentsJoinedByString:@"\n"]];
+        NSString *text = [@"Alaa_TikTok 1.19 class/source diagnostics\n" stringByAppendingString:[events.array componentsJoinedByString:@"\n"]];
         if (dir) [text writeToFile:[dir stringByAppendingPathComponent:@"alaa_tiktok_debug.txt"] atomically:YES encoding:NSUTF8StringEncoding error:nil];
     });
 }
@@ -653,31 +653,41 @@ static BOOL TTGIsCommentAction(UIView *button) {
 }
 static NSArray<UIImage *> *TTGCommentMasks(CGSize size, CGFloat scale) {
     if (size.width < 8 || size.height < 8 || scale <= 0) return nil;
-    // Normalized 32pt design, kept square and centered in the existing icon frame.
-    CGFloat unit = MIN(size.width, size.height) / 32.0;
-    CGPoint origin = CGPointMake((size.width - 32 * unit) / 2, (size.height - 32 * unit) / 2);
-    UIBezierPath *path = [UIBezierPath bezierPath];
-    [path moveToPoint:CGPointMake(16, 2.8)];
-    [path addCurveToPoint:CGPointMake(29, 15.2) controlPoint1:CGPointMake(23.4, 2.8) controlPoint2:CGPointMake(29, 8.2)];
-    [path addCurveToPoint:CGPointMake(24.5, 24.6) controlPoint1:CGPointMake(29, 19) controlPoint2:CGPointMake(27.3, 22.5)];
-    [path addCurveToPoint:CGPointMake(24.2, 29.1) controlPoint1:CGPointMake(24.1, 26.1) controlPoint2:CGPointMake(24, 27.7)];
-    [path addQuadCurveToPoint:CGPointMake(23.2, 29.4) controlPoint:CGPointMake(24.3, 29.8)];
-    [path addCurveToPoint:CGPointMake(18.4, 27.4) controlPoint1:CGPointMake(21.4, 29.1) controlPoint2:CGPointMake(19.6, 28.3)];
-    [path addCurveToPoint:CGPointMake(3, 15.2) controlPoint1:CGPointMake(10.1, 28.7) controlPoint2:CGPointMake(3, 23.4)];
-    [path addCurveToPoint:CGPointMake(16, 2.8) controlPoint1:CGPointMake(3, 8.2) controlPoint2:CGPointMake(8.6, 2.8)];
-    [path closePath];
-    // Small, equally spaced circular apertures instead of chunky bitmap dots.
-    for (NSNumber *x in @[@11.5, @16, @20.5])
-        [path appendPath:[UIBezierPath bezierPathWithOvalInRect:CGRectMake(x.doubleValue - 0.95, 14.3, 1.9, 1.9)]];
-    path.usesEvenOddFillRule = YES;
+    UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:28
+        weight:UIImageSymbolWeightRegular scale:UIImageSymbolScaleMedium];
+    UIImage *bubble = [[UIImage systemImageNamed:@"bubble.left.fill" withConfiguration:config]
+        imageWithTintColor:UIColor.whiteColor renderingMode:UIImageRenderingModeAlwaysOriginal];
+    if (!bubble) return nil;
+    CGFloat side = MIN(size.width, size.height);
+    CGRect body = CGRectMake((size.width - side * 0.86) / 2, (size.height - side * 0.82) / 2,
+        side * 0.86, side * 0.82);
     UIGraphicsBeginImageContextWithOptions(size, NO, scale);
-    CGContextRef ctx = UIGraphicsGetCurrentContext();
-    CGContextTranslateCTM(ctx, origin.x, origin.y); CGContextScaleCTM(ctx, unit, unit);
-    [UIColor.whiteColor setFill]; [path fill];
-    UIImage *silhouette = UIGraphicsGetImageFromCurrentImageContext();
+    [bubble drawInRect:body];
+    UIImage *outer = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    // The standard glass pipeline stays identical; only comment shape/edge weight differ.
-    return TTGGlyphMasksWithEdge(silhouette, size, UIViewContentModeScaleToFill, scale, 0.70);
+    NSArray<UIImage *> *base = TTGGlyphMasksWithEdge(outer, size, UIViewContentModeScaleToFill, scale, 0.70);
+    if (base.count != 3) return nil;
+    // Punch holes AFTER bevel generation. Eroding tiny apertures previously
+    // produced touching bevel rings, visually turning three dots into glasses.
+    CGFloat diameter = MAX(2.0 / scale, round(side * 0.085 * scale) / scale);
+    CGFloat spacing = MAX(diameter + 2.0 / scale, round(side * 0.20 * scale) / scale);
+    CGFloat cy = round((CGRectGetMinY(body) + body.size.height * 0.44) * scale) / scale;
+    NSMutableArray<UIImage *> *masks = [NSMutableArray arrayWithCapacity:3];
+    for (UIImage *mask in base) {
+        UIGraphicsBeginImageContextWithOptions(size, NO, scale);
+        [mask drawAtPoint:CGPointZero];
+        CGContextRef ctx = UIGraphicsGetCurrentContext();
+        CGContextSetBlendMode(ctx, kCGBlendModeClear);
+        for (NSInteger dot = -1; dot <= 1; dot++) {
+            CGFloat cx = round((size.width / 2 + dot * spacing) * scale) / scale;
+            CGContextFillEllipseInRect(ctx, CGRectMake(cx - diameter / 2, cy - diameter / 2, diameter, diameter));
+        }
+        UIImage *result = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+        if (!result) return nil;
+        [masks addObject:result];
+    }
+    return masks;
 }
 
 @implementation TTGActionGlyph
@@ -732,7 +742,7 @@ static NSArray<UIImage *> *TTGCommentMasks(CGSize size, CGFloat scale) {
 static void TTGRestoreRenderer(TTGActionGlyph *glyph, UIView *renderer) {
     NSNumber *saved = [glyph.rendererAlphas objectForKey:renderer];
     objc_setAssociatedObject(renderer, &kRendererOwnerKey, nil, OBJC_ASSOCIATION_ASSIGN);
-    if (saved && fabs(renderer.alpha - 0.10) < 0.003) renderer.alpha = saved.doubleValue;
+    if (saved && renderer.alpha <= 0.103) renderer.alpha = saved.doubleValue;
     [glyph.rendererAlphas removeObjectForKey:renderer];
 }
 static void TTGRestoreGlyph(UIView *button) {
@@ -779,7 +789,9 @@ static void TTGDimRenderers(TTGActionGlyph *glyph, UIView *button, CGRect rect) 
         // Weak box avoids retaining either the source view or the owning action.
         NSHashTable *owner = [NSHashTable weakObjectsHashTable]; [owner addObject:button];
         objc_setAssociatedObject(renderer, &kRendererOwnerKey, owner, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        renderer.alpha = MIN(0.10, [[glyph.rendererAlphas objectForKey:renderer] doubleValue]);
+        // Comment's original dot bitmap must not ghost through the new apertures.
+        CGFloat limit = TTGIsCommentAction(button) ? 0.0 : 0.10;
+        renderer.alpha = MIN(limit, [[glyph.rendererAlphas objectForKey:renderer] doubleValue]);
         TTGDiagnostic(button, [@"paint root dimmed " stringByAppendingString:NSStringFromClass(renderer.class)]);
     }
 }
@@ -1044,7 +1056,7 @@ static CGFloat TTGGuardRendererAlpha(UIView *renderer, CGFloat proposed) {
         [glyph.rendererAlphas setObject:@(proposed) forKey:renderer];
         if (proposed > 0.10) TTGDiagnostic(button, @"late native alpha reset blocked");
     }
-    return MIN(proposed, 0.10);
+    return MIN(proposed, TTGIsCommentAction(button) ? 0.0 : 0.10);
 }
 %hook UIView
 - (void)setAlpha:(CGFloat)alpha { %orig(TTGGuardRendererAlpha(self, alpha)); }
