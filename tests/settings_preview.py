@@ -5,6 +5,7 @@ prefix=r"""
 #import <UIKit/UIKit.h>
 #import <Photos/Photos.h>
 #import <objc/runtime.h>
+#import <objc/message.h>
 #import "../CustomTools.inc"
 static NSString *kPrefEnabled=@"enabled",*kPrefFloating=@"floating",*kPrefUnder=@"under",*kPrefLabels=@"labels",*kPrefStyle=@"style";
 static NSInteger kGlassTag=777,kSelTag=778;
