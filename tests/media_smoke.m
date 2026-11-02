@@ -48,6 +48,18 @@ int main(void) { @autoreleasepool {
     Check([out tracksWithMediaType:AVMediaTypeVideo].count==1 && [out tracksWithMediaType:AVMediaTypeAudio].count==1,@"mux has audio+video");
     Check(fabs(CMTimeGetSeconds(out.duration)-2)<.05,@"full duration");
     Check([a tracksWithMediaType:AVMediaTypeAudio].count==1,@"shareable m4a");
+    AVAssetReader *reader=[[AVAssetReader alloc] initWithAsset:out error:&error];
+    AVAssetReaderTrackOutput *decoded=[AVAssetReaderTrackOutput assetReaderTrackOutputWithTrack:[out tracksWithMediaType:AVMediaTypeAudio].firstObject outputSettings:@{AVFormatIDKey:@(kAudioFormatLinearPCM),AVLinearPCMBitDepthKey:@16,AVLinearPCMIsFloatKey:@NO,AVLinearPCMIsBigEndianKey:@NO,AVLinearPCMIsNonInterleaved:@NO}];
+    [reader addOutput:decoded];Check([reader startReading],@"decode audio");
+    BOOL audible=NO;CMSampleBufferRef sample=NULL;
+    while((sample=[decoded copyNextSampleBuffer])) {
+        CMBlockBufferRef block=CMSampleBufferGetDataBuffer(sample);size_t size=CMBlockBufferGetDataLength(block);
+        NSMutableData *pcmData=[NSMutableData dataWithLength:size];CMBlockBufferCopyDataBytes(block,0,size,pcmData.mutableBytes);
+        const int16_t *values=pcmData.bytes;for(size_t i=0;i<size/2;i++)if(abs(values[i])>100){audible=YES;break;}
+        CFRelease(sample);if(audible)break;
+    }
+    [reader cancelReading];Check(audible,@"mux output contains audible decoded PCM");
+
     for(NSURL *url in @[wav,video,audio,muxed])[NSFileManager.defaultManager removeItemAtURL:url error:nil];
     NSLog(@"PASS silent-stream detection, static-cover generation, M4A, passthrough mux audio+video and duration");
 } return 0; }

@@ -1255,6 +1255,7 @@ static void TT122Recover(void);
 
 #include "PhaseOne.inc"
 #include "LaterFeatures.inc"
+#include "StoryTools.inc"
 %hook AWEAwemeModel
 - (id)initWithDictionary:(id)dictionary error:(id *)error {
     id result = %orig;
@@ -1273,6 +1274,14 @@ static void TT122Recover(void) {
 %hook AWEFeedCellViewController
 - (void)viewWillAppear:(BOOL)animated { %orig; dispatch_async(dispatch_get_main_queue(), ^{ [[TT122Hub shared] track:(id)self]; }); }
 - (void)viewDidDisappear:(BOOL)animated { %orig; [[TT122Hub shared] closeMenu];TT122Recover(); }
+%end
+%hook AWEFeedViewTemplateCell
+- (void)configWithModel:(id)model { %orig; [[TTStoryTools shared] attach:(id)self]; }
+- (void)configureWithModel:(id)model { %orig; [[TTStoryTools shared] attach:(id)self]; }
+%end
+%hook TTKStoryDetailTableViewCell
+- (void)configWithModel:(id)model { %orig; [[TTStoryTools shared] attach:(id)self]; }
+- (void)configureWithModel:(id)model { %orig; [[TTStoryTools shared] attach:(id)self]; }
 %end
 // A custom, real-material sheet; no action-sheet emoji or developer-copy action.
 @interface TTGSettingsController : UIViewController
@@ -1392,6 +1401,7 @@ static void TT122Recover(void) {
         [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
     [self.stack addArrangedSubview:[self row:@"إخفاء إعلانات الخلاصة" symbol:@"eye.slash" key:@"tt.extra.noads" defaultValue:NO tag:200]];
     [self.stack addArrangedSubview:[self row:@"استخدام رابط التشغيل (قد يكون بلا علامة)" symbol:@"play.rectangle" key:@"tt.extra.playbackAsset" defaultValue:NO tag:201]];
+    [self.stack addArrangedSubview:[self row:@"حفظ القصة بالضغط المطوّل" symbol:@"arrow.down.circle" key:@"tt.extra.storySave" defaultValue:NO tag:202]];
     UILabel *styleLabel = [self label:@"نمط الشريط" size:13 weight:UIFontWeightSemibold];
     styleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.68];
     [self.stack addArrangedSubview:styleLabel];
@@ -1483,6 +1493,7 @@ static void TT122Recover(void) {
         animations:^{ self.panel.transform = CGAffineTransformIdentity; self.panel.alpha = 1; self.shade.alpha = 1; } completion:nil];
 }
 - (void)changed:(UISwitch *)sender {
+    if (sender.tag == 202) { [D() setBool:sender.on forKey:@"tt.extra.storySave"]; return; }
     if (sender.tag == 201) { [D() setBool:sender.on forKey:@"tt.extra.playbackAsset"]; return; }
     if (sender.tag == 200) { [D() setBool:sender.on forKey:@"tt.extra.noads"]; return; }
     if (sender.tag >= 100 && sender.tag < 108) {

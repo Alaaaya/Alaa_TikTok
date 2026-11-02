@@ -321,6 +321,7 @@ static UIView *TT122Material(CGRect frame) {
 }
 - (void)showMenu:(BOOL)copy {
     id model = self.menuModel ?: TTGActionObject(self.feed,@"model");
+    if ([NSStringFromClass(self.feed.class) isEqualToString:@"TTKStoryDetailContainerViewController"]) model=TTGActionObject(model,@"currentPlayingStory") ?: model;
     [self.menu removeFromSuperview];
     self.menuModel = model;
     UIView *host = [[UIView alloc] initWithFrame:self.overlay.bounds]; host.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
@@ -625,6 +626,7 @@ static UIView *TT122Material(CGRect frame) {
         CGContextSetRGBFillColor(context,.06,.06,.07,1);CGContextFillRect(context,CGRectMake(0,0,720,720));
         if (image.CGImage) {
             CGFloat w=CGImageGetWidth(image.CGImage),h=CGImageGetHeight(image.CGImage),scale=MIN(720/w,720/h);
+            CGContextTranslateCTM(context,0,720);CGContextScaleCTM(context,1,-1);
             CGContextDrawImage(context,CGRectMake((720-w*scale)/2,(720-h*scale)/2,w*scale,h*scale),image.CGImage);
         }
         CGContextRelease(context);CVPixelBufferUnlockBaseAddress(pixel,0);
