@@ -14,8 +14,6 @@ jobs:
           fetch-depth: 0
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-        with:
           repository: theos/theos
           path: theos
           submodules: recursive
