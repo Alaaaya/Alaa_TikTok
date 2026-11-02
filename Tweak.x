@@ -23,6 +23,7 @@ static BOOL PB(NSString *k, BOOL def) { id v = [D() objectForKey:k]; return v ? 
 #define TTGNoLabels() PB(kPrefLabels, YES)
 static NSInteger TTGStyle(void) { return [D() integerForKey:kPrefStyle]; }
 static void TTGRefreshAll(void);
+static void TTGShowSettings(UITabBar *bar);
 
 @interface UITabBar (TTGlass)
 - (void)ttg_applyGlass;
@@ -157,49 +158,7 @@ static void TTGExtend(UIView *v, CGFloat barTop, CGFloat bottom, UIView *skip, i
 
 %new
 - (void)ttg_showMenu {
-    UIViewController *top = self.window.rootViewController;
-    while (top.presentedViewController) top = top.presentedViewController;
-    if (!top) return;
-    NSArray *styles = @[@"Liquid Glass", @"ضبابي داكن", @"ضبابي فاتح"];
-    UIAlertController *ac = [UIAlertController alertControllerWithTitle:@"Alaa_TikTok"
-        message:@"إعدادات الشريط\n(الإطفاء الكامل بيتطبّق بعد ما تسكّر TikTok وترجع تفتحه)" preferredStyle:UIAlertControllerStyleActionSheet];
-    __weak UITabBar *ws = self;
-    void (^toggle)(NSString *, NSString *, BOOL) = ^(NSString *title, NSString *key, BOOL def) {
-        BOOL on = PB(key, def);
-        [ac addAction:[UIAlertAction actionWithTitle:[NSString stringWithFormat:@"%@ %@", on ? @"✅" : @"⬜️", title]
-            style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
-                [D() setBool:!on forKey:key]; TTGRefreshAll(); [ws ttg_reopen]; }]];
-    };
-    toggle(@"الشريط الزجاجي", kPrefEnabled, YES);
-    toggle(@"كبسولة عائمة (متل انستا)", kPrefFloating, YES);
-    toggle(@"الفيديو تحت الشريط", kPrefUnder, YES);
-    toggle(@"إخفاء الأسماء (أيقونات بس)", kPrefLabels, YES);
-    [ac addAction:[UIAlertAction actionWithTitle:[NSString stringWithFormat:@"🎨 النمط: %@", styles[MAX(0, MIN(2, TTGStyle()))]]
-        style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
-            [D() setInteger:(TTGStyle() + 1) % 3 forKey:kPrefStyle];
-            [[ws viewWithTag:kGlassTag] removeFromSuperview];
-            TTGRefreshAll(); [ws ttg_reopen]; }]];
-    [ac addAction:[UIAlertAction actionWithTitle:@"📋 نسخ هيكل الواجهة (للمطوّر)" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
-        NSMutableString *out = [NSMutableString string];
-        UIWindow *w = ws.window;
-        __block void (^dump)(UIView *, int);
-        __block __weak void (^wdump)(UIView *, int);
-        wdump = dump = ^(UIView *v, int d) {
-            if (d > 30 || out.length > 12000) return;
-            CGRect r = [v convertRect:v.bounds toView:w];
-            BOOL inBar = [v isDescendantOfView:ws];
-            if (r.size.height >= 300 || inBar || d < 3 || (CGRectGetMaxY(r) > w.bounds.size.height - 220 && r.size.height >= 18 && r.size.width >= 120))
-                [out appendFormat:@"%@%@ %.0f,%.0f %.0fx%.0f%@\n", [@"" stringByPaddingToLength:d withString:@" " startingAtIndex:0],
-                    NSStringFromClass(v.class), r.origin.x, r.origin.y, r.size.width, r.size.height, v.hidden ? @" H" : @""];
-            for (UIView *s in v.subviews) wdump(s, d + 1);
-        };
-        dump(w, 0);
-        [out appendFormat:@"tabbar %@\n", NSStringFromCGRect([ws convertRect:ws.bounds toView:w])];
-        UIPasteboard.generalPasteboard.string = out;
-    }]];
-    [ac addAction:[UIAlertAction actionWithTitle:@"تم" style:UIAlertActionStyleCancel handler:nil]];
-    if (ac.popoverPresentationController) { ac.popoverPresentationController.sourceView = self; ac.popoverPresentationController.sourceRect = self.bounds; }
-    [top presentViewController:ac animated:YES completion:nil];
+    TTGShowSettings(self);
 }
 
 - (UIView *)hitTest:(CGPoint)p withEvent:(UIEvent *)e {
@@ -341,7 +300,7 @@ static void TTGExtend(UIView *v, CGFloat barTop, CGFloat bottom, UIView *skip, i
             sel = [[UIVisualEffectView alloc] initWithEffect:ge];
         } else {
             sel = [UIView new];
-            sel.backgroundColor = [UIColor colorWithWhite:1 alpha:0.16];
+            sel.backgroundColor = [UIColor colorWithWhite:1 alpha:0.065];
         }
         sel.tag = kSelTag;
         sel.userInteractionEnabled = NO;
@@ -475,32 +434,29 @@ static void TTGUnclip(UIView *v) {
 %hook TTKMediaBusinessCoverImageView
 - (void)setFrame:(CGRect)f { %orig(TTGStretch((UIView *)self, f)); }
 %end
-// ---- 1.15: apply action glass on first display and after reuse/state updates ----
+// ---- 1.16: apply action glass on first display and after reuse/state updates ----
 static char kActionPendingKey;
 static const NSInteger kActionGlassTag = 0x61A57;
 
-static void TTGActionDebug(UIView *button) {
-    static NSMutableSet<NSString *> *lines;
-    static BOOL queued = NO, written = NO;
-    if (written) return;
-    if (!lines) lines = [NSMutableSet set];
-    NSString *label = button.accessibilityLabel ?: @"";
-    NSString *identifier = button.accessibilityIdentifier ?: @"";
-    [lines addObject:[NSString stringWithFormat:@"%@ label=%@ id=%@", NSStringFromClass(button.class), label, identifier]];
-    for (UIView *child in button.subviews) if (child.tag != kActionGlassTag)
-        [lines addObject:[NSString stringWithFormat:@"child=%@", NSStringFromClass(child.class)]];
-    if (queued) return;
-    queued = YES;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        written = YES;
-        NSString *directory = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-        NSString *text = [@"Alaa_TikTok 1.15 matched action buttons\n" stringByAppendingString:
-            [[[lines allObjects] sortedArrayUsingSelector:@selector(compare:)] componentsJoinedByString:@"\n"]];
-        if (directory) [text writeToFile:[directory stringByAppendingPathComponent:@"alaa_tiktok_debug.txt"]
-            atomically:YES encoding:NSUTF8StringEncoding error:nil];
-        lines = nil;
+// Bounded rolling class/source/reason diagnostics, no customer labels or media.
+static void TTGDiagnostic(UIView *view, NSString *reason) {
+    static NSMutableOrderedSet *events;
+    static BOOL pending;
+    if (!events) events = [NSMutableOrderedSet orderedSet];
+    NSString *line = [NSString stringWithFormat:@"%@ %@", NSStringFromClass(view.class), reason];
+    if ([events containsObject:line]) return;
+    [events addObject:line];
+    if (events.count > 120) [events removeObjectAtIndex:0];
+    if (pending) return;
+    pending = YES;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        pending = NO;
+        NSString *dir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+        NSString *text = [@"Alaa_TikTok 1.16 class/source diagnostics\n" stringByAppendingString:[events.array componentsJoinedByString:@"\n"]];
+        if (dir) [text writeToFile:[dir stringByAppendingPathComponent:@"alaa_tiktok_debug.txt"] atomically:YES encoding:NSUTF8StringEncoding error:nil];
     });
 }
+static void TTGActionDebug(UIView *button) { TTGDiagnostic(button, @"glass attached"); }
 
 // TikTok has shipped both aweImageView and imageView for AWEFeedVideoButton.
 // Only call known object-valued getters; never use unchecked private ivars/KVC.
@@ -522,7 +478,7 @@ static BOOL TTGActionHasCount(UIView *view, NSUInteger depth) {
 }
 
 static BOOL TTGActionIdentity(UIView *button) {
-    NSMutableString *identity = [NSMutableString string];
+    NSMutableString *identity = [NSMutableString stringWithString:NSStringFromClass(button.class)];
     for (NSString *key in @[@"imageNameString", @"accessibilityIdentifier", @"accessibilityLabel"]) {
         id value = TTGActionObject(button, key);
         if ([value isKindOfClass:NSString.class]) [identity appendFormat:@" %@", value];
@@ -535,22 +491,22 @@ static BOOL TTGActionIdentity(UIView *button) {
     // The confirmed action class may not populate its image-name getter until
     // highlight. A count within this exact button is a safe initial-display
     // fallback; TTGActionInFeed separately enforces the right-edge feed column.
-    return TTGActionHasCount(button, 0);
+    return [button isKindOfClass:NSClassFromString(@"AWEFeedVideoButton")] && TTGActionHasCount(button, 0);
 }
 
 static BOOL TTGActionInFeed(UIView *button) {
     UIWindow *window = button.window;
-    if (!window || button.bounds.size.width < 24 || button.bounds.size.width > 100 ||
+    if (!window || button.hidden || button.alpha < 0.01 || button.bounds.size.width < 24 || button.bounds.size.width > 100 ||
         button.bounds.size.height < 24 || button.bounds.size.height > 150) return NO;
     CGRect rect = [button convertRect:button.bounds toView:window];
     // Never decorate comments-panel/toolbars/profile actions.
-    if (CGRectGetMidX(rect) < CGRectGetWidth(window.bounds) * 0.65 ||
+    if ((CGRectGetMidX(rect) > CGRectGetWidth(window.bounds) * 0.30 && CGRectGetMidX(rect) < CGRectGetWidth(window.bounds) * 0.70) ||
         CGRectGetMidY(rect) < 80 || CGRectGetMidY(rect) > CGRectGetHeight(window.bounds) - 85) return NO;
     BOOL feed = NO;
     for (UIView *parent = button.superview; parent; parent = parent.superview) {
         NSString *name = NSStringFromClass(parent.class).lowercaseString;
         if ([parent isKindOfClass:UITabBar.class] || [name containsString:@"commentpanel"] ||
-            [name containsString:@"commentsheet"] || [name containsString:@"profile"]) return NO;
+            [name containsString:@"commentsheet"] || [name containsString:@"profile"] || [name containsString:@"settings"]) return NO;
         if ([name containsString:@"feed"] || [name containsString:@"playinteraction"]) feed = YES;
     }
     return feed;
@@ -559,7 +515,7 @@ static BOOL TTGActionInFeed(UIView *button) {
 
 static char kGlyphStateKey, kGlyphBusyKey;
 @interface TTGActionGlyph : UIView
-@property(nonatomic, weak) UIImageView *sourceIcon;
+@property(nonatomic, weak) UIView *sourceIcon;
 @property(nonatomic) CGFloat savedAlpha;
 @property(nonatomic, strong) UIImage *sourceImage;
 @property(nonatomic) CGSize sourceSize;
@@ -598,7 +554,7 @@ static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewCont
     if (mode == UIViewContentModeScaleAspectFit || mode == UIViewContentModeScaleAspectFill) {
         CGFloat x = size.width / natural.width, y = size.height / natural.height;
         CGFloat ratio = mode == UIViewContentModeScaleAspectFit ? MIN(x, y) : MAX(x, y);
-        draw.size = CGSizeMake(natural.width * ratio, natural.height * ratio);
+        draw.size = CGSizeMake(natural.width * ratio * 1.035, natural.height * ratio * 1.035);
         draw.origin = CGPointMake((size.width - draw.size.width) / 2, (size.height - draw.size.height) / 2);
     } else if (mode != UIViewContentModeScaleToFill && mode != UIViewContentModeRedraw) {
         draw.size = natural;
@@ -638,7 +594,7 @@ static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewCont
     UIImage *alpha = [UIImage imageWithCGImage:clean scale:scale orientation:UIImageOrientationUp];
     CGImageRelease(clean);
     // Inner bevel only. Nothing protrudes outside the glyph silhouette.
-    CGFloat step = round(0.85 * scale) / scale;
+    CGFloat step = round(1.20 * scale) / scale;
     UIGraphicsBeginImageContextWithOptions(size, NO, scale);
     [alpha drawAtPoint:CGPointZero];
     for (NSInteger x = -1; x <= 1; x++) for (NSInteger y = -1; y <= 1; y++)
@@ -678,10 +634,10 @@ static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewCont
     _glass.maskView = _glassMask;
     [self addSubview:_glass];
     _body = [UIImageView new];
-    _body.tintColor = [UIColor colorWithWhite:1 alpha:0.16];
+    _body.tintColor = [UIColor colorWithWhite:1 alpha:0.065];
     [self addSubview:_body];
     _innerShadow = [UIImageView new];
-    _innerShadow.tintColor = [UIColor colorWithWhite:0 alpha:0.30];
+    _innerShadow.tintColor = [UIColor colorWithWhite:0 alpha:0.24];
     _innerShadow.layer.shadowColor = UIColor.blackColor.CGColor;
     _innerShadow.layer.shadowOpacity = 0; // no shadow bleed beyond the exact alpha mask
     _innerShadow.clipsToBounds = YES;
@@ -694,9 +650,9 @@ static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewCont
     _rim.colors = @[(id)[UIColor colorWithWhite:1 alpha:1.0].CGColor,
         (id)[UIColor colorWithWhite:1 alpha:0.95].CGColor,
         (id)[UIColor colorWithRed:0.75 green:0.94 blue:1 alpha:0.88].CGColor,
-        (id)[UIColor colorWithWhite:1 alpha:0.60].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.48].CGColor,
         (id)[UIColor colorWithWhite:1 alpha:0.88].CGColor];
-    _rim.locations = @[@0, @0.24, @0.50, @0.74, @1];
+    _rim.locations = @[@0, @0.32, @0.52, @0.76, @1];
     _rimMask = [CALayer layer];
     _rimMask.contentsScale = UIScreen.mainScreen.scale;
     _rim.mask = _rimMask;
@@ -708,7 +664,7 @@ static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewCont
 static void TTGRestoreGlyph(UIView *button) {
     TTGActionGlyph *glyph = objc_getAssociatedObject(button, &kGlyphStateKey);
     if (!glyph) return;
-    UIImageView *icon = glyph.sourceIcon;
+    UIView *icon = glyph.sourceIcon;
     // We never alter layer.opacity or hidden. Undo only our own alpha dimming.
     if (icon && fabs(icon.alpha - 0.15) < 0.002) icon.alpha = glyph.savedAlpha;
     [glyph removeFromSuperview];
@@ -726,6 +682,53 @@ static UIImageView *TTGFindImage(UIView *view, NSUInteger depth) {
     return nil;
 }
 
+static char kSnapshotImageKey, kSnapshotTimeKey;
+static UIView *TTGCustomIcon(UIView *view, NSUInteger depth) {
+    if (depth > 5 || view.tag == kActionGlassTag || view.hidden || [view isKindOfClass:UILabel.class] ||
+        [view isKindOfClass:UIVisualEffectView.class]) return nil;
+    NSString *name = NSStringFromClass(view.class).lowercaseString;
+    BOOL renderer = [name containsString:@"lottie"] || [name containsString:@"animation"] ||
+        [name containsString:@"icon"] || [name containsString:@"vector"];
+    if (renderer && view.bounds.size.width >= 12 && view.bounds.size.width <= 64 &&
+        view.bounds.size.height >= 12 && view.bounds.size.height <= 64) return view;
+    for (UIView *child in view.subviews) {
+        UIView *found = TTGCustomIcon(child, depth + 1);
+        if (found) return found;
+    }
+    // Leaf CALayer/CAShapeLayer renderer, never snapshot the action+count container.
+    if (depth > 0 && !view.subviews.count && ![view isKindOfClass:UIControl.class] &&
+        view.bounds.size.width >= 16 && view.bounds.size.width <= 60 &&
+        view.bounds.size.height >= 16 && view.bounds.size.height <= 60 &&
+        (view.layer.contents || view.layer.sublayers.count)) return view;
+    return nil;
+}
+static UIImage *TTGSnapshotIcon(UIView *icon) {
+    CFTimeInterval now = CACurrentMediaTime();
+    UIImage *cached = objc_getAssociatedObject(icon, &kSnapshotImageKey);
+    NSNumber *when = objc_getAssociatedObject(icon, &kSnapshotTimeKey);
+    if (cached && now - when.doubleValue < 1.0 && CGSizeEqualToSize(cached.size, icon.bounds.size)) return cached;
+    CGFloat opacity = icon.layer.opacity;
+    UIImage *image = nil;
+    [CATransaction begin]; [CATransaction setDisableActions:YES];
+    @try {
+        icon.layer.opacity = 1;
+        UIGraphicsBeginImageContextWithOptions(icon.bounds.size, NO, icon.window.screen.scale ?: UIScreen.mainScreen.scale);
+        CGContextRef ctx = UIGraphicsGetCurrentContext();
+        CGContextTranslateCTM(ctx, -icon.bounds.origin.x, -icon.bounds.origin.y);
+        CALayer *presentation = icon.layer.presentationLayer;
+        [(presentation ?: icon.layer) renderInContext:ctx];
+        image = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+    } @catch (__unused NSException *e) {
+        if (UIGraphicsGetCurrentContext()) UIGraphicsEndImageContext();
+    } @finally { icon.layer.opacity = opacity; [CATransaction commit]; }
+    if (image) {
+        objc_setAssociatedObject(icon, &kSnapshotImageKey, image, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(icon, &kSnapshotTimeKey, @(now), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    return image;
+}
+
 static void TTGSyncActionGlass(UIView *button) {
     if (!NSThread.isMainThread || [objc_getAssociatedObject(button, &kGlyphBusyKey) boolValue]) return;
     objc_setAssociatedObject(button, &kGlyphBusyKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -735,27 +738,42 @@ static void TTGSyncActionGlass(UIView *button) {
             return;
         }
         TTGActionGlyph *glyph = objc_getAssociatedObject(button, &kGlyphStateKey);
-        UIImageView *icon = nil;
-        for (NSString *key in @[@"aweImageView", @"imageView"]) {
+        UIView *icon = nil;
+        UIImage *image = nil;
+        UIViewContentMode mode = UIViewContentModeScaleAspectFit;
+        for (NSString *key in @[@"aweImageView", @"imageView", @"iconView", @"animationView", @"lottieView", @"containerView"]) {
             id candidate = TTGActionObject(button, key);
-            if ([candidate isKindOfClass:UIImageView.class] && [candidate isDescendantOfView:button]) {
-                icon = candidate; break;
+            if ([candidate isKindOfClass:UIView.class] && candidate != button &&
+                [candidate isDescendantOfView:button] && [candidate tag] != kActionGlassTag) {
+                UIView *found = TTGFindImage(candidate, 0) ?: TTGCustomIcon(candidate, 0);
+                if (found) { icon = found; break; }
             }
-            if ([candidate isKindOfClass:UIView.class]) icon = TTGFindImage(candidate, 0);
-            if (icon) break;
         }
-        if (!icon) icon = TTGFindImage(button, 0);
-        UIImage *image = (icon.highlighted && icon.highlightedImage) ? icon.highlightedImage : icon.image;
-        if (!image && icon.animationImages.count) image = icon.animationImages.firstObject;
+        if (!icon) icon = TTGFindImage(button, 0) ?: TTGCustomIcon(button, 0);
+        if ([icon isKindOfClass:UIImageView.class]) {
+            UIImageView *iv = (id)icon;
+            image = (iv.highlighted && iv.highlightedImage) ? iv.highlightedImage : iv.image;
+            if (!image && iv.animationImages.count) image = iv.animationImages.firstObject;
+            mode = iv.contentMode;
+        }
         if (!image && [button isKindOfClass:UIButton.class]) image = ((UIButton *)button).currentImage;
+        if (!image && icon) {
+            image = TTGSnapshotIcon(icon);
+            mode = UIViewContentModeScaleToFill;
+            TTGDiagnostic(button, [@"snapshot " stringByAppendingString:NSStringFromClass(icon.class)]);
+        }
         CGRect rect = icon ? [icon convertRect:icon.bounds toView:button] : CGRectZero;
         if (!icon || !image || rect.size.width < 8 || rect.size.height < 8 ||
             rect.size.width > 80 || rect.size.height > 80 ||
             !isfinite(rect.origin.x) || !isfinite(rect.origin.y)) {
             // Fail OPEN on absent images or transient animation-only renderers.
             // Never dim a native icon if a complete overlay cannot be installed.
-            TTGRestoreGlyph(button);
-            TTGActionDebug(button);
+            // Retain a last valid attached glyph through transient renderer changes.
+            if (glyph && glyph.sourceIcon == icon && glyph.sourceImage) {
+                if (glyph.superview != button) [button addSubview:glyph];
+                glyph.hidden = NO;
+            } else TTGRestoreGlyph(button);
+            TTGDiagnostic(button, icon ? @"no usable source/frame; retry visible" : @"no icon renderer found; retry visible");
             return;
         }
         if (glyph.sourceIcon && glyph.sourceIcon != icon) { TTGRestoreGlyph(button); glyph = nil; }
@@ -770,10 +788,10 @@ static void TTGSyncActionGlass(UIView *button) {
         rect = CGRectMake(round(rect.origin.x * scale) / scale, round(rect.origin.y * scale) / scale,
             round(rect.size.width * scale) / scale, round(rect.size.height * scale) / scale);
         BOOL changed = glyph.sourceScale != scale || created || glyph.sourceImage != image || !CGSizeEqualToSize(glyph.sourceSize, rect.size) ||
-            glyph.sourceMode != icon.contentMode;
+            glyph.sourceMode != mode;
         if (changed) {
-            NSArray<UIImage *> *masks = TTGGlyphMasks(image, rect.size, icon.contentMode, scale);
-            if (masks.count != 3) { TTGRestoreGlyph(button); return; }
+            NSArray<UIImage *> *masks = TTGGlyphMasks(image, rect.size, mode, scale);
+            if (masks.count != 3) { TTGDiagnostic(button, @"mask unavailable; retry visible"); if (!glyph) TTGRestoreGlyph(button); return; }
             glyph.glassMask.image = masks[0];
             glyph.silhouetteClip.contents = (id)masks[0].CGImage;
             glyph.silhouetteClip.contentsScale = scale;
@@ -784,7 +802,7 @@ static void TTGSyncActionGlass(UIView *button) {
             glyph.innerShadow.image = [masks[2] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
             glyph.sourceImage = image;
             glyph.sourceSize = rect.size;
-            glyph.sourceMode = icon.contentMode;
+            glyph.sourceMode = mode;
         }
         id value = TTGActionObject(button, @"imageNameString");
         NSString *name = [value isKindOfClass:NSString.class] ? [value lowercaseString] : @"";
@@ -800,7 +818,7 @@ static void TTGSyncActionGlass(UIView *button) {
         if (created || glyph.liked != liked) {
             glyph.glass.effect = TTGGlyphEffect(liked);
             glyph.body.tintColor = liked ? [UIColor colorWithRed:1 green:0.08 blue:0.20 alpha:0.30] :
-                [UIColor colorWithWhite:1 alpha:0.16];
+                [UIColor colorWithWhite:1 alpha:0.065];
             glyph.liked = liked;
         }
         [CATransaction begin];
@@ -822,6 +840,11 @@ static void TTGSyncActionGlass(UIView *button) {
         if (glyph.superview != button) [button addSubview:glyph];
         if (button.subviews.lastObject != glyph) [button bringSubviewToFront:glyph];
         glyph.hidden = NO;
+        glyph.alpha = 1;
+        if (glyph.glass.maskView != glyph.glassMask) glyph.glass.maskView = glyph.glassMask;
+        if (glyph.layer.mask != glyph.silhouetteClip) glyph.layer.mask = glyph.silhouetteClip;
+        if (!glyph.glass.effect) glyph.glass.effect = TTGGlyphEffect(liked);
+        [glyph setNeedsLayout];
         objc_setAssociatedObject(button, &kGlyphStateKey, glyph, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         if (fabs(icon.alpha - 0.15) > 0.002) {
             glyph.savedAlpha = icon.alpha;
@@ -859,7 +882,7 @@ static UIView *TTGOwnerAction(UIView *view) {
     Class cls = NSClassFromString(@"AWEFeedVideoButton");
     for (NSUInteger depth = 0; view && depth < 9; depth++, view = view.superview) {
         if (view.tag == kActionGlassTag || [view isKindOfClass:UIVisualEffectView.class]) return nil;
-        if (cls && [view isKindOfClass:cls]) return view;
+        if ((cls && [view isKindOfClass:cls]) || (TTGActionInFeed(view) && TTGActionIdentity(view))) return view;
     }
     return nil;
 }
@@ -897,20 +920,270 @@ static void TTGChangedImage(UIView *view) {
 - (void)didMoveToSuperview { %orig; TTGChangedImage((UIView *)self); }
 %end
 
+static BOOL TTGVisible(UIView *view) {
+    if (!view.window || view.hidden || view.alpha < 0.01) return NO;
+    CGRect rect = [view convertRect:view.bounds toView:view.window];
+    return !CGRectIsEmpty(CGRectIntersection(rect, view.window.bounds));
+}
 static void TTGPrepareFeedActions(UIView *root) {
-    if (!root.window) return;
-    Class cls = NSClassFromString(@"AWEFeedVideoButton");
-    if (!cls) return;
+    if (!TTGVisible(root)) return;
     NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:root];
-    for (NSUInteger i = 0; i < queue.count && i < 1000; i++) {
+    for (NSUInteger i = 0; i < queue.count && i < 650; i++) {
         UIView *view = queue[i];
-        if (view.tag == kActionGlassTag || [view isKindOfClass:UIVisualEffectView.class]) continue;
-        if ([view isKindOfClass:cls]) TTGQueueActionGlass(view);
-        else if (queue.count < 1000) [queue addObjectsFromArray:view.subviews];
+        if (view.tag == kActionGlassTag || [view isKindOfClass:UIVisualEffectView.class] || !TTGVisible(view)) continue;
+        if (TTGActionInFeed(view) && TTGActionIdentity(view)) {
+            TTGQueueActionGlass(view);
+        } else if (queue.count < 650) [queue addObjectsFromArray:view.subviews];
     }
 }
+
+// Weak roots only; no retained cells, global-window traversal or display-rate work.
+@interface TTGFeedWatchdog : NSObject
+@property(nonatomic, strong) NSHashTable<UIView *> *roots;
+@property(nonatomic, strong) NSTimer *timer;
++ (instancetype)shared;
+- (void)addRoot:(UIView *)root;
+- (void)tick;
+@end
+@implementation TTGFeedWatchdog
++ (instancetype)shared {
+    static TTGFeedWatchdog *watch;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ watch = [TTGFeedWatchdog new]; watch.roots = [NSHashTable weakObjectsHashTable]; });
+    return watch;
+}
+- (void)addRoot:(UIView *)root {
+    if (!root) return;
+    [self.roots addObject:root];
+    if (!self.timer) {
+        self.timer = [NSTimer timerWithTimeInterval:0.5 target:self selector:@selector(tick) userInfo:nil repeats:YES];
+        [[NSRunLoop mainRunLoop] addTimer:self.timer forMode:NSRunLoopCommonModes];
+    }
+    TTGPrepareFeedActions(root);
+}
+- (void)tick {
+    if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive || !TTGEnabled()) return;
+    UIView *best = nil;
+    CGFloat bestArea = 0;
+    for (UIView *root in self.roots.allObjects) {
+        if (!TTGVisible(root)) continue;
+        // A visible cell has priority over its scroll container.
+        CGRect r = [root convertRect:root.bounds toView:root.window];
+        CGRect visible = CGRectIntersection(r, root.window.bounds);
+        CGFloat area = visible.size.width * visible.size.height;
+        if ([root isKindOfClass:UIScrollView.class]) area *= 0.1;
+        if (area > bestArea) { best = root; bestArea = area; }
+    }
+    if (best) TTGPrepareFeedActions(best);
+}
+@end
+static BOOL TTGFeedRoot(UIView *view) {
+    for (UIView *p = view; p; p = p.superview) {
+        NSString *name = NSStringFromClass(p.class).lowercaseString;
+        if ([name containsString:@"commentpanel"] || [name containsString:@"profile"]) return NO;
+        if ([name containsString:@"feed"] || [name containsString:@"playinteraction"]) return YES;
+    }
+    return NO;
+}
 %hook AWEFeedCellViewController
-- (void)viewDidLayoutSubviews { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) TTGPrepareFeedActions(c.view); }
-- (void)viewDidAppear:(BOOL)animated { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) TTGPrepareFeedActions(c.view); }
-- (void)setModel:(id)model { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) TTGPrepareFeedActions(c.view); }
+- (void)viewDidLayoutSubviews { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; }
+- (void)viewDidAppear:(BOOL)animated { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; }
+- (void)setModel:(id)model { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; }
 %end
+%hook UICollectionViewCell
+- (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) [[TTGFeedWatchdog shared] addRoot:v]; }
+- (void)prepareForReuse { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) TTGPrepareFeedActions(v); }
+%end
+%hook UITableViewCell
+- (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) [[TTGFeedWatchdog shared] addRoot:v]; }
+%end
+// Inherited callbacks cover photo/ad variants without guessing their private names.
+%hook UIScrollView
+- (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) [[TTGFeedWatchdog shared] addRoot:v]; }
+- (void)setContentOffset:(CGPoint)offset {
+    %orig;
+    if (!self.dragging && !self.decelerating && TTGFeedRoot((id)self)) [[TTGFeedWatchdog shared] addRoot:(id)self];
+}
+%end
+
+// A custom, real-material sheet; no action-sheet emoji or developer-copy action.
+@interface TTGSettingsController : UIViewController
+@property(nonatomic, weak) UITabBar *bar;
+@property(nonatomic, strong) UIVisualEffectView *panel;
+@property(nonatomic, strong) UIView *shade;
+@property(nonatomic, strong) UIStackView *stack;
+@end
+@implementation TTGSettingsController
+- (UILabel *)label:(NSString *)text size:(CGFloat)size weight:(UIFontWeight)weight {
+    UILabel *label = [UILabel new];
+    label.text = text; label.font = [UIFont systemFontOfSize:size weight:weight];
+    label.textColor = UIColor.whiteColor; label.numberOfLines = 0;
+    label.textAlignment = NSTextAlignmentRight;
+    return label;
+}
+- (UIView *)row:(NSString *)title symbol:(NSString *)symbol key:(NSString *)key defaultValue:(BOOL)value tag:(NSInteger)tag {
+    UIView *row = [UIView new];
+    row.backgroundColor = [UIColor colorWithWhite:1 alpha:0.045];
+    row.layer.cornerRadius = 18; row.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    UIImageView *icon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbol]];
+    icon.tintColor = [UIColor colorWithRed:0.82 green:0.93 blue:1 alpha:1];
+    icon.contentMode = UIViewContentModeScaleAspectFit;
+    UILabel *label = [self label:title size:15 weight:UIFontWeightMedium];
+    UISwitch *toggle = [UISwitch new]; toggle.on = PB(key, value); toggle.tag = tag;
+    toggle.accessibilityLabel = title;
+    toggle.onTintColor = [UIColor colorWithRed:0.25 green:0.75 blue:0.70 alpha:1];
+    [toggle addTarget:self action:@selector(changed:) forControlEvents:UIControlEventValueChanged];
+    for (UIView *view in @[icon, label, toggle]) { view.translatesAutoresizingMaskIntoConstraints = NO; [row addSubview:view]; }
+    [NSLayoutConstraint activateConstraints:@[
+        [row.heightAnchor constraintGreaterThanOrEqualToConstant:62],
+        [icon.leadingAnchor constraintEqualToAnchor:row.leadingAnchor constant:16],
+        [icon.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
+        [icon.widthAnchor constraintEqualToConstant:24], [icon.heightAnchor constraintEqualToConstant:24],
+        [toggle.trailingAnchor constraintEqualToAnchor:row.trailingAnchor constant:-14],
+        [toggle.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
+        [label.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:12],
+        [label.trailingAnchor constraintEqualToAnchor:toggle.leadingAnchor constant:-12],
+        [label.topAnchor constraintEqualToAnchor:row.topAnchor constant:12],
+        [label.bottomAnchor constraintEqualToAnchor:row.bottomAnchor constant:-12]
+    ]];
+    return row;
+}
+- (void)loadView {
+    self.view = [UIView new]; self.view.backgroundColor = UIColor.clearColor;
+    self.view.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    self.view.accessibilityViewIsModal = YES;
+    self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
+    UIButton *shade = [UIButton new]; shade.backgroundColor = [UIColor colorWithWhite:0 alpha:0.36];
+    [shade addTarget:self action:@selector(close) forControlEvents:UIControlEventTouchUpInside];
+    shade.accessibilityLabel = @"إغلاق الإعدادات";
+    self.shade = shade; shade.frame = self.view.bounds;
+    shade.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [self.view addSubview:shade];
+    self.panel = [[UIVisualEffectView alloc] initWithEffect:TTGGlyphEffect(NO)];
+    self.panel.translatesAutoresizingMaskIntoConstraints = NO;
+    self.panel.layer.cornerRadius = 32;
+    self.panel.layer.cornerCurve = kCACornerCurveContinuous;
+    self.panel.clipsToBounds = YES;
+    self.panel.layer.borderWidth = 0.8;
+    self.panel.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.65].CGColor;
+    self.panel.contentView.backgroundColor = [UIColor colorWithWhite:0.025 alpha:0.36];
+    self.panel.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    [self.view addSubview:self.panel];
+    UIScrollView *scroll = [UIScrollView new]; scroll.translatesAutoresizingMaskIntoConstraints = NO;
+    scroll.alwaysBounceVertical = NO; scroll.showsVerticalScrollIndicator = NO;
+    scroll.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    [self.panel.contentView addSubview:scroll];
+    self.stack = [UIStackView new]; self.stack.translatesAutoresizingMaskIntoConstraints = NO;
+    self.stack.axis = UILayoutConstraintAxisVertical; self.stack.spacing = 10;
+    self.stack.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    [scroll addSubview:self.stack];
+    UIView *header = [UIView new];
+    UIImage *app = nil;
+    NSDictionary *icons = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleIcons"];
+    NSString *filename = [icons[@"CFBundlePrimaryIcon"][@"CFBundleIconFiles"] lastObject];
+    if ([filename isKindOfClass:NSString.class]) app = [UIImage imageNamed:filename];
+    UIImageView *image = [[UIImageView alloc] initWithImage:app ?: [UIImage systemImageNamed:@"play.square.stack.fill"]];
+    image.tintColor = UIColor.whiteColor; image.layer.cornerRadius = 15; image.clipsToBounds = YES;
+    image.contentMode = UIViewContentModeScaleAspectFit;
+    UILabel *title = [self label:@"Alaa_TikTok" size:24 weight:UIFontWeightBold];
+    title.textAlignment = NSTextAlignmentLeft;
+    UILabel *subtitle = [self label:@"إعدادات الزجاج" size:13 weight:UIFontWeightMedium];
+    subtitle.textAlignment = NSTextAlignmentLeft; subtitle.textColor = [UIColor colorWithWhite:1 alpha:0.64];
+    UIButton *close = [UIButton buttonWithType:UIButtonTypeSystem];
+    [close setImage:[UIImage systemImageNamed:@"xmark.circle.fill"] forState:UIControlStateNormal];
+    close.tintColor = [UIColor colorWithWhite:1 alpha:0.75]; close.accessibilityLabel = @"إغلاق";
+    [close addTarget:self action:@selector(close) forControlEvents:UIControlEventTouchUpInside];
+    for (UIView *view in @[image,title,subtitle,close]) { view.translatesAutoresizingMaskIntoConstraints=NO; [header addSubview:view]; }
+    [NSLayoutConstraint activateConstraints:@[
+        [header.heightAnchor constraintEqualToConstant:78],
+        [image.leadingAnchor constraintEqualToAnchor:header.leadingAnchor constant:2],
+        [image.centerYAnchor constraintEqualToAnchor:header.centerYAnchor],
+        [image.widthAnchor constraintEqualToConstant:52], [image.heightAnchor constraintEqualToConstant:52],
+        [title.leadingAnchor constraintEqualToAnchor:image.trailingAnchor constant:12],
+        [title.topAnchor constraintEqualToAnchor:header.topAnchor constant:12],
+        [title.trailingAnchor constraintLessThanOrEqualToAnchor:close.leadingAnchor constant:-8],
+        [subtitle.leadingAnchor constraintEqualToAnchor:title.leadingAnchor],
+        [subtitle.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:4],
+        [close.trailingAnchor constraintEqualToAnchor:header.trailingAnchor],
+        [close.centerYAnchor constraintEqualToAnchor:header.centerYAnchor],
+        [close.widthAnchor constraintEqualToConstant:38], [close.heightAnchor constraintEqualToConstant:44]
+    ]];
+    [self.stack addArrangedSubview:header];
+    [self.stack addArrangedSubview:[self row:@"الشريط الزجاجي" symbol:@"rectangle.bottomthird.inset.filled" key:kPrefEnabled defaultValue:YES tag:0]];
+    [self.stack addArrangedSubview:[self row:@"كبسولة عائمة" symbol:@"capsule" key:kPrefFloating defaultValue:YES tag:1]];
+    [self.stack addArrangedSubview:[self row:@"الفيديو تحت الشريط" symbol:@"rectangle.expand.vertical" key:kPrefUnder defaultValue:YES tag:2]];
+    [self.stack addArrangedSubview:[self row:@"إخفاء أسماء الأزرار" symbol:@"textformat" key:kPrefLabels defaultValue:YES tag:3]];
+    UILabel *styleLabel = [self label:@"نمط الشريط" size:13 weight:UIFontWeightSemibold];
+    styleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.68];
+    [self.stack addArrangedSubview:styleLabel];
+    UISegmentedControl *styles = [[UISegmentedControl alloc] initWithItems:@[@"زجاج", @"داكن", @"فاتح"]];
+    styles.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    styles.selectedSegmentIndex = MAX(0, MIN(2, TTGStyle()));
+    styles.accessibilityLabel = @"نمط الشريط";
+    [styles.heightAnchor constraintEqualToConstant:42].active = YES;
+    [styles addTarget:self action:@selector(styleChanged:) forControlEvents:UIControlEventValueChanged];
+    [self.stack addArrangedSubview:styles];
+    UILabel *note = [self label:@"الإطفاء الكامل بيتطبّق بعد ما تسكّر TikTok وترجع تفتحه." size:12 weight:UIFontWeightRegular];
+    note.textColor = [UIColor colorWithWhite:1 alpha:0.52];
+    [self.stack addArrangedSubview:note];
+    UILayoutGuide *safe = self.view.safeAreaLayoutGuide;
+    NSLayoutConstraint *height = [self.panel.heightAnchor constraintEqualToConstant:550];
+    height.priority = UILayoutPriorityDefaultHigh;
+    [NSLayoutConstraint activateConstraints:@[
+        [self.panel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
+        [self.panel.widthAnchor constraintLessThanOrEqualToConstant:430],
+        [self.panel.leadingAnchor constraintGreaterThanOrEqualToAnchor:safe.leadingAnchor constant:14],
+        [self.panel.trailingAnchor constraintLessThanOrEqualToAnchor:safe.trailingAnchor constant:-14],
+        [self.panel.widthAnchor constraintEqualToAnchor:safe.widthAnchor constant:-28],
+        [self.panel.bottomAnchor constraintEqualToAnchor:safe.bottomAnchor constant:-10],
+        [self.panel.topAnchor constraintGreaterThanOrEqualToAnchor:safe.topAnchor constant:12],
+        height,
+        [scroll.leadingAnchor constraintEqualToAnchor:self.panel.contentView.leadingAnchor],
+        [scroll.trailingAnchor constraintEqualToAnchor:self.panel.contentView.trailingAnchor],
+        [scroll.topAnchor constraintEqualToAnchor:self.panel.contentView.topAnchor],
+        [scroll.bottomAnchor constraintEqualToAnchor:self.panel.contentView.bottomAnchor],
+        [self.stack.leadingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.leadingAnchor constant:20],
+        [self.stack.trailingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.trailingAnchor constant:-20],
+        [self.stack.topAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.topAnchor constant:10],
+        [self.stack.bottomAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.bottomAnchor constant:-22],
+        [self.stack.widthAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.widthAnchor constant:-40]
+    ]];
+    // Narrow phone width fills; on iPad the optional equality yields to max width.
+    for (NSLayoutConstraint *c in self.view.constraints)
+        if (c.firstItem == self.panel && c.firstAttribute == NSLayoutAttributeWidth && c.secondItem == safe)
+            c.priority = UILayoutPriorityDefaultHigh;
+}
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    self.panel.transform = CGAffineTransformMakeTranslation(0, 45);
+    self.panel.alpha = 0; self.shade.alpha = 0;
+    [UIView animateWithDuration:UIAccessibilityIsReduceMotionEnabled() ? 0.15 : 0.55 delay:0
+        usingSpringWithDamping:0.84 initialSpringVelocity:0.3 options:UIViewAnimationOptionBeginFromCurrentState
+        animations:^{ self.panel.transform = CGAffineTransformIdentity; self.panel.alpha = 1; self.shade.alpha = 1; } completion:nil];
+}
+- (void)changed:(UISwitch *)sender {
+    NSArray *keys = @[kPrefEnabled,kPrefFloating,kPrefUnder,kPrefLabels];
+    if (sender.tag < 0 || sender.tag >= (NSInteger)keys.count) return;
+    [D() setBool:sender.on forKey:keys[sender.tag]];
+    TTGRefreshAll();
+}
+- (void)styleChanged:(UISegmentedControl *)sender {
+    [D() setInteger:sender.selectedSegmentIndex forKey:kPrefStyle];
+    [[self.bar viewWithTag:kGlassTag] removeFromSuperview];
+    [[self.bar viewWithTag:kSelTag] removeFromSuperview];
+    TTGRefreshAll();
+}
+- (void)close {
+    [UIView animateWithDuration:0.18 animations:^{ self.panel.alpha = 0; self.shade.alpha = 0;
+        self.panel.transform = CGAffineTransformMakeTranslation(0, 24); }
+        completion:^(BOOL finished) { [self dismissViewControllerAnimated:NO completion:nil]; }];
+}
+@end
+static void TTGShowSettings(UITabBar *bar) {
+    UIViewController *top = bar.window.rootViewController;
+    while (top.presentedViewController) top = top.presentedViewController;
+    if (!top || [top isKindOfClass:TTGSettingsController.class]) return;
+    TTGSettingsController *controller = [TTGSettingsController new]; controller.bar = bar;
+    controller.modalPresentationStyle = UIModalPresentationOverFullScreen;
+    [top presentViewController:controller animated:NO completion:nil];
+}
