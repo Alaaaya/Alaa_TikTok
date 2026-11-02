@@ -1230,10 +1230,11 @@ static BOOL TTGFeedRoot(UIView *view) {
     }
     return NO;
 }
+static void TT122Track(UIViewController *c);
 %hook AWEFeedCellViewController
-- (void)viewDidLayoutSubviews { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; }
-- (void)viewDidAppear:(BOOL)animated { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; }
-- (void)setModel:(id)model { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; }
+- (void)viewDidLayoutSubviews { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; TT122Track(c); }
+- (void)viewDidAppear:(BOOL)animated { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; TT122Track(c); }
+- (void)setModel:(id)model { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; TT122Track(c); }
 %end
 %hook UICollectionViewCell
 - (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) [[TTGFeedWatchdog shared] addRoot:v]; }
@@ -1251,6 +1252,13 @@ static BOOL TTGFeedRoot(UIView *view) {
 }
 %end
 
+#include "PhaseOne.inc"
+static void TT122Track(UIViewController *c) { [[TT122Hub shared] track:c]; }
+
+%hook AWEFeedCellViewController
+- (void)viewWillAppear:(BOOL)animated { %orig; dispatch_async(dispatch_get_main_queue(), ^{ [[TT122Hub shared] track:(id)self]; }); }
+- (void)viewDidDisappear:(BOOL)animated { %orig; [[TT122Hub shared] restoreUI]; [[TT122Hub shared] closeMenu]; [[TT122Hub shared] refresh]; }
+%end
 // A custom, real-material sheet; no action-sheet emoji or developer-copy action.
 @interface TTGSettingsController : UIViewController
 @property(nonatomic, weak) UITabBar *bar;
@@ -1362,6 +1370,11 @@ static BOOL TTGFeedRoot(UIView *view) {
     [self.stack addArrangedSubview:[self row:@"كبسولة عائمة" symbol:@"capsule" key:kPrefFloating defaultValue:YES tag:1]];
     [self.stack addArrangedSubview:[self row:@"الفيديو تحت الشريط" symbol:@"rectangle.expand.vertical" key:kPrefUnder defaultValue:YES tag:2]];
     [self.stack addArrangedSubview:[self row:@"إخفاء أسماء الأزرار" symbol:@"textformat" key:kPrefLabels defaultValue:YES tag:3]];
+    NSArray *featureTitles = @[@"زر التنزيل العائم",@"زر إخفاء العناصر",@"حلقة تقدم التنزيل",@"تنزيل عادي",@"تنزيل HD",@"أعلى جودة متاحة",@"تنزيل الصوت (ملفات)",@"قائمة النسخ"];
+    NSArray *featureSymbols = @[@"arrow.down.circle",@"eye",@"circle.dotted",@"arrow.down",@"h.circle",@"sparkles",@"waveform",@"doc.on.doc"];
+    NSArray *featureKeys = @[@"tt122.download",@"tt122.eye",@"tt122.progress",@"tt122.standard",@"tt122.hd",@"tt122.highest",@"tt122.audio",@"tt122.copy"];
+    for (NSInteger i=0;i<(NSInteger)featureKeys.count;i++)
+        [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
     UILabel *styleLabel = [self label:@"نمط الشريط" size:13 weight:UIFontWeightSemibold];
     styleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.68];
     [self.stack addArrangedSubview:styleLabel];
@@ -1453,6 +1466,11 @@ static BOOL TTGFeedRoot(UIView *view) {
         animations:^{ self.panel.transform = CGAffineTransformIdentity; self.panel.alpha = 1; self.shade.alpha = 1; } completion:nil];
 }
 - (void)changed:(UISwitch *)sender {
+    if (sender.tag >= 100 && sender.tag < 108) {
+        NSArray *features = @[@"tt122.download",@"tt122.eye",@"tt122.progress",@"tt122.standard",@"tt122.hd",@"tt122.highest",@"tt122.audio",@"tt122.copy"];
+        [D() setBool:sender.on forKey:features[sender.tag-100]];
+        [[TT122Hub shared] refresh]; return;
+    }
     NSArray *keys = @[kPrefEnabled,kPrefFloating,kPrefUnder,kPrefLabels];
     if (sender.tag < 0 || sender.tag >= (NSInteger)keys.count) return;
     [D() setBool:sender.on forKey:keys[sender.tag]];
