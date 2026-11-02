@@ -23,6 +23,7 @@ assert '(category==0 && i!=1) || (category==1 && i==1)' in page
 for category,tags in [(0,[201,202]),(2,[200,203,204,205]),(3,[206]),(4,[0,1,2,3])]:
  block=page.split(f'    if(category=={category}) {{',1)[1].split('\n    }',1)[0]
  for tag in tags: assert f'tag:{tag}]' in block,(category,tag)
+assert s.count('[self iconRow:')==2
 assert 'PHPickerViewControllerDelegate' in c and 'PHPickerFilter.imagesFilter' in c
 assert 'UIDocumentPickerDelegate' in c and '@[UTTypePNG,UTTypeJPEG]' in c
 assert 'startAccessingSecurityScopedResource' in c and 'stopAccessingSecurityScopedResource' in c

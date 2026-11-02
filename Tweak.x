@@ -1492,8 +1492,7 @@ static void TT122Recover(void) {
             note.textColor=[UIColor colorWithWhite:1 alpha:.74];[self.stack addArrangedSubview:note];
         }
         if(category==4) {
-        [self.stack addArrangedSubview:[self iconRow:@"صورة زر التنزيل" tag:1221]];
-        [self.stack addArrangedSubview:[self iconRow:@"صورة زر العين" tag:1222]];
+
     UILabel *note = [self label:@"الإطفاء الكامل بيتطبّق بعد ما تسكّر TikTok وترجع تفتحه." size:12 weight:UIFontWeightRegular];
     note.textColor = [UIColor colorWithWhite:1 alpha:0.52];
     UIView *footer = [UIView new]; footer.backgroundColor = [UIColor colorWithWhite:0 alpha:0.15];
