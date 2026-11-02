@@ -1287,6 +1287,10 @@ static void TT122Recover(void) {
 - (BOOL)progressBarVisible { return TTExtraEnabled(@"tt.extra.progress") ? YES : %orig; }
 - (BOOL)progressBarDraggable { return TTExtraEnabled(@"tt.extra.progress") ? YES : %orig; }
 %end
+%hook AWEPlayInteractionWarningElementView
+- (id)warningLabel { return TTExtraEnabled(@"tt.extra.feedWarnings") ? nil : %orig; }
+- (id)warningImage { return TTExtraEnabled(@"tt.extra.feedWarnings") ? nil : %orig; }
+%end
 %hook AWEPlayVideoPlayerController
 - (void)playerWillLoopPlaying:(id)player {
     if (TTExtraEnabled(@"tt.extra.autoScroll") && TTExtraScrollNext(self)) return;
@@ -1414,6 +1418,7 @@ static void TT122Recover(void) {
     [self.stack addArrangedSubview:[self row:@"حفظ القصة بالضغط المطوّل" symbol:@"arrow.down.circle" key:@"tt.extra.storySave" defaultValue:NO tag:202]];
     [self.stack addArrangedSubview:[self row:@"الانتقال تلقائياً بعد نهاية الفيديو" symbol:@"arrow.down.to.line" key:@"tt.extra.autoScroll" defaultValue:NO tag:203]];
     [self.stack addArrangedSubview:[self row:@"إظهار شريط تقدم الفيديو دائماً" symbol:@"slider.horizontal.3" key:@"tt.extra.progress" defaultValue:NO tag:204]];
+    [self.stack addArrangedSubview:[self row:@"إخفاء ملصقات تحذير الخلاصة" symbol:@"eye.slash" key:@"tt.extra.feedWarnings" defaultValue:NO tag:205]];
     UILabel *styleLabel = [self label:@"نمط الشريط" size:13 weight:UIFontWeightSemibold];
     styleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.68];
     [self.stack addArrangedSubview:styleLabel];
@@ -1505,6 +1510,7 @@ static void TT122Recover(void) {
         animations:^{ self.panel.transform = CGAffineTransformIdentity; self.panel.alpha = 1; self.shade.alpha = 1; } completion:nil];
 }
 - (void)changed:(UISwitch *)sender {
+    if (sender.tag == 205) { [D() setBool:sender.on forKey:@"tt.extra.feedWarnings"]; return; }
     if (sender.tag == 204) { [D() setBool:sender.on forKey:@"tt.extra.progress"]; return; }
     if (sender.tag == 203) { [D() setBool:sender.on forKey:@"tt.extra.autoScroll"]; return; }
     if (sender.tag == 202) { [D() setBool:sender.on forKey:@"tt.extra.storySave"]; return; }
