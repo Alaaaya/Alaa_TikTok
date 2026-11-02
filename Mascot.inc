@@ -31,9 +31,10 @@
         [_sprite addGestureRecognizer:[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(drag:)]];
         NSNotificationCenter *n=NSNotificationCenter.defaultCenter;
         [n addObserver:self selector:@selector(refresh) name:UIApplicationDidBecomeActiveNotification object:nil];
-        [n addObserver:self selector:@selector(refresh) name:UIApplicationWillResignActiveNotification object:nil];
+        [n addObserver:self selector:@selector(pause) name:UIApplicationWillResignActiveNotification object:nil];
     }return self;
 }
+- (void)pause {self.link.paused=YES;self.last=0;self.sprite.hidden=YES;}
 - (NSArray *)drawFrames:(NSInteger)kind {
     NSMutableArray *a=[NSMutableArray new];
     for(NSInteger frame=0;frame<4;frame++) {
