@@ -1254,6 +1254,15 @@ static void TT122Track(UIViewController *c);
 
 #include "PhaseOne.inc"
 #include "LaterFeatures.inc"
+%hook AWEAwemeModel
+- (id)initWithDictionary:(id)dictionary error:(id *)error {
+    id result = %orig;
+    // Inspect the initialized result, which may differ from self.
+    if (result && TTExtraEnabled(@"tt.extra.noads") && TTExtraBool(result,NSSelectorFromString(@"isAds"))) return nil;
+    return result;
+}
+%end
+
 static void TT122Track(UIViewController *c) { [[TT122Hub shared] track:c]; }
 
 %hook AWEFeedCellViewController

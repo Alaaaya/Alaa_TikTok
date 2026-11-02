@@ -9,11 +9,3 @@ static BOOL TTExtraBool(id object, SEL selector) {
     @try { return ((BOOL(*)(id,SEL))objc_msgSend)(object,selector); }
     @catch (__unused NSException *e) { return NO; }
 }
-%hook AWEAwemeModel
-- (id)initWithDictionary:(id)dictionary error:(id *)error {
-    id result = %orig;
-    // Inspect the initialized result, which may differ from self.
-    if (result && TTExtraEnabled(@"tt.extra.noads") && TTExtraBool(result,NSSelectorFromString(@"isAds"))) return nil;
-    return result;
-}
-%end

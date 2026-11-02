@@ -113,6 +113,7 @@ static NSURL *TT122VideoURL(id model, NSInteger quality) {
 @property(nonatomic) BOOL uiHidden;
 @property(nonatomic) BOOL audio;
 @property(nonatomic) BOOL busy;
+@property(nonatomic, strong) NSArray<NSURL *> *audioCandidates;
 @property(nonatomic) BOOL dragging;
 + (instancetype)shared;
 - (void)track:(UIViewController *)controller;
@@ -314,6 +315,13 @@ static UIView *TT122Material(CGRect frame) {
     self.audio = quality == 3;
     NSURL *url = TT122VideoURL(model,quality == 3 ? 2 : quality);
     if (!url) { [self toast:@"رابط الفيديو غير متاح، لا يدعم البث المباشر أو الصور حالياً"]; return; }
+    id video = TTGActionObject(model,@"video");
+    NSMutableArray *audioURLs = [NSMutableArray array];
+    for (NSString *key in @[@"audioURL",@"playURL"]) {
+        NSURL *candidate = TT122URL(TTGActionObject(video,key),0);
+        if (candidate && ![audioURLs containsObject:candidate]) [audioURLs addObject:candidate];
+    }
+    self.audioCandidates = audioURLs;
     self.busy = YES; self.ring.strokeEnd = 0;
     [self.progressButton setImage:nil forState:UIControlStateNormal]; [self.progressButton setTitle:@"0%" forState:UIControlStateNormal];
     self.progressButton.titleLabel.font = [UIFont monospacedDigitSystemFontOfSize:11 weight:UIFontWeightSemibold];
@@ -342,7 +350,89 @@ static UIView *TT122Material(CGRect frame) {
     NSError *moveError = nil;
     if (![NSFileManager.defaultManager moveItemAtURL:location toURL:file error:&moveError]) { [self finish:@"تعذر إنشاء ملف التنزيل"]; return; }
     [self.progressButton setTitle:self.audio?@"صوت":@"حفظ" forState:UIControlStateNormal];
-    if (self.audio) [self exportAudio:file]; else [self saveVideo:file];
+    if (self.audio) [self exportAudio:file]; else [self verifyVideo:file];
+}
+// Never send a silent video-only variant to Photos. Load tracks off the main queue.
+- (void)verifyVideo:(NSURL *)file {
+    AVURLAsset *asset = [AVURLAsset URLAssetWithURL:file options:nil];
+    [asset loadValuesAsynchronouslyForKeys:@[@"tracks",@"duration"] completionHandler:^{
+        NSError *error = nil;
+        BOOL loaded = [asset statusOfValueForKey:@"tracks" error:&error] == AVKeyValueStatusLoaded;
+        NSArray *videoTracks = loaded ? [asset tracksWithMediaType:AVMediaTypeVideo] : @[];
+        NSArray *audioTracks = loaded ? [asset tracksWithMediaType:AVMediaTypeAudio] : @[];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (!videoTracks.count) {
+                [NSFileManager.defaultManager removeItemAtURL:file error:nil]; [self finish:@"الملف لا يحتوي على فيديو صالح"]; return;
+            }
+            if (audioTracks.count) { [self saveVideo:file]; return; }
+            [self.progressButton setTitle:@"دمج" forState:UIControlStateNormal];
+            [self muxVideo:file asset:asset candidate:0];
+        });
+    }];
+}
+- (void)muxVideo:(NSURL *)file asset:(AVURLAsset *)video candidate:(NSUInteger)index {
+    if (index >= self.audioCandidates.count) {
+        [NSFileManager.defaultManager removeItemAtURL:file error:nil];
+        [self finish:@"لم يتوفر مسار صوت مطابق، لم يُحفظ فيديو صامت"]; return;
+    }
+    NSURL *source = self.audioCandidates[index];
+    AVURLAsset *audioAsset = [AVURLAsset URLAssetWithURL:source options:nil];
+    [audioAsset loadValuesAsynchronouslyForKeys:@[@"tracks",@"duration"] completionHandler:^{
+        NSError *error = nil;
+        BOOL loaded = [audioAsset statusOfValueForKey:@"tracks" error:&error] == AVKeyValueStatusLoaded &&
+            [audioAsset statusOfValueForKey:@"duration" error:&error] == AVKeyValueStatusLoaded;
+        AVAssetTrack *audioTrack = loaded ? [audioAsset tracksWithMediaType:AVMediaTypeAudio].firstObject : nil;
+        AVAssetTrack *videoTrack = [video tracksWithMediaType:AVMediaTypeVideo].firstObject;
+        CMTime duration = video.duration;
+        double seconds = CMTimeGetSeconds(duration);
+        BOOL enough = audioTrack && isfinite(seconds) && seconds > 0 &&
+            CMTimeGetSeconds(audioAsset.duration) + .1 >= seconds;
+        if (!enough) {
+            dispatch_async(dispatch_get_main_queue(), ^{[self muxVideo:file asset:video candidate:index+1];}); return;
+        }
+        AVMutableComposition *composition = [AVMutableComposition composition];
+        AVMutableCompositionTrack *v = [composition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
+        AVMutableCompositionTrack *a = [composition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
+        CMTimeRange range = CMTimeRangeMake(kCMTimeZero,duration);
+        BOOL inserted = [v insertTimeRange:range ofTrack:videoTrack atTime:kCMTimeZero error:&error] &&
+            [a insertTimeRange:range ofTrack:audioTrack atTime:kCMTimeZero error:&error];
+        v.preferredTransform = videoTrack.preferredTransform;
+        if (!inserted) {
+            dispatch_async(dispatch_get_main_queue(), ^{[self muxVideo:file asset:video candidate:index+1];}); return;
+        }
+        AVAssetExportSession *exporter = [[AVAssetExportSession alloc] initWithAsset:composition presetName:AVAssetExportPresetPassthrough];
+        if (![exporter.supportedFileTypes containsObject:AVFileTypeMPEG4])
+            exporter = [[AVAssetExportSession alloc] initWithAsset:composition presetName:AVAssetExportPresetHighestQuality];
+        if (!exporter || ![exporter.supportedFileTypes containsObject:AVFileTypeMPEG4]) {
+            dispatch_async(dispatch_get_main_queue(), ^{[self muxVideo:file asset:video candidate:index+1];}); return;
+        }
+        NSURL *output = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:[NSUUID.UUID.UUIDString stringByAppendingString:@".mp4"]]];
+        exporter.outputURL=output;exporter.outputFileType=AVFileTypeMPEG4;exporter.shouldOptimizeForNetworkUse=YES;
+        AVAssetExportSession *active=exporter;
+        dispatch_async(dispatch_get_main_queue(), ^{self.exporter=active;});
+        [active exportAsynchronouslyWithCompletionHandler:^{
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.exporter=nil;
+                if (active.status != AVAssetExportSessionStatusCompleted) {
+                    [NSFileManager.defaultManager removeItemAtURL:output error:nil];
+                    [self muxVideo:file asset:video candidate:index+1]; return;
+                }
+                [NSFileManager.defaultManager removeItemAtURL:file error:nil];
+                [self verifyMuxedVideo:output];
+            });
+        }];
+    }];
+}
+- (void)verifyMuxedVideo:(NSURL *)file {
+    AVURLAsset *asset = [AVURLAsset URLAssetWithURL:file options:nil];
+    [asset loadValuesAsynchronouslyForKeys:@[@"tracks"] completionHandler:^{
+        BOOL ok = [asset statusOfValueForKey:@"tracks" error:nil] == AVKeyValueStatusLoaded &&
+            [asset tracksWithMediaType:AVMediaTypeAudio].count && [asset tracksWithMediaType:AVMediaTypeVideo].count;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (ok) [self saveVideo:file];
+            else { [NSFileManager.defaultManager removeItemAtURL:file error:nil]; [self finish:@"فشل فحص الصوت بعد الدمج، لم يتم الحفظ"]; }
+        });
+    }];
 }
 - (void)saveVideo:(NSURL *)file {
     // A tweak cannot safely supply a missing host privacy usage string.
@@ -392,7 +482,7 @@ static UIView *TT122Material(CGRect frame) {
     }];
 }
 - (void)finish:(NSString *)message {
-    self.busy=NO; self.task=nil; [self.session finishTasksAndInvalidate]; self.session=nil;
+    self.busy=NO; self.task=nil; self.audioCandidates=nil; [self.session finishTasksAndInvalidate]; self.session=nil;
     self.ring.strokeEnd=1; [self refresh]; [self toast:message];
 }
 @end
