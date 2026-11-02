@@ -1310,6 +1310,11 @@ static void TT122Recover(void) {
     return TTExtraEnabled(@"tt.extra.longComments") ? MAX(original,(NSUInteger)240) : original;
 }
 %end
+%hook TIKTOKProfileHeaderView
+- (id)initWithFrame:(CGRect)frame {
+    id result=%orig;[[TTProfileTools shared] attachBio:result];return result;
+}
+%end
 // A custom, real-material sheet; no action-sheet emoji or developer-copy action.
 @interface TTGSettingsController : UIViewController
 @property(nonatomic, weak) UITabBar *bar;
@@ -1460,6 +1465,7 @@ static void TT122Recover(void) {
     }
     if(category==3) {
     [self.stack addArrangedSubview:[self row:@"حفظ صورة الحساب بالضغط المطوّل" symbol:@"person.crop.square" key:@"tt.extra.profileImage" defaultValue:NO tag:206]];
+    [self.stack addArrangedSubview:[self row:@"نسخ النبذة بالضغط المطوّل على الملف" symbol:@"doc.on.doc" key:@"tt.extra.copyBio" defaultValue:NO tag:208]];
     }
     if(category==4) {
         [self.stack addArrangedSubview:[self iconRow:@"صورة زر التنزيل" tag:1221]];
@@ -1666,6 +1672,7 @@ static void TT122Recover(void) {
         animations:^{ self.panel.transform = CGAffineTransformIdentity; self.panel.alpha = 1; self.shade.alpha = 1; } completion:nil];
 }
 - (void)changed:(UISwitch *)sender {
+    if (sender.tag == 208) { [D() setBool:sender.on forKey:@"tt.extra.copyBio"]; return; }
     if (sender.tag == 207) { [D() setBool:sender.on forKey:@"tt.extra.longComments"]; return; }
     if (sender.tag == 206) { [D() setBool:sender.on forKey:@"tt.extra.profileImage"]; return; }
     if (sender.tag == 205) { [D() setBool:sender.on forKey:@"tt.extra.feedWarnings"]; return; }
