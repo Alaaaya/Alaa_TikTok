@@ -322,7 +322,7 @@ static UIView *TT122Material(CGRect frame) {
     b.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft; b.tintColor = UIColor.whiteColor;
     b.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
     [b setTitle:[@"  " stringByAppendingString:title] forState:UIControlStateNormal];
-    [b setImage:TTToolGlyph(tag,symbol) forState:UIControlStateNormal];
+    [b setImage:[UIImage systemImageNamed:symbol] forState:UIControlStateNormal];
     [b addAction:[UIAction actionWithHandler:^(__unused UIAction *a){ action(); }] forControlEvents:UIControlEventTouchUpInside];
     [b.heightAnchor constraintEqualToConstant:44].active = YES; [stack addArrangedSubview:b];
 }
