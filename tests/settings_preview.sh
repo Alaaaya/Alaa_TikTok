@@ -7,7 +7,7 @@ APP=/tmp/JokerPreview.app
 mkdir -p "$APP"
 mkdir -p /tmp/joker-minizip
 for src in vendor/ZipArchive/minizip/*.c vendor/ZipArchive/minizip/compat/*.c; do
-  clang -isysroot "$SDK" -target "$ARCH-apple-ios15.0-simulator" -DHAVE_ARC4RANDOM_BUF -DHAVE_ICONV -DHAVE_INTTYPES_H -DHAVE_STDINT_H -DHAVE_ZLIB -DZLIB_COMPAT -Ivendor/ZipArchive/minizip -c "$src" -o "/tmp/joker-minizip/$(basename "$src").o"
+  clang -isysroot "$SDK" -target "$ARCH-apple-ios15.0-simulator" -DHAVE_WZAES -DHAVE_PKCRYPT -DHAVE_ARC4RANDOM_BUF -DHAVE_ICONV -DHAVE_INTTYPES_H -DHAVE_STDINT_H -DHAVE_ZLIB -DZLIB_COMPAT -Ivendor/ZipArchive/minizip -c "$src" -o "/tmp/joker-minizip/$(basename "$src").o"
 done
 python3 tests/pack_fixtures.py "$APP"
 clang -fobjc-arc -Wno-deprecated-declarations -Wno-incompatible-pointer-types -isysroot "$SDK" -target "$ARCH-apple-ios15.0-simulator"  tests/SettingsPreview.m /tmp/joker-minizip/*.o -lz -liconv -framework Security -framework UIKit -framework Foundation -framework Photos -framework PhotosUI  -framework UniformTypeIdentifiers -framework CoreGraphics -framework QuartzCore -framework ImageIO -o "$APP/JokerPreview"
