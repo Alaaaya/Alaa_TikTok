@@ -1575,6 +1575,20 @@ static UIVisualEffect *TTJokerGlass(void) {
     [self.stack addArrangedSubview:[self row:@"عدد الفيديوهات على الملف" symbol:@"rectangle.stack" key:@"tt.extra.videoCount" defaultValue:NO tag:210]];
     }
     if(category==6) {
+        for(NSInteger i=0;i<2;i++){
+            UIButton *b=[UIButton buttonWithType:UIButtonTypeSystem];
+            [b setTitle:i==0?@"استيراد ZIP من الملفات":@"استيراد مجلد من الملفات" forState:UIControlStateNormal];
+            b.tag=i;[b.heightAnchor constraintEqualToConstant:46].active=YES;
+            [b addTarget:self action:@selector(importPetPack:) forControlEvents:UIControlEventTouchUpInside];
+            [self.stack addArrangedSubview:b];
+        }
+        UIButton *choose=[UIButton buttonWithType:UIButtonTypeSystem];
+        NSString *active=[D() stringForKey:@"tt.pet.pack"];
+        [choose setTitle:active.length?[NSString stringWithFormat:@"الشخصية · %@",active]:@"الشخصية · Joker الأصلية" forState:UIControlStateNormal];
+        choose.titleLabel.lineBreakMode=NSLineBreakByTruncatingMiddle;
+        [choose.heightAnchor constraintEqualToConstant:46].active=YES;
+        [choose addTarget:self action:@selector(choosePetPack:) forControlEvents:UIControlEventTouchUpInside];
+        [self.stack addArrangedSubview:choose];
         [self.stack addArrangedSubview:[self row:@"شخصية Joker" symbol:@"cat" key:@"tt.pet.enabled" defaultValue:NO tag:360]];
         UILabel *label=[self label:@"الحجم" size:14 weight:UIFontWeightSemibold];[self.stack addArrangedSubview:label];
         UISlider *size=[UISlider new];size.minimumValue=28;size.maximumValue=76;
@@ -1608,6 +1622,11 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack addArrangedSubview:note];
     }
     if(category==4) {
+        UIButton *mascot=[UIButton buttonWithType:UIButtonTypeSystem];
+        [mascot setTitle:@"الشخصية · Mascot" forState:UIControlStateNormal];mascot.tag=6;
+        [mascot.heightAnchor constraintEqualToConstant:46].active=YES;
+        [mascot addTarget:self action:@selector(openCategory:) forControlEvents:UIControlEventTouchUpInside];
+        [self.stack addArrangedSubview:mascot];
         [self.stack addArrangedSubview:[self iconRow:@"صورة زر التنزيل" tag:1221]];
         [self.stack addArrangedSubview:[self iconRow:@"صورة زر العين" tag:1222]];
     [self.stack addArrangedSubview:[self row:@"الشريط الزجاجي" symbol:@"rectangle.bottomthird.inset.filled" key:kPrefEnabled defaultValue:YES tag:0]];
@@ -1822,6 +1841,24 @@ static UIVisualEffect *TTJokerGlass(void) {
     [UIView animateWithDuration:UIAccessibilityIsReduceMotionEnabled() ? 0.15 : 0.55 delay:0
         usingSpringWithDamping:0.84 initialSpringVelocity:0.3 options:UIViewAnimationOptionBeginFromCurrentState
         animations:^{ self.panel.transform = CGAffineTransformIdentity; self.panel.alpha = 1; self.shade.alpha = 1; } completion:nil];
+}
+- (void)importPetPack:(UIButton *)sender {
+    __weak TTGSettingsController *weakSelf=self;
+    [[TTPackPicker shared] choose:self folder:sender.tag==1 completion:^(NSString *pack){
+        [D() setObject:pack forKey:@"tt.pet.pack"];[D() setBool:YES forKey:@"tt.pet.enabled"];
+        [[TTJokerPet shared] refresh];[weakSelf showCategory:6 animated:NO];
+    }];
+}
+- (void)choosePetPack:(UIButton *)sender {
+    UIAlertController *menu=[UIAlertController alertControllerWithTitle:@"الشخصية" message:@"صور Shimeji فقط. ملفات XML لا يتم تشغيلها." preferredStyle:UIAlertControllerStyleActionSheet];
+    __weak TTGSettingsController *weakSelf=self;
+    NSMutableArray *packs=[NSMutableArray arrayWithObject:@""];[packs addObjectsFromArray:TTPackIDs()];
+    for(NSString *pack in packs)[menu addAction:[UIAlertAction actionWithTitle:pack.length?pack:@"Joker الأصلية" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a){
+        [D() setObject:pack forKey:@"tt.pet.pack"];[[TTJokerPet shared] refresh];[weakSelf showCategory:6 animated:NO];
+    }]];
+    [menu addAction:[UIAlertAction actionWithTitle:@"إلغاء" style:UIAlertActionStyleCancel handler:nil]];
+    menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
+    [self presentViewController:menu animated:YES completion:nil];
 }
 - (void)petSize:(UISlider *)sender {[D() setDouble:sender.value forKey:@"tt.pet.size"];[[TTJokerPet shared] refresh];}
 - (void)petKind:(UISegmentedControl *)sender {[D() setInteger:sender.selectedSegmentIndex forKey:@"tt.pet.kind"];[[TTJokerPet shared] refresh];}

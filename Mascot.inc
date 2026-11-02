@@ -1,3 +1,4 @@
+#include "MascotPacks.inc"
 // Original Joker mascot. No Shijima implementation, artwork or runtime dependency.
 @interface TTJokerPetView : UIImageView
 @end
@@ -16,6 +17,11 @@
 @property(nonatomic) CFTimeInterval last,time,idle;
 @property(nonatomic) NSInteger direction,kind;
 @property(nonatomic,strong) NSArray<UIImage *> *frames;
+@property(nonatomic,strong) NSDictionary<NSNumber *,UIImage *> *packFrames;
+@property(nonatomic,copy) NSString *packID;
+@property(nonatomic,copy) NSString *state;
+@property(nonatomic) CGFloat climbUntil;
+- (void)updateSprite:(NSString *)state;
 + (instancetype)shared;
 - (void)attach:(UIViewController *)controller;
 - (void)refresh;
@@ -85,6 +91,9 @@
     self.sprite.bounds=CGRectMake(0,0,size,size);
     NSInteger kind=[D() integerForKey:@"tt.pet.kind"]==1?1:0;
     if(!self.frames || self.kind!=kind){self.kind=kind;self.frames=[self drawFrames:kind];self.sprite.image=self.frames[1];}
+    NSString *pack=[D() stringForKey:@"tt.pet.pack"] ?: @"";
+    if(![self.packID isEqualToString:pack]){self.packID=pack;self.packFrames=TTPackLoad(pack);}
+    [self updateSprite:@"stand"];
     if(show && !UIAccessibilityIsReduceMotionEnabled()){
         if(!self.link){self.link=[CADisplayLink displayLinkWithTarget:self selector:@selector(step:)];self.link.preferredFramesPerSecond=30;[self.link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];}
         self.link.paused=NO;
@@ -96,10 +105,31 @@
        UIApplication.sharedApplication.applicationState!=UIApplicationStateActive){self.link.paused=YES;self.last=0;return;}
     CGFloat dt=self.last?MIN(.04,MAX(0,link.timestamp-self.last)):0;self.last=link.timestamp;[self advance:dt];
 }
+- (void)updateSprite:(NSString *)state {
+    self.state=state;
+    if(self.packFrames) {
+        // Conventional Shimeji poses. XML actions/behaviors are intentionally ignored.
+        NSArray *poses=[state isEqual:@"walk"]?@[@1,@2,@1,@3]:
+            [state isEqual:@"fall"]?@[@4]:
+            [state isEqual:@"drag"]?@[@5,@6]:
+            [state isEqual:@"sit"]?@[@11]:
+            [state isEqual:@"climb"]?@[@12,@13]:@[@1];
+        NSNumber *n=poses[(NSInteger)(self.time*6)%poses.count];
+        self.sprite.image=self.packFrames[n] ?: self.packFrames[@1];
+    } else {
+        NSInteger f=[state isEqual:@"walk"]?((NSInteger)(self.time*6)%3)+1:((NSInteger)(self.time*2)%9==0?0:1);
+        self.sprite.image=self.frames[f];
+    }
+    self.sprite.transform=CGAffineTransformMakeScale(self.direction,1);
+}
 - (void)advance:(CGFloat)dt {
     self.time+=dt;
-    if(self.dragging)return;
+    if(self.dragging){[self updateSprite:@"drag"];return;}
     CGPoint p=self.sprite.center;CGFloat half=self.sprite.bounds.size.width/2,floor=[self floorY];
+    if(self.climbUntil>self.time) {
+        p.y=MAX(self.host.safeAreaInsets.top+half,p.y-24*dt);
+        self.sprite.center=p;self.velocity=CGPointZero;[self updateSprite:@"climb"];return;
+    }
     self.velocity=CGPointMake(self.velocity.x,self.velocity.y+1100*dt);
     p.x+=self.velocity.x*dt;p.y+=self.velocity.y*dt;
     if(p.y>=floor){
@@ -111,16 +141,15 @@
             if(fmod(self.idle,10)<6)p.x+=self.direction*32*dt;
         }
     }
-    if(p.x<half){p.x=half;self.direction=1;self.velocity=CGPointMake(fabs(self.velocity.x)*.5,self.velocity.y);}
-    if(p.x>self.host.bounds.size.width-half){p.x=self.host.bounds.size.width-half;self.direction=-1;self.velocity=CGPointMake(-fabs(self.velocity.x)*.5,self.velocity.y);}
+    if(p.x<half){if(p.y<floor-5 && fabs(self.velocity.x)>100)self.climbUntil=self.time+1.2;p.x=half;self.direction=1;self.velocity=CGPointMake(fabs(self.velocity.x)*.5,self.velocity.y);}
+    if(p.x>self.host.bounds.size.width-half){if(p.y<floor-5 && fabs(self.velocity.x)>100)self.climbUntil=self.time+1.2;p.x=self.host.bounds.size.width-half;self.direction=-1;self.velocity=CGPointMake(-fabs(self.velocity.x)*.5,self.velocity.y);}
     p.y=MAX(self.host.safeAreaInsets.top+half,p.y);self.sprite.center=p;
     BOOL walking=p.y>=floor-.5 && fmod(self.idle,10)<6;
-    NSInteger f=walking?((NSInteger)(self.time*6)%3)+1:((NSInteger)(self.time*2)%9==0?0:1);
-    self.sprite.image=self.frames[f];self.sprite.transform=CGAffineTransformMakeScale(self.direction,1);
+    [self updateSprite:p.y<floor-.5?@"fall":walking?@"walk":@"sit"];
 }
 - (void)drag:(UIPanGestureRecognizer *)pan {
     CGPoint t=[pan translationInView:self.host];
-    if(pan.state==UIGestureRecognizerStateBegan){self.dragging=YES;self.velocity=CGPointZero;}
+    if(pan.state==UIGestureRecognizerStateBegan){self.dragging=YES;self.velocity=CGPointZero;self.climbUntil=0;[self updateSprite:@"drag"];}
     if(pan.state==UIGestureRecognizerStateChanged){
         CGPoint p=self.sprite.center;CGFloat h=self.sprite.bounds.size.width/2;
         p.x=MAX(h,MIN(self.host.bounds.size.width-h,p.x+t.x));

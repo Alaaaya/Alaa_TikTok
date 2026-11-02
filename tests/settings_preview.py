@@ -115,6 +115,30 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         ShotView(self.window,@"mascot-uncovered");
         vc.panel.hidden=NO;
         [D() setBool:NO forKey:@"tt.pet.enabled"];[pet refresh];
+        // Pack import integration: real ZIP reader, folder import, pose fallback and malicious input.
+        NSString *fixtures=[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"Fixtures"];
+        NSError *packError=nil;
+        NSString *imported=TTPackImport([NSURL fileURLWithPath:[fixtures stringByAppendingPathComponent:@"good.zip"]],&packError);
+        Check(imported!=nil,@"valid nested ZIP imported");
+        Check(TTPackLoad(imported).count==46,@"all 46 PNG frames persisted");
+        [D() setObject:imported forKey:@"tt.pet.pack"];[pet refresh];
+        Check(pet.packFrames.count==46,@"active imported pack");
+        for(NSString *state in @[@"stand",@"walk",@"fall",@"drag",@"sit",@"climb"]) {
+            [pet updateSprite:state];Check(pet.sprite.image!=nil && [pet.state isEqual:state],@"all six sprite states");
+        }
+        [D() setBool:YES forKey:@"tt.pet.enabled"];[pet refresh];pet.sprite.center=CGPointMake(90,[pet floorY]);
+        [pet updateSprite:@"walk"];ShotView(self.window,@"pack-walk");
+        [pet updateSprite:@"drag"];ShotView(self.window,@"pack-drag");
+        for(NSString *bad in @[@"traversal.zip",@"symlink.zip",@"duplicate.zip",@"badpng.zip",@"missing.zip",@"oversize.zip"]){
+            packError=nil;
+            Check(TTPackImport([NSURL fileURLWithPath:[fixtures stringByAppendingPathComponent:bad]],&packError)==nil && packError!=nil,@"unsafe ZIP rejected");
+        }
+        NSString *folder=TTPackImport([NSURL fileURLWithPath:[fixtures stringByAppendingPathComponent:@"folder"]],&packError);
+        Check(folder && TTPackLoad(folder).count==1,@"minimal folder pack imported");
+        [D() setObject:folder forKey:@"tt.pet.pack"];[pet refresh];[pet updateSprite:@"climb"];
+        Check(pet.sprite.image==pet.packFrames[@1],@"missing pose falls back to stand");
+        [D() setObject:@"" forKey:@"tt.pet.pack"];[pet refresh];Check(!pet.packFrames,@"original default restored");
+        [D() setBool:NO forKey:@"tt.pet.enabled"];[pet refresh];
         // Persisted artwork, cache reload, target isolation and reset.
         UIGraphicsImageRenderer *renderer=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(64,40)];
         UIImage *image=[renderer imageWithActions:^(UIGraphicsImageRendererContext *ctx){[UIColor.redColor setFill];UIRectFill(CGRectMake(0,0,64,40));}];
