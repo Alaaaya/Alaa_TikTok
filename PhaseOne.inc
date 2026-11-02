@@ -112,6 +112,8 @@ static NSURL *TT122VideoURL(id model, NSInteger quality) {
 @property(nonatomic, weak) id hiddenInteraction;
 @property(nonatomic) BOOL uiHidden;
 @property(nonatomic) BOOL audio;
+@property(nonatomic) BOOL audioAsVideo;
+@property(nonatomic, strong) NSURL *coverAudio;
 @property(nonatomic) BOOL busy;
 @property(nonatomic, strong) NSArray<NSURL *> *audioCandidates;
 @property(nonatomic) BOOL dragging;
@@ -287,6 +289,7 @@ static UIView *TT122Material(CGRect frame) {
         for (NSInteger i=0;i<4;i++) if (TT122Enabled(keys[i])) {
             [self menuRow:stack title:titles[i] symbol:i==3?@"waveform":@"arrow.down" action:^{[weak closeMenu]; [weak start:model quality:i];}];
         }
+        if (TT122Enabled(@"tt122.audio")) [self menuRow:stack title:@"حفظ الصوت كفيديو بغلاف" symbol:@"photo.on.rectangle" action:^{[weak closeMenu];[weak start:model quality:4];}];
         if (TT122Enabled(@"tt122.copy")) [self menuRow:stack title:@"نسخ" symbol:@"doc.on.doc" action:^{[weak showMenu:YES];}];
     }
     [self menuRow:stack title:@"إغلاق" symbol:@"xmark" action:^{[weak closeMenu];}];
@@ -312,8 +315,8 @@ static UIView *TT122Material(CGRect frame) {
 }
 - (void)start:(id)model quality:(NSInteger)quality {
     if (self.busy) return;
-    self.audio = quality == 3;
-    NSURL *url = TT122VideoURL(model,quality == 3 ? 2 : quality);
+    self.audio = quality >= 3; self.audioAsVideo = quality == 4;
+    NSURL *url = TT122VideoURL(model,quality >= 3 ? 0 : quality);
     if (!url) { [self toast:@"رابط الفيديو غير متاح، لا يدعم البث المباشر أو الصور حالياً"]; return; }
     id video = TTGActionObject(model,@"video");
     NSMutableArray *audioURLs = [NSMutableArray array];
@@ -464,12 +467,20 @@ static UIView *TT122Material(CGRect frame) {
     NSURL *audio = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:[NSUUID.UUID.UUIDString stringByAppendingString:@".m4a"]]];
     exporter.outputURL=audio;exporter.outputFileType=AVFileTypeAppleM4A; self.exporter=exporter;
     [exporter exportAsynchronouslyWithCompletionHandler:^{
+        UIImage *cover = nil;
+        if (self.audioAsVideo && exporter.status == AVAssetExportSessionStatusCompleted) {
+            AVAssetImageGenerator *generator = [AVAssetImageGenerator assetImageGeneratorWithAsset:asset];
+            generator.appliesPreferredTrackTransform=YES; generator.maximumSize=CGSizeMake(720,720);
+            CGImageRef image=[generator copyCGImageAtTime:kCMTimeZero actualTime:NULL error:nil];
+            if (image) { cover=[UIImage imageWithCGImage:image];CGImageRelease(image); }
+        }
         [NSFileManager.defaultManager removeItemAtURL:file error:nil];
         dispatch_async(dispatch_get_main_queue(), ^{
             BOOL ok = exporter.status == AVAssetExportSessionStatusCompleted; self.exporter=nil;
-            [self finish:ok?@"الصوت جاهز، احفظه في الملفات":@"تعذر استخراج الصوت من الفيديو"];
+            if (ok && self.audioAsVideo) { [self renderAudioCover:audio image:cover]; return; }
+            [self finish:ok?@"الصوت جاهز للمشاركة":@"تعذر استخراج الصوت من الفيديو"];
             if (!ok) { [NSFileManager.defaultManager removeItemAtURL:audio error:nil]; return; }
-            // Photos does not accept audio-only assets. Offer Save to Files instead.
+            // Native share sheet offers Save to Files and installed receiving apps.
             self.sharedAudio = audio;
             UIActivityViewController *share = [[UIActivityViewController alloc] initWithActivityItems:@[audio] applicationActivities:nil];
             share.popoverPresentationController.sourceView=self.downloadButton;
@@ -477,11 +488,89 @@ static UIView *TT122Material(CGRect frame) {
             share.completionWithItemsHandler=^(UIActivityType activity,BOOL done,NSArray *items,NSError *error){
                 [NSFileManager.defaultManager removeItemAtURL:audio error:nil]; self.sharedAudio=nil;
             };
-            [TT122TopVC() presentViewController:share animated:YES completion:nil];
+            UIViewController *presenter=TT122TopVC();
+            if (!presenter || presenter.isBeingDismissed || presenter.isBeingPresented) {
+                [NSFileManager.defaultManager removeItemAtURL:audio error:nil];self.sharedAudio=nil;[self toast:@"تعذر فتح المشاركة حالياً"];return;
+            }
+            [presenter presentViewController:share animated:YES completion:nil];
         });
     }];
 }
+// Generate a low-frame-rate static cover, then passthrough-mux the full M4A.
+- (void)renderAudioCover:(NSURL *)audio image:(UIImage *)image {
+    self.coverAudio=audio;self.audioCandidates=@[audio];
+    [self.progressButton setTitle:@"غلاف" forState:UIControlStateNormal];
+    AVURLAsset *asset=[AVURLAsset URLAssetWithURL:audio options:nil];
+    [asset loadValuesAsynchronouslyForKeys:@[@"duration"] completionHandler:^{
+        CMTime duration=asset.duration;double seconds=CMTimeGetSeconds(duration);
+        if ([asset statusOfValueForKey:@"duration" error:nil]!=AVKeyValueStatusLoaded || !isfinite(seconds) || seconds<=0) {
+            dispatch_async(dispatch_get_main_queue(), ^{[self finish:@"تعذر قراءة مدة الصوت"];});return;
+        }
+        NSURL *output=[NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:[NSUUID.UUID.UUIDString stringByAppendingString:@".mp4"]]];
+        NSError *error=nil;
+        AVAssetWriter *writer=[[AVAssetWriter alloc] initWithURL:output fileType:AVFileTypeMPEG4 error:&error];
+        AVAssetWriterInput *input=[AVAssetWriterInput assetWriterInputWithMediaType:AVMediaTypeVideo outputSettings:@{AVVideoCodecKey:AVVideoCodecTypeH264,AVVideoWidthKey:@720,AVVideoHeightKey:@720}];
+        input.expectsMediaDataInRealTime=NO;
+        AVAssetWriterInputPixelBufferAdaptor *adaptor=[AVAssetWriterInputPixelBufferAdaptor assetWriterInputPixelBufferAdaptorWithAssetWriterInput:input sourcePixelBufferAttributes:@{(NSString *)kCVPixelBufferPixelFormatTypeKey:@(kCVPixelFormatType_32ARGB),(NSString *)kCVPixelBufferWidthKey:@720,(NSString *)kCVPixelBufferHeightKey:@720,(NSString *)kCVPixelBufferCGImageCompatibilityKey:@YES,(NSString *)kCVPixelBufferCGBitmapContextCompatibilityKey:@YES}];
+        if (!writer || ![writer canAddInput:input]) {
+            dispatch_async(dispatch_get_main_queue(), ^{[self finish:@"تعذر إنشاء فيديو الغلاف"];});return;
+        }
+        [writer addInput:input];
+        if (![writer startWriting]) {
+            [NSFileManager.defaultManager removeItemAtURL:output error:nil];
+            dispatch_async(dispatch_get_main_queue(), ^{[self finish:@"تعذر بدء فيديو الغلاف"];});return;
+        }
+        [writer startSessionAtSourceTime:kCMTimeZero];
+        CVPixelBufferRef pixel=NULL;
+        CVReturn result=CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault,adaptor.pixelBufferPool,&pixel);
+        if (result!=kCVReturnSuccess || !pixel) {
+            [writer cancelWriting];[NSFileManager.defaultManager removeItemAtURL:output error:nil];
+            dispatch_async(dispatch_get_main_queue(), ^{[self finish:@"تعذر رسم الغلاف"];});return;
+        }
+        CVPixelBufferLockBaseAddress(pixel,0);
+        CGColorSpaceRef space=CGColorSpaceCreateDeviceRGB();
+        CGContextRef context=CGBitmapContextCreate(CVPixelBufferGetBaseAddress(pixel),720,720,8,CVPixelBufferGetBytesPerRow(pixel),space,kCGImageAlphaNoneSkipFirst);
+        CGColorSpaceRelease(space);
+        if (!context) {
+            CVPixelBufferUnlockBaseAddress(pixel,0);CVPixelBufferRelease(pixel);[writer cancelWriting];
+            [NSFileManager.defaultManager removeItemAtURL:output error:nil];
+            dispatch_async(dispatch_get_main_queue(), ^{[self finish:@"تعذر رسم الغلاف"];});return;
+        }
+        CGContextSetRGBFillColor(context,.06,.06,.07,1);CGContextFillRect(context,CGRectMake(0,0,720,720));
+        if (image.CGImage) {
+            CGFloat w=CGImageGetWidth(image.CGImage),h=CGImageGetHeight(image.CGImage),scale=MIN(720/w,720/h);
+            CGContextDrawImage(context,CGRectMake((720-w*scale)/2,(720-h*scale)/2,w*scale,h*scale),image.CGImage);
+        }
+        CGContextRelease(context);CVPixelBufferUnlockBaseAddress(pixel,0);
+        __block NSInteger frame=0;__block BOOL ended=NO;
+        NSInteger total=(NSInteger)ceil(seconds);
+        dispatch_queue_t queue=dispatch_queue_create("com.alaa.tiktok.cover",DISPATCH_QUEUE_SERIAL);
+        [input requestMediaDataWhenReadyOnQueue:queue usingBlock:^{
+            if (ended) return;
+            while (input.readyForMoreMediaData && frame<total) {
+                if (![adaptor appendPixelBuffer:pixel withPresentationTime:CMTimeMake(frame,1)]) {
+                    ended=YES;CVPixelBufferRelease(pixel);[writer cancelWriting];
+                    [NSFileManager.defaultManager removeItemAtURL:output error:nil];
+                    dispatch_async(dispatch_get_main_queue(), ^{[self finish:@"تعذر كتابة الغلاف"];});return;
+                }
+                frame++;
+            }
+            if (frame>=total && !ended) {
+                ended=YES;CVPixelBufferRelease(pixel);[input markAsFinished];[writer endSessionAtSourceTime:duration];
+                [writer finishWritingWithCompletionHandler:^{
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        if (writer.status!=AVAssetWriterStatusCompleted) {
+                            [NSFileManager.defaultManager removeItemAtURL:output error:nil];[self finish:@"تعذر إكمال فيديو الغلاف"];return;
+                        }
+                        [self verifyVideo:output];
+                    });
+                }];
+            }
+        }];
+    }];
+}
 - (void)finish:(NSString *)message {
+    if (self.coverAudio) { [NSFileManager.defaultManager removeItemAtURL:self.coverAudio error:nil];self.coverAudio=nil; }
     self.busy=NO; self.task=nil; self.audioCandidates=nil; [self.session finishTasksAndInvalidate]; self.session=nil;
     self.ring.strokeEnd=1; [self refresh]; [self toast:message];
 }
