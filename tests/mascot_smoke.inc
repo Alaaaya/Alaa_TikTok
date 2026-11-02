@@ -11,7 +11,7 @@ for(NSString *action in actions){
     Check(TTDefaultPetActions()[action]!=nil,@"every action has default pose data");
     pet.sprite.center=CGPointMake(160,bottom);
     [pet.sprite layoutIfNeeded];
-    ShotView(self.window,[@"goku-" stringByAppendingString:action]);
+    if([@[@"walk",@"drag",@"climb",@"ceiling",@"spin",@"dangle"] containsObject:action])ShotView(self.window,[@"goku-" stringByAppendingString:action]);
 }
 // Default sequences and custom XML mappings are different by design.
 [pet begin:@"walk" duration:10];pet.actionAge=.17;[pet updateSprite:@"walk"];

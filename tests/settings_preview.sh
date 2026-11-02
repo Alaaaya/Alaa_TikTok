@@ -29,7 +29,14 @@ UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=js
 xcrun simctl boot "$UDID" || true
 xcrun simctl bootstatus "$UDID" -b
 xcrun simctl install "$UDID" "$APP"
+set +e
 xcrun simctl launch --console "$UDID" test.joker.preview 2>&1 | tee /tmp/joker-preview.log
+LAUNCH_STATUS=${PIPESTATUS[0]}
+set -e
+if [ "$LAUNCH_STATUS" -ne 0 ]; then
+  find "$HOME/Library/Logs/DiagnosticReports" -name '*Joker*' -type f -exec tail -c 16000 {} \; || true
+  exit "$LAUNCH_STATUS"
+fi
 ! grep -q 'FAIL ' /tmp/joker-preview.log
 grep -q 'PASS UIKit grid/category/back/layout/art persistence smoke' /tmp/joker-preview.log
 CONTAINER=$(xcrun simctl get_app_container "$UDID" test.joker.preview data)
