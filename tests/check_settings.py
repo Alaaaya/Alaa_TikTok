@@ -10,7 +10,7 @@ assert 'TWEAK_NAME = Alaa_TikTok' in (root/'Makefile').read_text()
 assert 'brand.text=copy?@"Joker · نسخ":@"Joker · تنزيل"' in p
 page=s[s.index('- (void)showCategory:'):s.index('- (void)loadView {',s.index('- (void)showCategory:'))]
 home=page[page.index('    if(back) {'):page.index('    } else {')]
-assert 'for(NSInteger i=0;i<5;i++)' in home and '[self categoryTile:i]' in home
+assert 'for(NSInteger i=0;i<6;i++)' in home and '[self categoryTile:i]' in home
 assert 'TTJokerGrid *grid=' in home
 assert 'self row:' not in home
 assert '[self showCategory:-1 animated:YES]' in s
@@ -49,3 +49,7 @@ assert 'self.edgeMask.lineWidth=1.0/UIScreen.mainScreen.scale' in settings
 assert 'tile.backgroundColor=[UIColor colorWithWhite:1 alpha:.10]' in settings
 assert 'tile.layer.borderColor=[UIColor colorWithWhite:1 alpha:.48]' in settings
 print('PASS 1.34 dense blur, 40% dark tint, pixel edge, external unclipped shadow, lighter edged tiles')
+
+assert '@"com.pixelomer.shijimademoprefs"' in s
+assert 'sw.on=installed;sw.enabled=NO' in s
+assert 'not installed' in s

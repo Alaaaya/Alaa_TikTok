@@ -1371,6 +1371,34 @@ static UIVisualEffect *TTJokerGlass(void) {
 @property(nonatomic,strong) UIView *panelShadow;
 @end
 @implementation TTGSettingsController
+- (BOOL)shijimaInstalled {
+    for(NSString *root in @[@"/var/jb/Applications",@"/Applications"])
+        if([NSFileManager.defaultManager fileExistsAtPath:[root stringByAppendingPathComponent:@"ShijimaPrefs.app/Info.plist"]]) return YES;
+    return NO;
+}
+- (void)openShijima {
+    NSString *message=@"Shijima غير مثبت (not installed)";
+    if([self shijimaInstalled]) {
+        // Launch by the bundle identifier verified in the supplied app's Info.plist.
+        Class cls=NSClassFromString(@"LSApplicationWorkspace");
+        SEL shared=NSSelectorFromString(@"defaultWorkspace"),open=NSSelectorFromString(@"openApplicationWithBundleID:");
+        if([cls respondsToSelector:shared]) {
+            NSMethodSignature *sig=[cls methodSignatureForSelector:shared];
+            if(sig.numberOfArguments==2 && sig.methodReturnType[0]=='@') {
+                id workspace=((id(*)(id,SEL))objc_msgSend)(cls,shared);
+                NSMethodSignature *launch=[workspace methodSignatureForSelector:open];
+                if(launch.numberOfArguments==3 && !strcmp(launch.methodReturnType,@encode(BOOL)) &&
+                   [launch getArgumentTypeAtIndex:2][0]=='@' &&
+                   ((BOOL(*)(id,SEL,id))objc_msgSend)(workspace,open,@"com.pixelomer.shijimademoprefs")) return;
+            }
+        }
+        message=@"افتح تطبيق Shijima Demo من الشاشة الرئيسية. النظام ما سمح بفتحه من هون.";
+    }
+    UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"Shijima" message:message preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"حسناً" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
 - (UILabel *)label:(NSString *)text size:(CGFloat)size weight:(UIFontWeight)weight {
     UILabel *label = [UILabel new];
     label.text = text; label.font = [UIFont systemFontOfSize:size weight:weight];
@@ -1422,8 +1450,8 @@ static UIVisualEffect *TTJokerGlass(void) {
     [[TTToolPicker shared] choose:sender.tag presenter:self source:sender];
 }
 - (UIButton *)categoryTile:(NSInteger)index {
-    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر"];
-    NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3"];
+    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima"];
+    NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3",@"pawprint"];
     UIButton *tile=[UIButton buttonWithType:UIButtonTypeCustom];tile.tag=index;
     tile.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
     tile.backgroundColor=[UIColor colorWithWhite:1 alpha:.10];tile.layer.cornerRadius=18;
@@ -1477,13 +1505,13 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack removeArrangedSubview:view];[view removeFromSuperview];
     }
     self.category=category;self.backButton.hidden=back;
-    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر"];
+    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima"];
     self.pageTitle.text=back?@"Joker":names[category];
     if(back) {
         TTJokerGrid *grid=[TTJokerGrid new];
         grid.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
         [grid.heightAnchor constraintEqualToConstant:180].active=YES;
-        for(NSInteger i=0;i<5;i++)[grid addSubview:[self categoryTile:i]];
+        for(NSInteger i=0;i<6;i++)[grid addSubview:[self categoryTile:i]];
         [self.stack addArrangedSubview:grid];
     } else {
     NSArray *featureTitles = @[@"زر التنزيل العائم",@"زر إخفاء العناصر",@"حلقة تقدم التنزيل",@"تنزيل عادي",@"تنزيل HD",@"أعلى جودة متاحة",@"تنزيل الصوت (ملفات)",@"قائمة النسخ"];
@@ -1512,6 +1540,25 @@ static UIVisualEffect *TTJokerGlass(void) {
     [self.stack addArrangedSubview:[self row:@"نسخ النبذة بالضغط المطوّل على الملف" symbol:@"doc.on.doc" key:@"tt.extra.copyBio" defaultValue:NO tag:208]];
     [self.stack addArrangedSubview:[self row:@"شارة يتابعك على الملف" symbol:@"person.badge.plus" key:@"tt.extra.followsYou" defaultValue:NO tag:209]];
     [self.stack addArrangedSubview:[self row:@"عدد الفيديوهات على الملف" symbol:@"rectangle.stack" key:@"tt.extra.videoCount" defaultValue:NO tag:210]];
+    }
+    if(category==5) {
+        BOOL installed=[self shijimaInstalled];
+        UILabel *status=[self label:installed?@"Shijima Demo مثبت":@"Shijima غير مثبت (not installed)" size:15 weight:UIFontWeightSemibold];
+        [self.stack addArrangedSubview:status];
+        UIView *row=[self row:@"تشغيل Shijima (Demo)" symbol:@"pawprint" key:@"tt.shijima.status" defaultValue:installed tag:350];
+        for(UIView *v in row.subviews)if([v isKindOfClass:UISwitch.class]){
+            UISwitch *sw=(UISwitch *)v;[sw removeTarget:nil action:NULL forControlEvents:UIControlEventAllEvents];
+            sw.on=installed;sw.enabled=NO;sw.accessibilityHint=@"النسخة التجريبية لا تدعم الإطفاء";
+        }
+        [self.stack addArrangedSubview:row];
+        UIButton *open=[UIButton buttonWithType:UIButtonTypeSystem];
+        [open setTitle:@"فتح إعدادات Shijima" forState:UIControlStateNormal];
+        open.tintColor=UIColor.whiteColor;open.backgroundColor=[UIColor colorWithWhite:1 alpha:.10];open.layer.cornerRadius=16;
+        [open.heightAnchor constraintGreaterThanOrEqualToConstant:52].active=YES;
+        [open addTarget:self action:@selector(openShijima) forControlEvents:UIControlEventTouchUpInside];
+        [self.stack addArrangedSubview:open];
+        UILabel *note=[self label:@"نسخة Demo ما بتسمح بالإطفاء. تغيير إعدادات Shijima من تطبيقها فقط. بتحتاج تثبيت الحزمتين بجيلبريك متوافق، مو حقن Joker لحاله." size:13 weight:UIFontWeightRegular];
+        [self.stack addArrangedSubview:note];
     }
     if(category==4) {
         [self.stack addArrangedSubview:[self iconRow:@"صورة زر التنزيل" tag:1221]];

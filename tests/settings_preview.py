@@ -50,7 +50,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {
         Check(vc.stack.arrangedSubviews.count==1,@"one physical grid");
         NSInteger tiles=0;
         for(UIView *row in vc.stack.arrangedSubviews)for(UIView *v in row.subviews)if([v isKindOfClass:UIButton.class])tiles++;
-        Check(tiles==5,@"exactly five tiles");
+        Check(tiles==6,@"exactly six tiles");
         Check(vc.pageHeader.superview==vc.panel.contentView,@"pinned header");
         [vc.view setNeedsLayout];[vc.view layoutIfNeeded];
         Check(vc.panel.bounds.size.width<=vc.view.bounds.size.width*.71,@"compact width");
@@ -59,7 +59,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {
         Check(grid.subviews[0].frame.origin.x<grid.subviews[1].frame.origin.x,@"download first left");
         Check(grid.subviews[2].frame.origin.y==grid.subviews[0].frame.origin.y,@"three columns");
         Shot(vc,@"home");
-        for(NSInteger page=0;page<5;page++){
+        for(NSInteger page=0;page<6;page++){
             [vc showCategory:page animated:NO];
             Check(!vc.backButton.hidden,@"back on category");
             Check(vc.category==page && vc.stack.arrangedSubviews.count>0,@"category populated");
