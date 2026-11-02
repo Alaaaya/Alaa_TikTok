@@ -119,9 +119,14 @@ static NSURL *TT122VideoURL(id model, NSInteger quality) {
 @property(nonatomic) BOOL busy;
 @property(nonatomic, strong) NSArray<NSURL *> *audioCandidates;
 @property(nonatomic) BOOL dragging;
+@property(nonatomic) BOOL started;
+@property(nonatomic) BOOL refreshing;
 + (instancetype)shared;
 - (void)track:(UIViewController *)controller;
 - (void)refresh;
+- (void)startLifecycle;
+- (void)applyHiddenUI;
+- (void)recoverFeed;
 - (void)finish:(NSString *)message;
 @end
 static UIView *TT122Material(CGRect frame) {
@@ -163,12 +168,67 @@ static UIView *TT122Material(CGRect frame) {
     CGRect visible = CGRectIntersection(r, controller.view.window.bounds);
     if (CGRectIsNull(visible) || visible.size.height < controller.view.window.bounds.size.height*.5) return;
     id currentModel = TTGActionObject(controller,@"model");
-    if (self.feed != controller || self.trackedModel != currentModel) { [self restoreUI]; [self.menu removeFromSuperview]; self.menu = nil; self.menuModel = nil; self.feed = controller; self.trackedModel=currentModel; }
-    [self refresh];
-    if (!self.timer) {
-        __weak typeof(self) weak = self;
-        self.timer = [NSTimer scheduledTimerWithTimeInterval:.5 repeats:YES block:^(__unused NSTimer *t){ [weak refresh]; }];
+    if (self.feed != controller || self.trackedModel != currentModel) {
+        BOOL keepHidden=self.uiHidden;[self restoreUI];self.uiHidden=keepHidden;
+        [self.menu removeFromSuperview];self.menu=nil;self.menuModel=nil;self.feed=controller;self.trackedModel=currentModel;
     }
+    if(self.uiHidden)[self applyHiddenUI];
+    [self startLifecycle];
+    [self refresh];
+
+}
+- (void)startLifecycle {
+    if(self.started)return;self.started=YES;
+    NSNotificationCenter *center=NSNotificationCenter.defaultCenter;
+    for(NSString *name in @[UIApplicationDidBecomeActiveNotification,UIApplicationWillEnterForegroundNotification,UIWindowDidBecomeKeyNotification,UISceneDidActivateNotification]) {
+        [center addObserver:self selector:@selector(lifecycle:) name:name object:nil];
+    }
+    __weak typeof(self) weak=self;
+    self.timer=[NSTimer timerWithTimeInterval:.5 repeats:YES block:^(__unused NSTimer *t){
+        if(UIApplication.sharedApplication.applicationState!=UIApplicationStateActive)return;
+        [weak recoverFeed];[weak refresh];if(weak.uiHidden)[weak applyHiddenUI];
+    }];
+    [NSRunLoop.mainRunLoop addTimer:self.timer forMode:NSRunLoopCommonModes];
+}
+- (void)lifecycle:(NSNotification *)note {
+    dispatch_async(dispatch_get_main_queue(), ^{[self recoverFeed];[self refresh];if(self.uiHidden)[self applyHiddenUI];});
+}
+- (void)recoverFeed {
+    UIWindow *window=TT122TopVC().view.window;
+    if(!window)return;
+    UIViewController *best=nil;CGFloat area=0;
+    NSMutableArray<UIView *> *queue=[NSMutableArray arrayWithObject:window];
+    for(NSUInteger i=0;i<queue.count && i<1600;i++) {
+        UIView *view=queue[i];
+        if(view==self.overlay || view.hidden || view.alpha<.01)continue;
+        CGRect rect=CGRectIntersection([view convertRect:view.bounds toView:window],window.bounds);
+        if(CGRectIsEmpty(rect))continue;
+        UIResponder *responder=view.nextResponder;
+        if([responder isKindOfClass:UIViewController.class]) {
+            UIViewController *vc=(id)responder;NSString *name=NSStringFromClass(vc.class);
+            BOOL isFeed=([name containsString:@"Feed"] || [name containsString:@"Aweme"]) &&
+                TTGActionObject(vc,@"model") && TTGActionObject(vc,@"interactionController");
+            if(isFeed && rect.size.height>window.bounds.size.height*.5 && rect.size.width*rect.size.height>area) {
+                best=vc;area=rect.size.width*rect.size.height;
+            }
+        }
+        if(queue.count<1600)[queue addObjectsFromArray:view.subviews];
+    }
+    if(best)[self track:best];
+}
+- (void)applyHiddenUI {
+    if(!self.uiHidden || !TT122Enabled(@"tt122.eye"))return;
+    id interaction=TTGActionObject(self.feed,@"interactionController");
+    SEL selector=NSSelectorFromString(@"hideAllElements:exceptArray:");
+    NSMethodSignature *sig=[interaction methodSignatureForSelector:selector];
+    if(sig.numberOfArguments!=4 || strcmp(sig.methodReturnType,@encode(void)))return;
+    const char *flag=[sig getArgumentTypeAtIndex:2],*array=[sig getArgumentTypeAtIndex:3];
+    if((strcmp(flag,@encode(BOOL)) && strcmp(flag,"c")) || array[0]!='@')return;
+    @try {
+        ((void(*)(id,SEL,BOOL,id))objc_msgSend)(interaction,selector,YES,nil);
+        self.hiddenInteraction=interaction;
+        [self.eyeButton setImage:[UIImage systemImageNamed:@"eye.slash"] forState:UIControlStateNormal];
+    } @catch (__unused NSException *error) {}
 }
 - (UIButton *)floating:(NSString *)symbol tag:(NSInteger)tag {
     UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom]; b.bounds = CGRectMake(0,0,48,48); b.tag = tag;
@@ -204,7 +264,13 @@ static UIView *TT122Material(CGRect frame) {
     }
 }
 - (void)refresh {
-    UIWindow *window = self.feed.viewIfLoaded.window;
+    UIWindow *window = nil;
+    for(UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if(scene.activationState!=UISceneActivationStateForegroundActive || ![scene isKindOfClass:UIWindowScene.class])continue;
+        for(UIWindow *candidate in ((UIWindowScene *)scene).windows)if(candidate.isKeyWindow){window=candidate;break;}
+        if(window)break;
+    }
+    window=window ?: self.feed.viewIfLoaded.window;
     if (!window || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) { self.overlay.hidden = YES; return; }
     if (!self.overlay) {
         self.overlay = [[TT122Passthrough alloc] initWithFrame:window.bounds];
@@ -228,10 +294,14 @@ static UIView *TT122Material(CGRect frame) {
         [self place:self.progressButton y:window.bounds.size.height*.42+128];
     }
     UIViewController *top = TT122TopVC();
-    BOOL feedTop = top == self.feed || [NSStringFromClass(top.class) containsString:@"Feed"] || [NSStringFromClass(top.class) containsString:@"Aweme"];
+    BOOL feedTop=NO;
+    for(UIViewController *vc=self.feed;vc;vc=vc.parentViewController)if(vc==top){feedTop=YES;break;}
+    if(self.feed.presentedViewController || top.presentedViewController)feedTop=NO;
     CGRect r = [self.feed.view convertRect:self.feed.view.bounds toView:window];
-    BOOL onScreen = CGRectGetHeight(CGRectIntersection(r,window.bounds)) > window.bounds.size.height*.5;
+    BOOL onScreen = self.feed.view.window==window && CGRectGetHeight(CGRectIntersection(r,window.bounds)) > window.bounds.size.height*.5;
+    for(UIView *v=self.feed.view;v;v=v.superview)if(v.hidden || v.alpha<.01){onScreen=NO;break;}
     self.overlay.hidden = !onScreen || !feedTop;
+    if(!self.overlay.hidden && self.overlay.superview.subviews.lastObject!=self.overlay)[window bringSubviewToFront:self.overlay];
     self.downloadButton.hidden = !TT122Enabled(@"tt122.download");
     self.eyeButton.hidden = !TT122Enabled(@"tt122.eye");
     self.progressButton.hidden = !self.busy || !TT122Enabled(@"tt122.progress");
@@ -304,15 +374,8 @@ static UIView *TT122Material(CGRect frame) {
     if (sender == self.downloadButton) { if (self.busy) [self toast:@"التنزيل الحالي قيد التنفيذ"]; else [self showMenu:NO]; }
     else if (sender == self.eyeButton) {
         if (self.uiHidden) { [self restoreUI]; return; }
-        id interaction = TTGActionObject(self.feed,@"interactionController");
-        SEL sel = NSSelectorFromString(@"hideAllElements:exceptArray:");
-        NSMethodSignature *s = [interaction methodSignatureForSelector:sel];
-        if (s.numberOfArguments != 4 || strcmp(s.methodReturnType,@encode(void))) { [self toast:@"إخفاء العناصر غير متاح على هذا الفيديو"]; return; }
-        @try {
-            ((void(*)(id,SEL,BOOL,id))objc_msgSend)(interaction,sel,YES,nil);
-            self.hiddenInteraction=interaction;self.uiHidden=YES;
-            [self.eyeButton setImage:[UIImage systemImageNamed:@"eye.slash"] forState:UIControlStateNormal];
-        } @catch (__unused NSException *e) { [self toast:@"تعذر إخفاء العناصر"]; }
+        self.uiHidden=YES;[self applyHiddenUI];
+        if(!self.hiddenInteraction){self.uiHidden=NO;[self toast:@"إخفاء العناصر غير متاح على هذا الفيديو"];}
     } else [self toast:@"التنزيل مستمر"];
 }
 - (void)start:(id)model quality:(NSInteger)quality {

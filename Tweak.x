@@ -1231,21 +1231,22 @@ static BOOL TTGFeedRoot(UIView *view) {
     return NO;
 }
 static void TT122Track(UIViewController *c);
+static void TT122Recover(void);
 %hook AWEFeedCellViewController
 - (void)viewDidLayoutSubviews { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; TT122Track(c); }
 - (void)viewDidAppear:(BOOL)animated { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; TT122Track(c); }
 - (void)setModel:(id)model { %orig; UIViewController *c = (id)self; if (c.isViewLoaded) [[TTGFeedWatchdog shared] addRoot:c.view]; TT122Track(c); }
 %end
 %hook UICollectionViewCell
-- (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) [[TTGFeedWatchdog shared] addRoot:v]; }
-- (void)prepareForReuse { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) TTGPrepareFeedActions(v); }
+- (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) { [[TTGFeedWatchdog shared] addRoot:v]; TT122Recover(); } }
+- (void)prepareForReuse { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) { TTGPrepareFeedActions(v); TT122Recover(); } }
 %end
 %hook UITableViewCell
-- (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) [[TTGFeedWatchdog shared] addRoot:v]; }
+- (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) { [[TTGFeedWatchdog shared] addRoot:v]; TT122Recover(); } }
 %end
 // Inherited callbacks cover photo/ad variants without guessing their private names.
 %hook UIScrollView
-- (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) [[TTGFeedWatchdog shared] addRoot:v]; }
+- (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) { [[TTGFeedWatchdog shared] addRoot:v]; TT122Recover(); } }
 - (void)setContentOffset:(CGPoint)offset {
     %orig;
     if (!self.dragging && !self.decelerating && TTGFeedRoot((id)self)) [[TTGFeedWatchdog shared] addRoot:(id)self];
@@ -1264,10 +1265,14 @@ static void TT122Track(UIViewController *c);
 %end
 
 static void TT122Track(UIViewController *c) { [[TT122Hub shared] track:c]; }
+static void TT122Recover(void) {
+    static BOOL pending=NO;if(pending)return;pending=YES;
+    dispatch_async(dispatch_get_main_queue(), ^{pending=NO;[[TT122Hub shared] recoverFeed];[[TT122Hub shared] refresh];});
+}
 
 %hook AWEFeedCellViewController
 - (void)viewWillAppear:(BOOL)animated { %orig; dispatch_async(dispatch_get_main_queue(), ^{ [[TT122Hub shared] track:(id)self]; }); }
-- (void)viewDidDisappear:(BOOL)animated { %orig; [[TT122Hub shared] restoreUI]; [[TT122Hub shared] closeMenu]; [[TT122Hub shared] refresh]; }
+- (void)viewDidDisappear:(BOOL)animated { %orig; [[TT122Hub shared] closeMenu];TT122Recover(); }
 %end
 // A custom, real-material sheet; no action-sheet emoji or developer-copy action.
 @interface TTGSettingsController : UIViewController
