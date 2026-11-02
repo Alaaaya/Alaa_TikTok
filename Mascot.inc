@@ -78,7 +78,7 @@
     }return floor-self.sprite.bounds.size.height/2;
 }
 - (void)refresh {
-    BOOL show=PB(@"tt.pet.enabled",NO) && self.host.window && !self.host.hidden && !self.covered && !self.uiHidden &&
+    BOOL show=PB(@"tt.pet.enabled",NO) && self.host && !self.host.hidden && !self.covered && !self.uiHidden &&
         UIApplication.sharedApplication.applicationState==UIApplicationStateActive;
     self.sprite.hidden=!show;
     CGFloat size=MAX(28,MIN(76, [D() objectForKey:@"tt.pet.size"]?[D() doubleForKey:@"tt.pet.size"]:44));
@@ -92,7 +92,7 @@
     if(show){[self.host bringSubviewToFront:self.sprite];CGPoint p=self.sprite.center;p.y=MIN(p.y,[self floorY]);self.sprite.center=p;}
 }
 - (void)step:(CADisplayLink *)link {
-    if(!self.host.window || self.host.hidden || self.sprite.hidden || self.covered || self.uiHidden ||
+    if(!self.host || self.host.hidden || self.sprite.hidden || self.covered || self.uiHidden ||
        UIApplication.sharedApplication.applicationState!=UIApplicationStateActive){self.link.paused=YES;self.last=0;return;}
     CGFloat dt=self.last?MIN(.04,MAX(0,link.timestamp-self.last)):0;self.last=link.timestamp;[self advance:dt];
 }
