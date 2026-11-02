@@ -34,7 +34,7 @@ int main(void) { @autoreleasepool {
     [input requestMediaDataWhenReadyOnQueue:dispatch_queue_create("media.test",DISPATCH_QUEUE_SERIAL) usingBlock:^{
         if(ended)return;
         while(input.readyForMoreMediaData && frame<2) { Check([adaptor appendPixelBuffer:pixel withPresentationTime:CMTimeMake(frame++,1)],@"append"); }
-        if(frame==2 && !ended){ended=YES;CVPixelBufferRelease(pixel);[input stopRequestingMediaData];[input markAsFinished];[writer endSessionAtSourceTime:CMTimeMake(2,1)];[writer finishWritingWithCompletionHandler:^{dispatch_semaphore_signal(done);}];}
+        if(frame==2 && !ended){ended=YES;CVPixelBufferRelease(pixel);[input markAsFinished];[writer endSessionAtSourceTime:CMTimeMake(2,1)];[writer finishWritingWithCompletionHandler:^{dispatch_semaphore_signal(done);}];}
     }];
     Check(dispatch_semaphore_wait(done,dispatch_time(DISPATCH_TIME_NOW,60*NSEC_PER_SEC))==0,@"writer timeout");Check(writer.status==AVAssetWriterStatusCompleted,@"cover writer");
     AVURLAsset *v=[AVURLAsset URLAssetWithURL:video options:nil],*a=[AVURLAsset URLAssetWithURL:audio options:nil];
