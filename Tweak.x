@@ -479,6 +479,18 @@ static BOOL TTGActionHasCount(UIView *view, NSUInteger depth) {
     return NO;
 }
 
+static void TTGChildIdentity(UIView *node, NSMutableString *identity, NSUInteger depth) {
+    if (depth > 2 || node.tag == kActionGlassTag || [node isKindOfClass:UILabel.class] ||
+        [node isKindOfClass:UIVisualEffectView.class]) return;
+    if (node.bounds.size.width <= 80 && node.bounds.size.height <= 80) {
+        [identity appendFormat:@" %@", NSStringFromClass(node.class)];
+        for (NSString *key in @[@"imageNameString", @"accessibilityIdentifier"]) {
+            id value = TTGActionObject(node, key);
+            if ([value isKindOfClass:NSString.class]) [identity appendFormat:@" %@", value];
+        }
+    }
+    for (UIView *child in node.subviews) TTGChildIdentity(child, identity, depth + 1);
+}
 static BOOL TTGActionIdentity(UIView *button) {
     if ([button isKindOfClass:UILabel.class] || [button isKindOfClass:UIImageView.class]) return NO;
     NSMutableString *identity = [NSMutableString stringWithString:NSStringFromClass(button.class)];
@@ -486,6 +498,7 @@ static BOOL TTGActionIdentity(UIView *button) {
         id value = TTGActionObject(button, key);
         if ([value isKindOfClass:NSString.class]) [identity appendFormat:@" %@", value];
     }
+    for (UIView *child in button.subviews) TTGChildIdentity(child, identity, 0);
     NSString *name = [identity stringByFoldingWithOptions:NSDiacriticInsensitiveSearch locale:nil].lowercaseString;
     for (NSString *excluded in @[@"avatar", @"follow", @"music", @"disc", @"download", @"folgen", @"musik", @"متابعة", @"موسيقى"])
         if ([name containsString:excluded]) return NO;
@@ -494,7 +507,8 @@ static BOOL TTGActionIdentity(UIView *button) {
     // The confirmed action class may not populate its image-name getter until
     // highlight. A count within this exact button is a safe initial-display
     // fallback; TTGActionInFeed separately enforces the right-edge feed column.
-    return [button isKindOfClass:NSClassFromString(@"AWEFeedVideoButton")] && TTGActionHasCount(button, 0);
+    return ([button isKindOfClass:NSClassFromString(@"AWEFeedVideoButton")] ||
+            [button isKindOfClass:UIControl.class]) && TTGActionHasCount(button, 0);
 }
 
 static BOOL TTGActionInFeed(UIView *button) {
@@ -744,6 +758,7 @@ static UIImage *TTGSymbolForAction(UIView *button) {
         id value = TTGActionObject(button, key);
         if ([value isKindOfClass:NSString.class]) [identity appendFormat:@" %@", value];
     }
+    for (UIView *child in button.subviews) TTGChildIdentity(child, identity, 0);
     NSString *name = [identity stringByFoldingWithOptions:NSDiacriticInsensitiveSearch locale:nil].lowercaseString;
     NSArray *sets = @[
         @[@"bubble.right.fill", @"comment", @"kommentar", @"تعليق"],
@@ -818,7 +833,7 @@ static void TTGSyncActionGlass(UIView *button) {
             if ([candidate isKindOfClass:UIView.class] && candidate != button &&
                 [candidate isDescendantOfView:button] && [candidate tag] != kActionGlassTag) {
                 UIView *found = TTGFindImage(candidate, 0) ?: TTGCustomIcon(candidate, 0);
-                if (!found && ![key isEqualToString:@"containerView"] && !TTGActionHasCount(candidate, 0) &&
+                if (!found && ![candidate isHidden] && ![key isEqualToString:@"containerView"] && !TTGActionHasCount(candidate, 0) &&
                     [candidate bounds].size.width >= 12 && [candidate bounds].size.width <= 64 &&
                     [candidate bounds].size.height >= 12 && [candidate bounds].size.height <= 64) found = candidate;
                 if (found) { icon = found; break; }
@@ -996,7 +1011,7 @@ static CGFloat TTGGuardRendererAlpha(UIView *renderer, CGFloat proposed) {
 }
 - (void)didAddSubview:(UIView *)view {
     %orig;
-    if (view.tag == kActionGlassTag || [self isKindOfClass:UIVisualEffectView.class]) return;
+    if (!self.window || view.tag == kActionGlassTag || [self isKindOfClass:UIVisualEffectView.class]) return;
     UIView *button = TTGOwnerAction(self);
     if (!button || [objc_getAssociatedObject(button, &kGlyphBusyKey) boolValue]) return;
     __weak UIView *weak = button;
