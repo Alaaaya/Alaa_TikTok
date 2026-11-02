@@ -38,6 +38,12 @@ jobs:
         run: |
           clang -fobjc-arc -Wno-deprecated-declarations -framework Foundation -framework AVFoundation -framework CoreVideo -framework CoreMedia tests/media_smoke.m -o /tmp/alaa-media-test
           /tmp/alaa-media-test
+      - name: UIKit category and custom-art smoke
+        run: bash tests/settings_preview.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Joker-settings-preview
+          path: settings-shots/
       - uses: actions/upload-artifact@v4
         with:
           name: Alaa_TikTok
