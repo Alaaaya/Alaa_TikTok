@@ -18,3 +18,10 @@ Longer comments uses NSUInteger AWETextInputController maxLength, max(original,2
 Copy bio uses TIKTOKProfileHeaderView initWithFrame:, yy_viewController -> TIKTOKProfileHeaderViewController.user -> AWEUserModel.signature.
 Watched marking remains blocked; noJustWatched strings hide an existing marker, they do not implement requested tracking.
 Live auto-tap skipped as requested.
+
+Updated after deeper reference inspection
+Follows-you and profile video count now have firm receiver/getter evidence from reference replacement0x5f0e0. The unknown private three-argument config ABI is deliberately not hooked. Our implementation uses the known UIKit layoutSubviews callback on TIKTOKProfileHeaderView and runtime-signature-checked getters through TIKTOKProfileHeaderViewController.user. followerStatus1 means follows-you, visibleVideosCount is object-returning. Missing fields hide the badge rather than guess.
+Feed warningLabel/warningImage on AWEPlayInteractionWarningElementView are proven zero-arg object getters from MSHookMessageEx sites0x5806c/0x5808c. Only those views are optionally hidden. Not an age-gate bypass.
+Private story viewing remains unavailable; implemented story saving sends no receipt-related hooks.
+No safe feed-only live-skip hook recovered. Reference hooks globally nil model transformers, deliberately not copied.
+All features remain runtime/device-version dependent. CI and source guards are not substitutes for on-device tests.

@@ -49,3 +49,36 @@
     UIPasteboard.generalPasteboard.string=bio;[[TT122Hub shared] toast:@"تم نسخ النبذة"];
 }
 @end
+
+
+// Source-backed model getters; UIKit layout callback avoids guessing private
+// configWithUser:isLogSent:shouldUpdateUser: argument encodings.
+static char kTTProfileBadge;
+static void TTProfileBadge(UIView *header) {
+    BOOL showFollow=TTExtraEnabled(@"tt.extra.followsYou"),showCount=TTExtraEnabled(@"tt.extra.videoCount");
+    UILabel *badge=objc_getAssociatedObject(header,&kTTProfileBadge);
+    if(!showFollow && !showCount) { badge.hidden=YES;return; }
+    id vc=TTGActionObject(header,@"parentViewController") ?: TTGActionObject(header,@"yy_viewController");
+    if(![vc isKindOfClass:NSClassFromString(@"TIKTOKProfileHeaderViewController")]){badge.hidden=YES;return;}
+    id user=TTGActionObject(vc,@"user");NSMutableArray<NSString *> *parts=[NSMutableArray array];
+    if(showFollow && TT122Number(user,@"followerStatus")==1)[parts addObject:@"يتابعك"];
+    if(showCount) {
+        id value=TTGActionObject(user,@"visibleVideosCount");NSString *count=nil;
+        if([value isKindOfClass:NSNumber.class] && [(NSNumber *)value longLongValue]>=0)count=[value stringValue];
+        else if([value isKindOfClass:NSString.class] && [(NSString *)value length]<16 &&
+            [(NSString *)value length] && [[value stringByTrimmingCharactersInSet:NSCharacterSet.decimalDigitCharacterSet] length]==0)count=value;
+        if(count)[parts addObject:[NSString stringWithFormat:@"%@ فيديو",count]];
+    }
+    if(!parts.count || header.bounds.size.width<80){badge.hidden=YES;return;}
+    if(!badge) {
+        badge=[UILabel new];badge.font=[UIFont systemFontOfSize:11 weight:UIFontWeightSemibold];
+        badge.textColor=[UIColor colorWithRed:1 green:.9 blue:.67 alpha:1];
+        badge.backgroundColor=[UIColor colorWithWhite:.05 alpha:.8];badge.layer.cornerRadius=8;badge.clipsToBounds=YES;
+        badge.textAlignment=NSTextAlignmentCenter;badge.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+        badge.userInteractionEnabled=NO;[header addSubview:badge];objc_setAssociatedObject(header,&kTTProfileBadge,badge,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    NSString *text=[parts componentsJoinedByString:@"  ·  "];if(![badge.text isEqual:text])badge.text=text;
+    CGSize size=[badge sizeThatFits:CGSizeMake(header.bounds.size.width-32,24)];
+    badge.frame=CGRectMake(16,8,MIN(header.bounds.size.width-32,size.width+18),24);badge.hidden=NO;
+    if(header.subviews.lastObject!=badge)[header bringSubviewToFront:badge];
+}
