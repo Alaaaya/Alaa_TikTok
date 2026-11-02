@@ -415,10 +415,6 @@ static void TTGUnclip(UIView *v) {
     }
 }
 
-%hook AWEAwemeModel
-- (BOOL)progressBarVisible { return TTExtraEnabled(@"tt.extra.progress") ? YES : %orig; }
-- (BOOL)progressBarDraggable { return TTExtraEnabled(@"tt.extra.progress") ? YES : %orig; }
-%end
 %hook AWEPlayVideoPlayerControllerBackgroundView
 - (void)setFrame:(CGRect)f { %orig(TTGStretch((UIView *)self, f)); }
 - (void)layoutSubviews { %orig; if (TTGEnabled() && TTGUnder()) TTGUnclip((UIView *)self); }
