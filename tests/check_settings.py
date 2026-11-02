@@ -10,7 +10,7 @@ assert 'TWEAK_NAME = Alaa_TikTok' in (root/'Makefile').read_text()
 assert 'brand.text=copy?@"Joker · نسخ":@"Joker · تنزيل"' in p
 page=s[s.index('- (void)showCategory:'):s.index('- (void)loadView {',s.index('- (void)showCategory:'))]
 home=page[page.index('    if(back) {'):page.index('    } else {')]
-assert 'for(NSInteger i=0;i<6;i++)' in home and '[self categoryTile:i]' in home
+assert 'for(NSInteger i=0;i<7;i++)' in home and '[self categoryTile:i]' in home
 assert 'TTJokerGrid *grid=' in home
 assert 'self row:' not in home
 assert '[self showCategory:-1 animated:YES]' in s

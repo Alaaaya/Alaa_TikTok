@@ -6,6 +6,7 @@ base=subprocess.check_output(['git','show','2af08af:Tweak.x'],cwd=root).decode()
 # The entire old renderer, bar, and action-mask implementation is unchanged
 # except calls that notify floating tools of the active feed.
 prefix=s[:s.index('#include "CustomTools.inc"')].replace('static void TT122Track(UIViewController *c);\n','').replace(' TT122Track(c);','').replace('static void TT122Recover(void);\n','').replace('{ [[TTGFeedWatchdog shared] addRoot:v]; TT122Recover(); }','[[TTGFeedWatchdog shared] addRoot:v];').replace('{ TTGPrepareFeedActions(v); TT122Recover(); }','TTGPrepareFeedActions(v);')
+prefix=prefix.replace('static void TTJokerPetSync(void);\n','').replace('    TTJokerPetSync();\n','')
 assert prefix.rstrip()==base[:base.index('// A custom, real-material sheet;')].rstrip()
 for key in ['download','eye','progress','standard','hd','highest','audio','copy']:
  assert ('tt122.'+key) in s and ('tt122.'+key) in p

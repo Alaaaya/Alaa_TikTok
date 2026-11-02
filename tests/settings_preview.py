@@ -14,6 +14,7 @@ static BOOL PB(NSString *key,BOOL fallback){id v=[D() objectForKey:key];return v
 static NSInteger TTGStyle(void){return [D() integerForKey:kPrefStyle];}
 static void TTGRefreshAll(void){}
 static void TTToolRefresh(void){}
+#include "../Mascot.inc"
 @interface TT122Hub:NSObject
 +(instancetype)shared;
 -(void)refresh;
@@ -51,7 +52,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {
         Check(vc.stack.arrangedSubviews.count==1,@"one physical grid");
         NSInteger tiles=0;
         for(UIView *row in vc.stack.arrangedSubviews)for(UIView *v in row.subviews)if([v isKindOfClass:UIButton.class])tiles++;
-        Check(tiles==6,@"exactly six tiles");
+        Check(tiles==7,@"exactly seven tiles");
         Check(vc.pageHeader.superview==vc.panel.contentView,@"pinned header");
         [vc.view setNeedsLayout];[vc.view layoutIfNeeded];
         Check(vc.panel.bounds.size.width<=vc.view.bounds.size.width*.71,@"compact width");
@@ -60,7 +61,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {
         Check(grid.subviews[0].frame.origin.x<grid.subviews[1].frame.origin.x,@"download first left");
         Check(grid.subviews[2].frame.origin.y==grid.subviews[0].frame.origin.y,@"three columns");
         Shot(vc,@"home");
-        for(NSInteger page=0;page<6;page++){
+        for(NSInteger page=0;page<7;page++){
             [vc showCategory:page animated:NO];
             Check(!vc.backButton.hidden,@"back on category");
             Check(vc.category==page && vc.stack.arrangedSubviews.count>0,@"category populated");
@@ -69,6 +70,22 @@ static void Shot(TTGSettingsController *vc,NSString *name) {
             [vc showCategory:-1 animated:NO];
             Check(vc.category==-1 && vc.stack.arrangedSubviews.count==1,@"back restores grid");
         }
+        // Original mascot rendering, physics, settings, and pause-state smoke.
+        [D() setBool:YES forKey:@"tt.pet.enabled"];
+        TTJokerPet *pet=[TTJokerPet shared];[pet attach:vc];[pet refresh];
+        Check(pet.frames.count==4,@"four original cached sprite frames");
+        Check(![UIImagePNGRepresentation(pet.frames[0]) isEqual:UIImagePNGRepresentation(pet.frames[1])],@"animated sprite frames differ");
+        pet.sprite.center=CGPointMake(100,120);pet.velocity=CGPointMake(500,0);
+        for(int i=0;i<180;i++){pet.last=pet.link.timestamp-.033;[pet step:pet.link];}
+        Check(pet.sprite.center.y<=[pet floorY]+.1,@"gravity floor clamp");
+        Check(pet.sprite.center.x>=pet.sprite.bounds.size.width/2,@"edge clamp");
+        pet.covered=YES;[pet refresh];Check(pet.link.paused && pet.sprite.hidden,@"pause when settings cover mascot");
+        pet.covered=NO;pet.uiHidden=YES;[pet refresh];Check(pet.link.paused,@"eye pauses display link");
+        pet.uiHidden=NO;[D() setBool:NO forKey:@"tt.pet.enabled"];[pet refresh];Check(pet.link.paused && pet.sprite.hidden,@"disabled pauses sprite");
+        [D() setBool:YES forKey:@"tt.pet.enabled"];[D() setInteger:1 forKey:@"tt.pet.kind"];[D() setDouble:64 forKey:@"tt.pet.size"];[pet refresh];
+        Check(pet.kind==1 && pet.sprite.bounds.size.width==64,@"character and size controls");
+        pet.sprite.center=CGPointMake(90,[pet floorY]);Shot(vc,@"mascot");
+        [D() setBool:NO forKey:@"tt.pet.enabled"];[pet refresh];
         // Persisted artwork, cache reload, target isolation and reset.
         UIGraphicsImageRenderer *renderer=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(64,40)];
         UIImage *image=[renderer imageWithActions:^(UIGraphicsImageRendererContext *ctx){[UIColor.redColor setFill];UIRectFill(CGRectMake(0,0,64,40));}];

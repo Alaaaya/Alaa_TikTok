@@ -1182,6 +1182,7 @@ static void TTGPrepareFeedActions(UIView *root) {
 }
 
 // Weak roots only; no retained cells, global-window traversal or display-rate work.
+static void TTJokerPetSync(void);
 @interface TTGFeedWatchdog : NSObject
 @property(nonatomic, strong) NSHashTable<UIView *> *roots;
 @property(nonatomic, strong) NSTimer *timer;
@@ -1206,6 +1207,7 @@ static void TTGPrepareFeedActions(UIView *root) {
     TTGPrepareFeedActions(root);
 }
 - (void)tick {
+    TTJokerPetSync();
     if (!self.roots.allObjects.count) { [self.timer invalidate]; self.timer = nil; return; }
     if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive || !TTGEnabled()) return;
     UIView *best = nil;
@@ -1258,6 +1260,8 @@ static void TT122Recover(void);
 #include "LaterFeatures.inc"
 #include "StoryTools.inc"
 #include "ProfileTools.inc"
+#include "Mascot.inc"
+static void TTJokerPetSync(void) {[TTJokerPet shared].uiHidden=[TT122Hub shared].uiHidden;[[TTJokerPet shared] refresh];}
 %hook AWEAwemeModel
 - (id)initWithDictionary:(id)dictionary error:(id *)error {
     id result = %orig;
@@ -1267,7 +1271,7 @@ static void TT122Recover(void);
 }
 %end
 
-static void TT122Track(UIViewController *c) { [[TT122Hub shared] track:c]; }
+static void TT122Track(UIViewController *c) { [[TT122Hub shared] track:c]; [[TTJokerPet shared] attach:c]; }
 static void TT122Recover(void) {
     static BOOL pending=NO;if(pending)return;pending=YES;
     dispatch_async(dispatch_get_main_queue(), ^{pending=NO;[[TT122Hub shared] recoverFeed];[[TT122Hub shared] refresh];});
@@ -1450,8 +1454,8 @@ static UIVisualEffect *TTJokerGlass(void) {
     [[TTToolPicker shared] choose:sender.tag presenter:self source:sender];
 }
 - (UIButton *)categoryTile:(NSInteger)index {
-    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima"];
-    NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3",@"pawprint"];
+    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima",@"شخصية Joker"];
+    NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3",@"pawprint",@"cat"];
     UIButton *tile=[UIButton buttonWithType:UIButtonTypeCustom];tile.tag=index;
     tile.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
     tile.backgroundColor=[UIColor colorWithWhite:1 alpha:.10];tile.layer.cornerRadius=18;
@@ -1505,13 +1509,13 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack removeArrangedSubview:view];[view removeFromSuperview];
     }
     self.category=category;self.backButton.hidden=back;
-    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima"];
+    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima",@"شخصية Joker"];
     self.pageTitle.text=back?@"Joker":names[category];
     if(back) {
         TTJokerGrid *grid=[TTJokerGrid new];
         grid.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
-        [grid.heightAnchor constraintEqualToConstant:180].active=YES;
-        for(NSInteger i=0;i<6;i++)[grid addSubview:[self categoryTile:i]];
+        [grid.heightAnchor constraintEqualToConstant:274].active=YES;
+        for(NSInteger i=0;i<7;i++)[grid addSubview:[self categoryTile:i]];
         [self.stack addArrangedSubview:grid];
     } else {
     NSArray *featureTitles = @[@"زر التنزيل العائم",@"زر إخفاء العناصر",@"حلقة تقدم التنزيل",@"تنزيل عادي",@"تنزيل HD",@"أعلى جودة متاحة",@"تنزيل الصوت (ملفات)",@"قائمة النسخ"];
@@ -1540,6 +1544,20 @@ static UIVisualEffect *TTJokerGlass(void) {
     [self.stack addArrangedSubview:[self row:@"نسخ النبذة بالضغط المطوّل على الملف" symbol:@"doc.on.doc" key:@"tt.extra.copyBio" defaultValue:NO tag:208]];
     [self.stack addArrangedSubview:[self row:@"شارة يتابعك على الملف" symbol:@"person.badge.plus" key:@"tt.extra.followsYou" defaultValue:NO tag:209]];
     [self.stack addArrangedSubview:[self row:@"عدد الفيديوهات على الملف" symbol:@"rectangle.stack" key:@"tt.extra.videoCount" defaultValue:NO tag:210]];
+    }
+    if(category==6) {
+        [self.stack addArrangedSubview:[self row:@"شخصية Joker" symbol:@"cat" key:@"tt.pet.enabled" defaultValue:NO tag:360]];
+        UILabel *label=[self label:@"الحجم" size:14 weight:UIFontWeightSemibold];[self.stack addArrangedSubview:label];
+        UISlider *size=[UISlider new];size.minimumValue=28;size.maximumValue=76;
+        size.value=[D() objectForKey:@"tt.pet.size"]?[D() doubleForKey:@"tt.pet.size"]:44;
+        size.accessibilityLabel=@"حجم الشخصية";
+        [size addTarget:self action:@selector(petSize:) forControlEvents:UIControlEventValueChanged];
+        [self.stack addArrangedSubview:size];
+        UISegmentedControl *kind=[[UISegmentedControl alloc] initWithItems:@[@"قط",@"Joker"]];
+        kind.selectedSegmentIndex=[D() integerForKey:@"tt.pet.kind"]==1?1:0;
+        [kind addTarget:self action:@selector(petKind:) forControlEvents:UIControlEventValueChanged];
+        [self.stack addArrangedSubview:kind];
+        [self.stack addArrangedSubview:[self label:@"اسحب الشخصية وارميها. بتمشي وبتقعد فوق الشريط. مستقلة تماماً عن Shijima." size:13 weight:UIFontWeightRegular]];
     }
     if(category==5) {
         BOOL installed=[self shijimaInstalled];
@@ -1777,7 +1795,11 @@ static UIVisualEffect *TTJokerGlass(void) {
         usingSpringWithDamping:0.84 initialSpringVelocity:0.3 options:UIViewAnimationOptionBeginFromCurrentState
         animations:^{ self.panel.transform = CGAffineTransformIdentity; self.panel.alpha = 1; self.shade.alpha = 1; } completion:nil];
 }
+- (void)petSize:(UISlider *)sender {[D() setDouble:sender.value forKey:@"tt.pet.size"];[[TTJokerPet shared] refresh];}
+- (void)petKind:(UISegmentedControl *)sender {[D() setInteger:sender.selectedSegmentIndex forKey:@"tt.pet.kind"];[[TTJokerPet shared] refresh];}
 - (void)changed:(UISwitch *)sender {
+    if(sender.tag==360){[D() setBool:sender.on forKey:@"tt.pet.enabled"];[[TTJokerPet shared] refresh];return;}
+
     if (sender.tag == 210) { [D() setBool:sender.on forKey:@"tt.extra.videoCount"]; return; }
     if (sender.tag == 209) { [D() setBool:sender.on forKey:@"tt.extra.followsYou"]; return; }
     if (sender.tag == 208) { [D() setBool:sender.on forKey:@"tt.extra.copyBio"]; return; }
@@ -1806,6 +1828,7 @@ static UIVisualEffect *TTJokerGlass(void) {
     TTGRefreshAll();
 }
 - (void)close {
+    [TTJokerPet shared].covered=NO;[[TTJokerPet shared] refresh];
     [UIView animateWithDuration:0.18 animations:^{ self.panel.alpha = 0; self.shade.alpha = 0;
         self.panel.transform = CGAffineTransformMakeTranslation(0, 24); }
         completion:^(BOOL finished) { [self dismissViewControllerAnimated:NO completion:nil]; }];
@@ -1815,6 +1838,7 @@ static void TTGShowSettings(UITabBar *bar) {
     UIViewController *top = bar.window.rootViewController;
     while (top.presentedViewController) top = top.presentedViewController;
     if (!top || [top isKindOfClass:TTGSettingsController.class]) return;
+    [TTJokerPet shared].covered=YES;[[TTJokerPet shared] refresh];
     TTGSettingsController *controller = [TTGSettingsController new]; controller.bar = bar;
     controller.modalPresentationStyle = UIModalPresentationOverFullScreen;
     [top presentViewController:controller animated:NO completion:nil];
