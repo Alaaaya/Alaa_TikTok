@@ -1283,6 +1283,12 @@ static void TT122Recover(void) {
 - (void)configWithModel:(id)model { %orig; [[TTStoryTools shared] attach:(id)self]; }
 - (void)configureWithModel:(id)model { %orig; [[TTStoryTools shared] attach:(id)self]; }
 %end
+%hook AWEPlayVideoPlayerController
+- (void)playerWillLoopPlaying:(id)player {
+    if (TTExtraEnabled(@"tt.extra.autoScroll") && TTExtraScrollNext(self)) return;
+    %orig;
+}
+%end
 // A custom, real-material sheet; no action-sheet emoji or developer-copy action.
 @interface TTGSettingsController : UIViewController
 @property(nonatomic, weak) UITabBar *bar;
@@ -1402,6 +1408,7 @@ static void TT122Recover(void) {
     [self.stack addArrangedSubview:[self row:@"إخفاء إعلانات الخلاصة" symbol:@"eye.slash" key:@"tt.extra.noads" defaultValue:NO tag:200]];
     [self.stack addArrangedSubview:[self row:@"استخدام رابط التشغيل (قد يكون بلا علامة)" symbol:@"play.rectangle" key:@"tt.extra.playbackAsset" defaultValue:NO tag:201]];
     [self.stack addArrangedSubview:[self row:@"حفظ القصة بالضغط المطوّل" symbol:@"arrow.down.circle" key:@"tt.extra.storySave" defaultValue:NO tag:202]];
+    [self.stack addArrangedSubview:[self row:@"الانتقال تلقائياً بعد نهاية الفيديو" symbol:@"arrow.down.to.line" key:@"tt.extra.autoScroll" defaultValue:NO tag:203]];
     UILabel *styleLabel = [self label:@"نمط الشريط" size:13 weight:UIFontWeightSemibold];
     styleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.68];
     [self.stack addArrangedSubview:styleLabel];
@@ -1493,6 +1500,7 @@ static void TT122Recover(void) {
         animations:^{ self.panel.transform = CGAffineTransformIdentity; self.panel.alpha = 1; self.shade.alpha = 1; } completion:nil];
 }
 - (void)changed:(UISwitch *)sender {
+    if (sender.tag == 203) { [D() setBool:sender.on forKey:@"tt.extra.autoScroll"]; return; }
     if (sender.tag == 202) { [D() setBool:sender.on forKey:@"tt.extra.storySave"]; return; }
     if (sender.tag == 201) { [D() setBool:sender.on forKey:@"tt.extra.playbackAsset"]; return; }
     if (sender.tag == 200) { [D() setBool:sender.on forKey:@"tt.extra.noads"]; return; }
