@@ -53,3 +53,5 @@ print('PASS 1.34 dense blur, 40% dark tint, pixel edge, external unclipped shado
 assert '@"com.pixelomer.shijimademoprefs"' in s
 assert 'sw.on=installed;sw.enabled=NO' in s
 assert 'not installed' in s
+
+assert 'category > 5' in s

@@ -24,7 +24,9 @@ UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=js
 xcrun simctl boot "$UDID" || true
 xcrun simctl bootstatus "$UDID" -b
 xcrun simctl install "$UDID" "$APP"
-xcrun simctl launch --console "$UDID" test.joker.preview
+xcrun simctl launch --console "$UDID" test.joker.preview 2>&1 | tee /tmp/joker-preview.log
+! grep -q 'FAIL ' /tmp/joker-preview.log
+grep -q 'PASS UIKit grid/category/back/layout/art persistence smoke' /tmp/joker-preview.log
 CONTAINER=$(xcrun simctl get_app_container "$UDID" test.joker.preview data)
 mkdir -p settings-shots
 cp "$CONTAINER/Documents/shots/"*.png settings-shots/

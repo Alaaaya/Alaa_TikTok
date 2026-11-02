@@ -1496,7 +1496,7 @@ static UIVisualEffect *TTJokerGlass(void) {
 - (void)openCategory:(UIButton *)tile { [self showCategory:tile.tag animated:YES]; }
 - (void)goBack { [self showCategory:-1 animated:YES]; }
 - (void)showCategory:(NSInteger)category animated:(BOOL)animated {
-    if(self.pageAnimating || category < -1 || category > 4)return;
+    if(self.pageAnimating || category < -1 || category > 5)return;
     BOOL back=category==-1;
     UIView *snapshot=animated?[self.pageScroll snapshotViewAfterScreenUpdates:NO]:nil;
     if(snapshot){snapshot.frame=[self.pageScroll convertRect:self.pageScroll.bounds toView:self.panel.contentView];[self.panel.contentView addSubview:snapshot];}
