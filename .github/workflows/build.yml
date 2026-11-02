@@ -10,11 +10,20 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
         with:
           repository: theos/theos
           path: theos
           submodules: recursive
+      - name: Source regression guards
+        run: |
+          python3 tests/check_phase_one.py
+          python3 tests/check_lifecycle.py
+          python3 tests/check_later_features.py
       - name: Tools
         run: brew install ldid make dpkg
       - name: Build

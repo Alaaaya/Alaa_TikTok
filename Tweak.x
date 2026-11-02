@@ -1256,6 +1256,7 @@ static void TT122Recover(void);
 #include "PhaseOne.inc"
 #include "LaterFeatures.inc"
 #include "StoryTools.inc"
+#include "ProfileTools.inc"
 %hook AWEAwemeModel
 - (id)initWithDictionary:(id)dictionary error:(id *)error {
     id result = %orig;
@@ -1295,6 +1296,11 @@ static void TT122Recover(void) {
 - (void)playerWillLoopPlaying:(id)player {
     if (TTExtraEnabled(@"tt.extra.autoScroll") && TTExtraScrollNext(self)) return;
     %orig;
+}
+%end
+%hook AWEProfileImagePreviewView
+- (id)initWithFrame:(CGRect)frame image:(id)image imageURL:(id)url backgroundColor:(id)color userID:(id)userID type:(NSUInteger)type {
+    id result=%orig;[[TTProfileTools shared] attachImage:result];return result;
 }
 %end
 // A custom, real-material sheet; no action-sheet emoji or developer-copy action.
@@ -1419,6 +1425,7 @@ static void TT122Recover(void) {
     [self.stack addArrangedSubview:[self row:@"الانتقال تلقائياً بعد نهاية الفيديو" symbol:@"arrow.down.to.line" key:@"tt.extra.autoScroll" defaultValue:NO tag:203]];
     [self.stack addArrangedSubview:[self row:@"إظهار شريط تقدم الفيديو دائماً" symbol:@"slider.horizontal.3" key:@"tt.extra.progress" defaultValue:NO tag:204]];
     [self.stack addArrangedSubview:[self row:@"إخفاء ملصقات تحذير الخلاصة" symbol:@"eye.slash" key:@"tt.extra.feedWarnings" defaultValue:NO tag:205]];
+    [self.stack addArrangedSubview:[self row:@"حفظ صورة الحساب بالضغط المطوّل" symbol:@"person.crop.square" key:@"tt.extra.profileImage" defaultValue:NO tag:206]];
     UILabel *styleLabel = [self label:@"نمط الشريط" size:13 weight:UIFontWeightSemibold];
     styleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.68];
     [self.stack addArrangedSubview:styleLabel];
@@ -1510,6 +1517,7 @@ static void TT122Recover(void) {
         animations:^{ self.panel.transform = CGAffineTransformIdentity; self.panel.alpha = 1; self.shade.alpha = 1; } completion:nil];
 }
 - (void)changed:(UISwitch *)sender {
+    if (sender.tag == 206) { [D() setBool:sender.on forKey:@"tt.extra.profileImage"]; return; }
     if (sender.tag == 205) { [D() setBool:sender.on forKey:@"tt.extra.feedWarnings"]; return; }
     if (sender.tag == 204) { [D() setBool:sender.on forKey:@"tt.extra.progress"]; return; }
     if (sender.tag == 203) { [D() setBool:sender.on forKey:@"tt.extra.autoScroll"]; return; }
