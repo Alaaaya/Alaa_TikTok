@@ -452,7 +452,7 @@ static void TTGDiagnostic(UIView *view, NSString *reason) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         pending = NO;
         NSString *dir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-        NSString *text = [@"Alaa_TikTok 1.17 class/source diagnostics\n" stringByAppendingString:[events.array componentsJoinedByString:@"\n"]];
+        NSString *text = [@"Alaa_TikTok 1.18 class/source diagnostics\n" stringByAppendingString:[events.array componentsJoinedByString:@"\n"]];
         if (dir) [text writeToFile:[dir stringByAppendingPathComponent:@"alaa_tiktok_debug.txt"] atomically:YES encoding:NSUTF8StringEncoding error:nil];
     });
 }
@@ -564,7 +564,7 @@ static UIVisualEffect *TTGGlyphEffect(BOOL liked) {
 
 // Rasterize the image itself, never UIImageView.layer (which may include shadows,
 // animations or cached effects). All masks share exact screen-pixel dimensions.
-static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewContentMode mode, CGFloat scale) {
+static NSArray<UIImage *> *TTGGlyphMasksWithEdge(UIImage *image, CGSize size, UIViewContentMode mode, CGFloat scale, CGFloat edge) {
     if (!image || size.width <= 0 || size.height <= 0 || scale <= 0) return nil;
     size = CGSizeMake(round(size.width * scale) / scale, round(size.height * scale) / scale);
     CGSize natural = image.size;
@@ -616,7 +616,7 @@ static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewCont
     UIImage *alpha = [UIImage imageWithCGImage:clean scale:scale orientation:UIImageOrientationUp];
     CGImageRelease(clean);
     // Inner bevel only. Nothing protrudes outside the glyph silhouette.
-    CGFloat step = round(1.20 * scale) / scale;
+    CGFloat step = MAX(1, round(edge * scale)) / scale;
     UIGraphicsBeginImageContextWithOptions(size, NO, scale);
     [alpha drawAtPoint:CGPointZero];
     for (NSInteger x = -1; x <= 1; x++) for (NSInteger y = -1; y <= 1; y++)
@@ -634,6 +634,50 @@ static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewCont
     UIImage *inner = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     return alpha && rim && inner ? @[alpha, rim, inner] : nil;
+}
+
+static NSArray<UIImage *> *TTGGlyphMasks(UIImage *image, CGSize size, UIViewContentMode mode, CGFloat scale) {
+    return TTGGlyphMasksWithEdge(image, size, mode, scale, 1.20);
+}
+static BOOL TTGIsCommentAction(UIView *button) {
+    NSMutableString *identity = [NSMutableString stringWithString:NSStringFromClass(button.class)];
+    for (NSString *key in @[@"imageNameString", @"accessibilityIdentifier", @"accessibilityLabel"]) {
+        id value = TTGActionObject(button, key);
+        if ([value isKindOfClass:NSString.class]) [identity appendFormat:@" %@", value];
+    }
+    for (UIView *child in button.subviews) TTGChildIdentity(child, identity, 0);
+    NSString *name = identity.lowercaseString;
+    for (NSString *token in @[@"comment", @"kommentar", @"تعليق", @"تعليقات"])
+        if ([name containsString:token]) return YES;
+    return NO;
+}
+static NSArray<UIImage *> *TTGCommentMasks(CGSize size, CGFloat scale) {
+    if (size.width < 8 || size.height < 8 || scale <= 0) return nil;
+    // Normalized 32pt design, kept square and centered in the existing icon frame.
+    CGFloat unit = MIN(size.width, size.height) / 32.0;
+    CGPoint origin = CGPointMake((size.width - 32 * unit) / 2, (size.height - 32 * unit) / 2);
+    UIBezierPath *path = [UIBezierPath bezierPath];
+    [path moveToPoint:CGPointMake(16, 2.8)];
+    [path addCurveToPoint:CGPointMake(29, 15.2) controlPoint1:CGPointMake(23.4, 2.8) controlPoint2:CGPointMake(29, 8.2)];
+    [path addCurveToPoint:CGPointMake(24.5, 24.6) controlPoint1:CGPointMake(29, 19) controlPoint2:CGPointMake(27.3, 22.5)];
+    [path addCurveToPoint:CGPointMake(24.2, 29.1) controlPoint1:CGPointMake(24.1, 26.1) controlPoint2:CGPointMake(24, 27.7)];
+    [path addQuadCurveToPoint:CGPointMake(23.2, 29.4) controlPoint:CGPointMake(24.3, 29.8)];
+    [path addCurveToPoint:CGPointMake(18.4, 27.4) controlPoint1:CGPointMake(21.4, 29.1) controlPoint2:CGPointMake(19.6, 28.3)];
+    [path addCurveToPoint:CGPointMake(3, 15.2) controlPoint1:CGPointMake(10.1, 28.7) controlPoint2:CGPointMake(3, 23.4)];
+    [path addCurveToPoint:CGPointMake(16, 2.8) controlPoint1:CGPointMake(3, 8.2) controlPoint2:CGPointMake(8.6, 2.8)];
+    [path closePath];
+    // Small, equally spaced circular apertures instead of chunky bitmap dots.
+    for (NSNumber *x in @[@11.5, @16, @20.5])
+        [path appendPath:[UIBezierPath bezierPathWithOvalInRect:CGRectMake(x.doubleValue - 0.95, 14.3, 1.9, 1.9)]];
+    path.usesEvenOddFillRule = YES;
+    UIGraphicsBeginImageContextWithOptions(size, NO, scale);
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    CGContextTranslateCTM(ctx, origin.x, origin.y); CGContextScaleCTM(ctx, unit, unit);
+    [UIColor.whiteColor setFill]; [path fill];
+    UIImage *silhouette = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    // The standard glass pipeline stays identical; only comment shape/edge weight differ.
+    return TTGGlyphMasksWithEdge(silhouette, size, UIViewContentModeScaleToFill, scale, 0.70);
 }
 
 @implementation TTGActionGlyph
@@ -885,7 +929,8 @@ static void TTGSyncActionGlass(UIView *button) {
         BOOL changed = glyph.sourceScale != scale || created || glyph.sourceImage != image || !CGSizeEqualToSize(glyph.sourceSize, rect.size) ||
             glyph.sourceMode != mode;
         if (changed) {
-            NSArray<UIImage *> *masks = TTGGlyphMasks(image, rect.size, mode, scale);
+            NSArray<UIImage *> *masks = TTGIsCommentAction(button) ? TTGCommentMasks(rect.size, scale) :
+                TTGGlyphMasks(image, rect.size, mode, scale);
             if (masks.count != 3) {
                 UIImage *symbol = TTGSymbolForAction(button);
                 masks = symbol ? TTGGlyphMasks(symbol, rect.size, UIViewContentModeScaleAspectFit, scale) : nil;
