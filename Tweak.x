@@ -1329,6 +1329,22 @@ static void TT122Recover(void) {
         self.subviews[i].frame=CGRectMake((i%3)*(w+gap),(i/3)*94,w,86);
 }
 @end
+@interface TTJokerHeader : UIView
+@property(nonatomic,weak) UIView *back,*titleView,*subtitleView,*closeView;
+@property(nonatomic) BOOL home;
+@end
+@implementation TTJokerHeader
+- (UISemanticContentAttribute)semanticContentAttribute {return UISemanticContentAttributeForceLeftToRight;}
+- (UIUserInterfaceLayoutDirection)effectiveUserInterfaceLayoutDirection {return UIUserInterfaceLayoutDirectionLeftToRight;}
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGFloat hw=self.bounds.size.width,tx=self.home?0:36;
+    self.back.frame=CGRectMake(0,9,32,44);
+    self.titleView.frame=CGRectMake(tx,5,MAX(0,hw-tx-38),27);
+    self.subtitleView.frame=CGRectMake(tx,33,MAX(0,hw-tx-38),18);
+    self.closeView.frame=CGRectMake(hw-32,9,32,44);
+}
+@end
 static UIVisualEffect *TTJokerGlass(void) {
     // Native Liquid Glass on supported iOS, real live backdrop blur elsewhere.
     Class cls=NSClassFromString(@"UIGlassEffect");SEL sel=NSSelectorFromString(@"effectWithStyle:");
@@ -1614,7 +1630,7 @@ static UIVisualEffect *TTJokerGlass(void) {
     self.stack.axis = UILayoutConstraintAxisVertical; self.stack.spacing = 8;
     self.stack.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     [scroll addSubview:self.stack];
-    UIView *header = [UIView new];
+    UIView *header = [TTJokerHeader new];
     UIImage *app = nil;
     NSDictionary *icons = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleIcons"];
     NSString *filename = [icons[@"CFBundlePrimaryIcon"][@"CFBundleIconFiles"] lastObject];
@@ -1636,7 +1652,8 @@ static UIVisualEffect *TTJokerGlass(void) {
     back.tintColor=UIColor.whiteColor;back.accessibilityLabel=@"رجوع";back.hidden=YES;
     [back addTarget:self action:@selector(goBack) forControlEvents:UIControlEventTouchUpInside];
     image.hidden=YES;
-    for (UIView *view in @[image,title,subtitle,close,back]) { view.translatesAutoresizingMaskIntoConstraints=NO; [header addSubview:view]; }
+    for (UIView *view in @[image,title,subtitle,close,back]) { view.translatesAutoresizingMaskIntoConstraints=YES; [header addSubview:view]; }
+    TTJokerHeader *jh=(TTJokerHeader *)header;jh.back=back;jh.titleView=title;jh.subtitleView=subtitle;jh.closeView=close;jh.home=YES;
     [header.heightAnchor constraintEqualToConstant:62].active=YES;
     self.subtitle=subtitle;self.closeButton=close;
     [self.stack addArrangedSubview:header];
@@ -1686,14 +1703,7 @@ static UIVisualEffect *TTJokerGlass(void) {
     [super viewDidLayoutSubviews];
     if(!self.panelHeight)return;
     [self forceLTR:self.view];
-    // Set physical coordinates after layout, independent of the host app language.
-    CGFloat hw=self.pageHeader.bounds.size.width;
-    BOOL home=self.category==-1;
-    self.backButton.frame=CGRectMake(0,9,32,44);
-    CGFloat tx=home?0:36;
-    self.pageTitle.frame=CGRectMake(tx,5,MAX(0,hw-tx-38),27);
-    self.subtitle.frame=CGRectMake(tx,33,MAX(0,hw-tx-38),18);
-    self.closeButton.frame=CGRectMake(hw-32,9,32,44);
+    ((TTJokerHeader *)self.pageHeader).home=self.category==-1;[self.pageHeader setNeedsLayout];[self.pageHeader layoutIfNeeded];
     self.pageTitle.textAlignment=NSTextAlignmentLeft;self.subtitle.textAlignment=NSTextAlignmentLeft;
     self.sheen.frame=self.panel.bounds;self.specular.frame=self.panel.bounds;self.edgeMask.frame=self.panel.bounds;
     self.edgeMask.path=[UIBezierPath bezierPathWithRoundedRect:CGRectInset(self.panel.bounds,.65,.65) cornerRadius:31.5].CGPath;

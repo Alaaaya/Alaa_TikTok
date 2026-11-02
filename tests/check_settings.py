@@ -14,7 +14,7 @@ assert 'for(NSInteger i=0;i<5;i++)' in home and '[self categoryTile:i]' in home
 assert 'TTJokerGrid *grid=' in home
 assert 'self row:' not in home
 assert '[self showCategory:-1 animated:YES]' in s
-assert 'self.backButton.frame=CGRectMake(0,9,32,44)' in s
+assert 'self.back.frame=CGRectMake(0,9,32,44)' in s
 assert '[scroll.topAnchor constraintEqualToAnchor:header.bottomAnchor]' in s
 assert '[self.stack removeArrangedSubview:header]' in s
 assert 'snapshotViewAfterScreenUpdates:NO' in page and 'CGAffineTransformMakeTranslation' in page
@@ -37,5 +37,6 @@ print('PASS five LTR category tiles, scoped toggles, back/slide/reduced-motion, 
 
 assert 'multiplier:.70' in s
 assert 'UIGlassEffect' in s and 'SystemThickMaterialDark' not in s
-assert 'self.closeButton.frame=CGRectMake(hw-32' in s
+assert 'self.closeView.frame=CGRectMake(hw-32' in s
 assert 'self.subviews[i].frame=CGRectMake((i%3)' in s
+assert "TTJokerHeader new" in s
