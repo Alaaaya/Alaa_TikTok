@@ -115,6 +115,14 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         ShotView(self.window,@"mascot-uncovered");
         vc.panel.hidden=NO;
         [D() setBool:NO forKey:@"tt.pet.enabled"];[pet refresh];
+        // Provider UTI regression: generic-data ZIPs remain selectable.
+        NSArray *pickerTypes=TTPackPickerTypes(NO);
+        Check([pickerTypes containsObject:UTTypeZIP] && [pickerTypes containsObject:UTTypeArchive] &&
+              [pickerTypes containsObject:UTTypeData] && [pickerTypes containsObject:UTTypeFolder] &&
+              [pickerTypes containsObject:[UTType typeWithFilenameExtension:@"zip"]],@"ZIP provider types accepted");
+        Check([TTPackPickerTypes(YES) isEqual:@[UTTypeFolder]],@"separate folder picker types");
+        UIDocumentPickerViewController *copyPicker=[[UIDocumentPickerViewController alloc] initForOpeningContentTypes:pickerTypes asCopy:YES];
+        Check(copyPicker!=nil,@"broad copy picker initializes");
         // Pack import integration: real ZIP reader, folder import, pose fallback and malicious input.
         NSString *fixtures=[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"Fixtures"];
         NSError *packError=nil;

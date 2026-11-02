@@ -6,3 +6,7 @@ assert 'NSXMLParser' not in s and 'dlopen' not in s and 'system(' not in s
 for state in ['stand','walk','fall','drag','sit','climb']:assert '@"'+state+'"' in m
 assert 'self.packFrames[n] ?: self.packFrames[@1]' in m
 print('PASS safe bounded ZIP/folder PNG import, XML inert, six sprite states and fallback')
+
+for text in ['UTTypeZIP','typeWithFilenameExtension:@"zip"','UTTypeArchive','UTTypeFolder','UTTypeData','asCopy:YES','if(folder)return @[UTTypeFolder]']:
+ assert text in s,text
+print('PASS broad ZIP provider types, copy import and separate folder picker')

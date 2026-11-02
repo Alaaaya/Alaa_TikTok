@@ -113,6 +113,14 @@ static NSDictionary<NSNumber *,UIImage *> *TTPackLoad(NSString *pack) {
     }
     return frames[@1]?frames:nil;
 }
+// Providers may advertise .zip as an archive, dynamic UTI, or generic data.
+static NSArray<UTType *> *TTPackPickerTypes(BOOL folder) {
+    if(folder)return @[UTTypeFolder];
+    NSMutableArray<UTType *> *types=[NSMutableArray arrayWithObjects:UTTypeZIP,UTTypeArchive,UTTypeFolder,UTTypeData,nil];
+    UTType *zipByExtension=[UTType typeWithFilenameExtension:@"zip"];
+    if(zipByExtension && ![types containsObject:zipByExtension])[types addObject:zipByExtension];
+    return types;
+}
 @interface TTPackPicker:NSObject<UIDocumentPickerDelegate>
 @property(nonatomic,weak) UIViewController *presenter;
 @property(nonatomic,copy) void (^completion)(NSString *);
@@ -125,7 +133,7 @@ static NSDictionary<NSNumber *,UIImage *> *TTPackLoad(NSString *pack) {
 - (void)choose:(UIViewController *)vc folder:(BOOL)folder completion:(void (^)(NSString *))completion {
     if(self.busy || vc.presentedViewController)return;
     self.presenter=vc;self.completion=completion;
-    UIDocumentPickerViewController *picker=[[UIDocumentPickerViewController alloc] initForOpeningContentTypes:folder?@[UTTypeFolder]:@[UTTypeZIP] asCopy:NO];
+    UIDocumentPickerViewController *picker=[[UIDocumentPickerViewController alloc] initForOpeningContentTypes:TTPackPickerTypes(folder) asCopy:YES];
     picker.delegate=self;picker.allowsMultipleSelection=NO;[vc presentViewController:picker animated:YES completion:nil];
 }
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
