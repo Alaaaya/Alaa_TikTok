@@ -1304,6 +1304,12 @@ static void TT122Recover(void) {
     id result=%orig;[[TTProfileTools shared] attachImage:result];return result;
 }
 %end
+%hook AWETextInputController
+- (NSUInteger)maxLength {
+    NSUInteger original=%orig;
+    return TTExtraEnabled(@"tt.extra.longComments") ? MAX(original,(NSUInteger)240) : original;
+}
+%end
 // A custom, real-material sheet; no action-sheet emoji or developer-copy action.
 @interface TTGSettingsController : UIViewController
 @property(nonatomic, weak) UITabBar *bar;
@@ -1446,6 +1452,7 @@ static void TT122Recover(void) {
 
     }
     if(category==2) {
+    [self.stack addArrangedSubview:[self row:@"تعليقات أطول (الحد يقرّره الخادم)" symbol:@"text.bubble" key:@"tt.extra.longComments" defaultValue:NO tag:207]];
     [self.stack addArrangedSubview:[self row:@"إخفاء إعلانات الخلاصة" symbol:@"eye.slash" key:@"tt.extra.noads" defaultValue:NO tag:200]];
     [self.stack addArrangedSubview:[self row:@"الانتقال تلقائياً بعد نهاية الفيديو" symbol:@"arrow.down.to.line" key:@"tt.extra.autoScroll" defaultValue:NO tag:203]];
     [self.stack addArrangedSubview:[self row:@"إظهار شريط تقدم الفيديو دائماً" symbol:@"slider.horizontal.3" key:@"tt.extra.progress" defaultValue:NO tag:204]];
@@ -1660,6 +1667,7 @@ static void TT122Recover(void) {
         animations:^{ self.panel.transform = CGAffineTransformIdentity; self.panel.alpha = 1; self.shade.alpha = 1; } completion:nil];
 }
 - (void)changed:(UISwitch *)sender {
+    if (sender.tag == 207) { [D() setBool:sender.on forKey:@"tt.extra.longComments"]; return; }
     if (sender.tag == 206) { [D() setBool:sender.on forKey:@"tt.extra.profileImage"]; return; }
     if (sender.tag == 205) { [D() setBool:sender.on forKey:@"tt.extra.feedWarnings"]; return; }
     if (sender.tag == 204) { [D() setBool:sender.on forKey:@"tt.extra.progress"]; return; }
