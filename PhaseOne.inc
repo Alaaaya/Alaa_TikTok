@@ -66,7 +66,7 @@ static double TT122Number(id object, NSString *key) {
 }
 static NSURL *TT122VideoURL(id model, NSInteger quality) {
     id video = TTGActionObject(model, @"video");
-    if (quality == 0) {
+    if (quality == 0 && ![D() boolForKey:@"tt.extra.playbackAsset"]) {
         NSURL *normal = TT122URL(TTGActionObject(video, @"downloadURL"), 0);
         if (normal) return normal;
     }
@@ -85,7 +85,9 @@ static NSURL *TT122VideoURL(id model, NSInteger quality) {
             if (u && score >= bestScore) { best = u; bestScore = score; }
         }
     }
-    return best ?: TT122URL(TTGActionObject(video, @"playURL"), 0) ?: TT122URL(TTGActionObject(video, @"downloadURL"), 0);
+    NSURL *playback = best ?: TT122URL(TTGActionObject(video, @"playURL"), 0);
+    if ([D() boolForKey:@"tt.extra.playbackAsset"]) return playback;
+    return playback ?: TT122URL(TTGActionObject(video, @"downloadURL"), 0);
 }
 @interface TT122Passthrough : UIView
 @end
