@@ -5,7 +5,7 @@ SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
 ARCH=$(uname -m)
 APP=/tmp/JokerPreview.app
 mkdir -p "$APP"
-clang -fobjc-arc -Wno-deprecated-declarations -Wno-incompatible-pointer-types -isysroot "$SDK" -target "$ARCH-apple-ios15.0-simulator"  tests/SettingsPreview.m -framework UIKit -framework Foundation -framework Photos -framework PhotosUI  -framework UniformTypeIdentifiers -framework ImageIO -o "$APP/JokerPreview"
+clang -fobjc-arc -Wno-deprecated-declarations -Wno-incompatible-pointer-types -isysroot "$SDK" -target "$ARCH-apple-ios15.0-simulator"  tests/SettingsPreview.m -framework UIKit -framework Foundation -framework Photos -framework PhotosUI  -framework UniformTypeIdentifiers -framework CoreGraphics -framework QuartzCore -framework ImageIO -o "$APP/JokerPreview"
 cat > "$APP/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
