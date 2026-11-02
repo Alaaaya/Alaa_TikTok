@@ -26,6 +26,10 @@ jobs:
           cp packages/*.deb out/
           cp .theos/obj/Alaa_TikTok.dylib out/ || find .theos -name 'Alaa_TikTok.dylib' -exec cp {} out/ \;
           ls -la out
+      - name: Media pipeline smoke tests
+        run: |
+          clang -fobjc-arc -Wno-deprecated-declarations -framework Foundation -framework AVFoundation -framework CoreVideo -framework CoreMedia tests/media_smoke.m -o /tmp/alaa-media-test
+          /tmp/alaa-media-test
       - uses: actions/upload-artifact@v4
         with:
           name: Alaa_TikTok

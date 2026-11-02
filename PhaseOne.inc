@@ -556,7 +556,7 @@ static UIView *TT122Material(CGRect frame) {
                 frame++;
             }
             if (frame>=total && !ended) {
-                ended=YES;CVPixelBufferRelease(pixel);[input markAsFinished];[writer endSessionAtSourceTime:duration];
+                ended=YES;CVPixelBufferRelease(pixel);[input stopRequestingMediaData];[input markAsFinished];[writer endSessionAtSourceTime:duration];
                 [writer finishWritingWithCompletionHandler:^{
                     dispatch_async(dispatch_get_main_queue(), ^{
                         if (writer.status!=AVAssetWriterStatusCompleted) {

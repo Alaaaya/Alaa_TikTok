@@ -16,5 +16,13 @@ assert 'NSPhotoLibraryAddUsageDescription' in p
 assert 'http://' not in p and 'isEqual:@"https"' in p
 assert 'removeItemAtURL' in p
 assert 'tag:100+i' in s and 'sender.tag-100' in s
-assert 'Version: 1.22' in (root/'control').read_text()
+assert 'Version: 1.23' in (root/'control').read_text()
 print('PASS 1.21 bar+glyph byte regression, toggles, playback-preserving menus, saved drags, Photos permission guards, HTTPS, cleanup')
+
+assert 'AVAssetExportPresetPassthrough' in p and 'AVMutableComposition composition' in p
+assert 'if (audioTracks.count) { [self saveVideo:file]; return; }' in p
+assert 'else [self verifyVideo:file]' in p and '[self verifyMuxedVideo:output]' in p
+assert 'UIActivityViewController' in p and 'renderAudioCover:audio image:cover' in p
+assert 'AVAssetWriter' in p and 'audioAsVideo' in p
+assert '%hook' not in (root/'LaterFeatures.inc').read_text()
+print('PASS no silent-save path, mux verification, audio share+cover option, Logos includes')
