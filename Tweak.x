@@ -1103,6 +1103,17 @@ static CGFloat TTGGuardRendererAlpha(UIView *renderer, CGFloat proposed) {
         %orig(0.0f);
     } else { %orig; }
 }
+- (void)addAnimation:(CAAnimation *)animation forKey:(NSString *)key {
+    NSHashTable *owners = objc_getAssociatedObject(self, &kCommentLayerOwnerKey);
+    UIView *button = owners.anyObject;
+    TTGActionGlyph *glyph = button ? objc_getAssociatedObject(button, &kGlyphStateKey) : nil;
+    // Explicit opacity animations override the model opacity in presentation.
+    if (glyph && glyph.superview == button && !glyph.hidden && TTGEnabled() &&
+        [animation isKindOfClass:CAPropertyAnimation.class] &&
+        [((CAPropertyAnimation *)animation).keyPath isEqualToString:@"opacity"]) return;
+    %orig;
+}
+
 %end
 
 %hook UIView
