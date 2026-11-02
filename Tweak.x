@@ -1316,6 +1316,34 @@ static void TT122Recover(void) {
     id result=%orig;[[TTProfileTools shared] attachBio:result];return result;
 }
 %end
+// Physical LTR containers also resist inherited RTL appearance overrides.
+@interface TTJokerGrid : UIView
+@end
+@implementation TTJokerGrid
+- (UISemanticContentAttribute)semanticContentAttribute {return UISemanticContentAttributeForceLeftToRight;}
+- (UIUserInterfaceLayoutDirection)effectiveUserInterfaceLayoutDirection {return UIUserInterfaceLayoutDirectionLeftToRight;}
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGFloat gap=8,w=(self.bounds.size.width-gap*2)/3;
+    for(NSInteger i=0;i<(NSInteger)self.subviews.count;i++)
+        self.subviews[i].frame=CGRectMake((i%3)*(w+gap),(i/3)*94,w,86);
+}
+@end
+static UIVisualEffect *TTJokerGlass(void) {
+    // Native Liquid Glass on supported iOS, real live backdrop blur elsewhere.
+    Class cls=NSClassFromString(@"UIGlassEffect");SEL sel=NSSelectorFromString(@"effectWithStyle:");
+    if(cls && [cls respondsToSelector:sel]) {
+        NSMethodSignature *sig=[cls methodSignatureForSelector:sel];
+        if(sig.numberOfArguments==3 && sig.methodReturnType[0]=='@' &&
+           !strcmp([sig getArgumentTypeAtIndex:2],@encode(NSInteger))) {
+            NSInvocation *call=[NSInvocation invocationWithMethodSignature:sig];call.target=cls;call.selector=sel;
+            NSInteger style=1;[call setArgument:&style atIndex:2];[call invoke];
+            __unsafe_unretained id effect=nil;[call getReturnValue:&effect];
+            if([effect isKindOfClass:UIVisualEffect.class])return effect;
+        }
+    }
+    return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialDark];
+}
 // A custom, real-material sheet; no action-sheet emoji or developer-copy action.
 @interface TTGSettingsController : UIViewController
 @property(nonatomic, weak) UITabBar *bar;
@@ -1330,6 +1358,11 @@ static void TT122Recover(void) {
 @property(nonatomic, strong) UIScrollView *pageScroll;
 @property(nonatomic) NSInteger category;
 @property(nonatomic) BOOL pageAnimating;
+@property(nonatomic,strong) UILabel *subtitle;
+@property(nonatomic,strong) UIButton *closeButton;
+@property(nonatomic,strong) CAGradientLayer *specular;
+@property(nonatomic,strong) CAShapeLayer *edgeMask;
+@property(nonatomic,strong) CAGradientLayer *sheen;
 @end
 @implementation TTGSettingsController
 - (UILabel *)label:(NSString *)text size:(CGFloat)size weight:(UIFontWeight)weight {
@@ -1387,25 +1420,32 @@ static void TT122Recover(void) {
     NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3"];
     UIButton *tile=[UIButton buttonWithType:UIButtonTypeCustom];tile.tag=index;
     tile.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
-    tile.backgroundColor=[UIColor colorWithWhite:.15 alpha:.72];tile.layer.cornerRadius=22;
+    tile.backgroundColor=[UIColor colorWithWhite:1 alpha:.035];tile.layer.cornerRadius=18;
     tile.layer.cornerCurve=kCACornerCurveContinuous;tile.layer.borderWidth=.8;
     tile.layer.borderColor=[UIColor colorWithWhite:1 alpha:.22].CGColor;tile.clipsToBounds=YES;
-    UIVisualEffectView *glass=[[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    UIView *glass=[UIView new];glass.backgroundColor=[UIColor colorWithWhite:1 alpha:.025];
     glass.userInteractionEnabled=NO;glass.translatesAutoresizingMaskIntoConstraints=NO;[tile addSubview:glass];
     UIImageView *icon=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbols[index]]];
     icon.tintColor=[UIColor colorWithRed:.86 green:.91 blue:1 alpha:1];icon.contentMode=UIViewContentModeScaleAspectFit;
-    UILabel *label=[self label:names[index] size:16 weight:UIFontWeightSemibold];
+    UILabel *label=[self label:names[index] size:11 weight:UIFontWeightSemibold];
     label.textAlignment=NSTextAlignmentCenter;label.numberOfLines=2;
     for(UIView *view in @[icon,label]){view.userInteractionEnabled=NO;view.translatesAutoresizingMaskIntoConstraints=NO;[tile addSubview:view];}
     [NSLayoutConstraint activateConstraints:@[
-        [tile.heightAnchor constraintGreaterThanOrEqualToConstant:108],
+        [tile.heightAnchor constraintGreaterThanOrEqualToConstant:86],
         [glass.leftAnchor constraintEqualToAnchor:tile.leftAnchor],[glass.rightAnchor constraintEqualToAnchor:tile.rightAnchor],
         [glass.topAnchor constraintEqualToAnchor:tile.topAnchor],[glass.bottomAnchor constraintEqualToAnchor:tile.bottomAnchor],
-        [icon.centerXAnchor constraintEqualToAnchor:tile.centerXAnchor],[icon.topAnchor constraintEqualToAnchor:tile.topAnchor constant:18],
-        [icon.widthAnchor constraintEqualToConstant:30],[icon.heightAnchor constraintEqualToConstant:30],
+        [icon.centerXAnchor constraintEqualToAnchor:tile.centerXAnchor],[icon.topAnchor constraintEqualToAnchor:tile.topAnchor constant:14],
+        [icon.widthAnchor constraintEqualToConstant:25],[icon.heightAnchor constraintEqualToConstant:25],
         [label.leftAnchor constraintEqualToAnchor:tile.leftAnchor constant:8],[label.rightAnchor constraintEqualToAnchor:tile.rightAnchor constant:-8],
-        [label.topAnchor constraintEqualToAnchor:icon.bottomAnchor constant:12],
-        [label.bottomAnchor constraintLessThanOrEqualToAnchor:tile.bottomAnchor constant:-14]]];
+        [label.topAnchor constraintEqualToAnchor:icon.bottomAnchor constant:9],
+        [label.bottomAnchor constraintLessThanOrEqualToAnchor:tile.bottomAnchor constant:-8]]];
+    // A restrained two-tone SF Symbol treatment preserves crisp geometry.
+    NSArray *palette=@[[UIColor colorWithRed:.65 green:.88 blue:1 alpha:1],
+                      [UIColor colorWithRed:1 green:.86 blue:.60 alpha:1]];
+    UIImageSymbolConfiguration *color=[UIImageSymbolConfiguration configurationWithPaletteColors:palette];
+    icon.image=[[UIImage systemImageNamed:symbols[index]] imageByApplyingSymbolConfiguration:color];
+    icon.layer.shadowColor=UIColor.whiteColor.CGColor;icon.layer.shadowOpacity=.18;
+    icon.layer.shadowRadius=6;icon.layer.shadowOffset=CGSizeZero;
     tile.accessibilityLabel=names[index];tile.accessibilityHint=@"فتح إعدادات القسم";
     tile.isAccessibilityElement=YES;
     [tile addTarget:self action:@selector(openCategory:) forControlEvents:UIControlEventTouchUpInside];
@@ -1414,10 +1454,10 @@ static void TT122Recover(void) {
     return tile;
 }
 - (void)pressTile:(UIButton *)tile {
-    [UIView animateWithDuration:.12 animations:^{tile.alpha=.76;if(!UIAccessibilityIsReduceMotionEnabled())tile.transform=CGAffineTransformMakeScale(.97,.97);}];
+    [UIView animateWithDuration:.12 animations:^{tile.alpha=.76;if(!UIAccessibilityIsReduceMotionEnabled())tile.transform=CGAffineTransformMakeScale(.93,.93);}];
 }
 - (void)releaseTile:(UIButton *)tile {
-    [UIView animateWithDuration:.18 animations:^{tile.alpha=1;tile.transform=CGAffineTransformIdentity;}];
+    [UIView animateWithDuration:.4 delay:0 usingSpringWithDamping:.64 initialSpringVelocity:.4 options:UIViewAnimationOptionBeginFromCurrentState animations:^{tile.alpha=1;tile.transform=CGAffineTransformIdentity;} completion:nil];
 }
 - (void)openCategory:(UIButton *)tile { [self showCategory:tile.tag animated:YES]; }
 - (void)goBack { [self showCategory:-1 animated:YES]; }
@@ -1434,14 +1474,11 @@ static void TT122Recover(void) {
     NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر"];
     self.pageTitle.text=back?@"Joker":names[category];
     if(back) {
-        for(NSInteger i=0;i<5;i+=2) {
-            UIStackView *row=[UIStackView new];row.axis=UILayoutConstraintAxisHorizontal;row.spacing=12;
-            row.distribution=UIStackViewDistributionFillEqually;row.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
-            [row addArrangedSubview:[self categoryTile:i]];
-            if(i+1<5)[row addArrangedSubview:[self categoryTile:i+1]];
-            else [row addArrangedSubview:[UIView new]];
-            [self.stack addArrangedSubview:row];
-        }
+        TTJokerGrid *grid=[TTJokerGrid new];
+        grid.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+        [grid.heightAnchor constraintEqualToConstant:180].active=YES;
+        for(NSInteger i=0;i<5;i++)[grid addSubview:[self categoryTile:i]];
+        [self.stack addArrangedSubview:grid];
     } else {
     NSArray *featureTitles = @[@"زر التنزيل العائم",@"زر إخفاء العناصر",@"حلقة تقدم التنزيل",@"تنزيل عادي",@"تنزيل HD",@"أعلى جودة متاحة",@"تنزيل الصوت (ملفات)",@"قائمة النسخ"];
     NSArray *featureSymbols = @[@"arrow.down.circle",@"eye",@"circle.dotted",@"arrow.down",@"h.circle",@"sparkles",@"waveform",@"doc.on.doc"];
@@ -1537,13 +1574,13 @@ static void TT122Recover(void) {
     self.view.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     self.view.accessibilityViewIsModal = YES;
     self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
-    UIButton *shade = [UIButton new]; shade.backgroundColor = [UIColor colorWithWhite:0 alpha:0.36];
+    UIButton *shade = [UIButton new]; shade.backgroundColor = [UIColor colorWithWhite:0 alpha:0.10];
     [shade addTarget:self action:@selector(close) forControlEvents:UIControlEventTouchUpInside];
     shade.accessibilityLabel = @"إغلاق الإعدادات";
     self.shade = shade; shade.frame = self.view.bounds;
     shade.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:shade];
-    self.panel = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThickMaterialDark]];
+    self.panel = [[UIVisualEffectView alloc] initWithEffect:TTJokerGlass()];
     self.panel.translatesAutoresizingMaskIntoConstraints = NO;
     self.panel.layer.cornerRadius = 32;
     self.panel.layer.cornerCurve = kCACornerCurveContinuous;
@@ -1551,16 +1588,30 @@ static void TT122Recover(void) {
     self.panel.layer.borderWidth = 0.8;
     self.panel.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.65].CGColor;
     self.panel.contentView.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
-    self.panel.contentView.backgroundColor = [UIColor colorWithWhite:0.015 alpha:0.55];
+    self.panel.contentView.backgroundColor = [UIColor colorWithWhite:0 alpha:0.12];
     self.panel.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     [self.view addSubview:self.panel];
+    self.sheen=[CAGradientLayer layer];
+    self.sheen.colors=@[(id)[UIColor colorWithWhite:1 alpha:.12].CGColor,
+                        (id)[UIColor colorWithWhite:1 alpha:0].CGColor,
+                        (id)[UIColor colorWithRed:.5 green:.7 blue:1 alpha:.045].CGColor];
+    self.sheen.startPoint=CGPointZero;self.sheen.endPoint=CGPointMake(1,1);
+    [self.panel.contentView.layer insertSublayer:self.sheen atIndex:0];
+    self.specular=[CAGradientLayer layer];
+    self.specular.colors=@[(id)[UIColor colorWithWhite:1 alpha:.9].CGColor,
+                           (id)[UIColor colorWithWhite:1 alpha:.12].CGColor,
+                           (id)[UIColor colorWithWhite:1 alpha:.50].CGColor];
+    self.specular.startPoint=CGPointZero;self.specular.endPoint=CGPointMake(1,1);
+    self.edgeMask=[CAShapeLayer layer];self.edgeMask.fillColor=UIColor.clearColor.CGColor;
+    self.edgeMask.strokeColor=UIColor.whiteColor.CGColor;self.edgeMask.lineWidth=1.1;
+    self.specular.mask=self.edgeMask;[self.panel.layer addSublayer:self.specular];
     UIScrollView *scroll = [UIScrollView new]; scroll.translatesAutoresizingMaskIntoConstraints = NO;
     self.pageScroll=scroll;
     scroll.alwaysBounceVertical = NO; scroll.showsVerticalScrollIndicator = NO;
     scroll.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     [self.panel.contentView addSubview:scroll];
     self.stack = [UIStackView new]; self.stack.translatesAutoresizingMaskIntoConstraints = NO;
-    self.stack.axis = UILayoutConstraintAxisVertical; self.stack.spacing = 10;
+    self.stack.axis = UILayoutConstraintAxisVertical; self.stack.spacing = 8;
     self.stack.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     [scroll addSubview:self.stack];
     UIView *header = [UIView new];
@@ -1571,9 +1622,9 @@ static void TT122Recover(void) {
     UIImageView *image = [[UIImageView alloc] initWithImage:app ?: [UIImage systemImageNamed:@"play.square.stack.fill"]];
     image.tintColor = UIColor.whiteColor; image.layer.cornerRadius = 15; image.clipsToBounds = YES;
     image.contentMode = UIViewContentModeScaleAspectFit;
-    UILabel *title = [self label:@"Joker" size:24 weight:UIFontWeightBold];
+    UILabel *title = [self label:@"Joker" size:21 weight:UIFontWeightBold];
     self.pageTitle=title;
-    title.textAlignment = NSTextAlignmentLeft;
+    title.textAlignment = NSTextAlignmentLeft;title.numberOfLines=1;title.adjustsFontSizeToFitWidth=YES;
     UILabel *subtitle = [self label:@"إعدادات الزجاج" size:13 weight:UIFontWeightMedium];
     subtitle.textAlignment = NSTextAlignmentLeft; subtitle.textColor = [UIColor colorWithWhite:1 alpha:0.64];
     UIButton *close = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -1586,44 +1637,29 @@ static void TT122Recover(void) {
     [back addTarget:self action:@selector(goBack) forControlEvents:UIControlEventTouchUpInside];
     image.hidden=YES;
     for (UIView *view in @[image,title,subtitle,close,back]) { view.translatesAutoresizingMaskIntoConstraints=NO; [header addSubview:view]; }
-    [NSLayoutConstraint activateConstraints:@[
-        [header.heightAnchor constraintEqualToConstant:78],
-        [back.leftAnchor constraintEqualToAnchor:header.leftAnchor],
-        [back.centerYAnchor constraintEqualToAnchor:header.centerYAnchor],
-        [back.widthAnchor constraintEqualToConstant:44],[back.heightAnchor constraintEqualToConstant:44],
-        [image.leftAnchor constraintEqualToAnchor:header.leftAnchor constant:2],
-        [image.centerYAnchor constraintEqualToAnchor:header.centerYAnchor],
-        [image.widthAnchor constraintEqualToConstant:52], [image.heightAnchor constraintEqualToConstant:52],
-        [title.leftAnchor constraintEqualToAnchor:back.rightAnchor constant:8],
-        [title.topAnchor constraintEqualToAnchor:header.topAnchor constant:12],
-        [title.rightAnchor constraintLessThanOrEqualToAnchor:close.leftAnchor constant:-8],
-        [subtitle.leftAnchor constraintEqualToAnchor:title.leftAnchor],
-        [subtitle.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:4],
-        [close.rightAnchor constraintEqualToAnchor:header.rightAnchor],
-        [close.centerYAnchor constraintEqualToAnchor:header.centerYAnchor],
-        [close.widthAnchor constraintEqualToConstant:38], [close.heightAnchor constraintEqualToConstant:44]
-    ]];
+    [header.heightAnchor constraintEqualToConstant:62].active=YES;
+    self.subtitle=subtitle;self.closeButton=close;
     [self.stack addArrangedSubview:header];
     self.pageHeader=header;
     [self.stack removeArrangedSubview:header];[header removeFromSuperview];
     header.translatesAutoresizingMaskIntoConstraints=NO;[self.panel.contentView addSubview:header];
     [NSLayoutConstraint activateConstraints:@[
-        [header.leftAnchor constraintEqualToAnchor:self.panel.contentView.leftAnchor constant:20],
-        [header.rightAnchor constraintEqualToAnchor:self.panel.contentView.rightAnchor constant:-20],
+        [header.leftAnchor constraintEqualToAnchor:self.panel.contentView.leftAnchor constant:14],
+        [header.rightAnchor constraintEqualToAnchor:self.panel.contentView.rightAnchor constant:-14],
         [header.topAnchor constraintEqualToAnchor:self.panel.contentView.topAnchor constant:10]]];
     [self showCategory:-1 animated:NO];
     UILayoutGuide *safe = self.view.safeAreaLayoutGuide;
     NSLayoutConstraint *height = [self.panel.heightAnchor constraintEqualToConstant:550];
     height.priority = UILayoutPriorityDefaultHigh;
     self.panelHeight = height;
-    NSLayoutConstraint *width = [self.panel.widthAnchor constraintEqualToAnchor:safe.widthAnchor constant:-28];
+    NSLayoutConstraint *width = [self.panel.widthAnchor constraintEqualToAnchor:safe.widthAnchor multiplier:.70];
     width.priority = UILayoutPriorityDefaultHigh;
     self.panelCenter = [self.panel.centerYAnchor constraintEqualToAnchor:self.view.topAnchor constant:300];
     self.panelCenter.priority = UILayoutPriorityDefaultHigh;
     [NSLayoutConstraint activateConstraints:@[
         self.panelCenter,
         [self.panel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        [self.panel.widthAnchor constraintLessThanOrEqualToConstant:430],
+        [self.panel.widthAnchor constraintLessThanOrEqualToConstant:390],
         [self.panel.leftAnchor constraintGreaterThanOrEqualToAnchor:safe.leftAnchor constant:14],
         [self.panel.rightAnchor constraintLessThanOrEqualToAnchor:safe.rightAnchor constant:-14],
         width,
@@ -1634,11 +1670,11 @@ static void TT122Recover(void) {
         [scroll.rightAnchor constraintEqualToAnchor:self.panel.contentView.rightAnchor],
         [scroll.topAnchor constraintEqualToAnchor:header.bottomAnchor],
         [scroll.bottomAnchor constraintEqualToAnchor:self.panel.contentView.bottomAnchor],
-        [self.stack.leftAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.leftAnchor constant:20],
-        [self.stack.rightAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.rightAnchor constant:-20],
+        [self.stack.leftAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.leftAnchor constant:12],
+        [self.stack.rightAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.rightAnchor constant:-12],
         [self.stack.topAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.topAnchor constant:10],
         [self.stack.bottomAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.bottomAnchor constant:-22],
-        [self.stack.widthAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.widthAnchor constant:-40]
+        [self.stack.widthAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.widthAnchor constant:-24]
     ]];
 
 }
@@ -1650,9 +1686,20 @@ static void TT122Recover(void) {
     [super viewDidLayoutSubviews];
     if(!self.panelHeight)return;
     [self forceLTR:self.view];
-    CGFloat width = MAX(200, self.panel.bounds.size.width - 40);
+    // Set physical coordinates after layout, independent of the host app language.
+    CGFloat hw=self.pageHeader.bounds.size.width;
+    BOOL home=self.category==-1;
+    self.backButton.frame=CGRectMake(0,9,32,44);
+    CGFloat tx=home?0:36;
+    self.pageTitle.frame=CGRectMake(tx,5,MAX(0,hw-tx-38),27);
+    self.subtitle.frame=CGRectMake(tx,33,MAX(0,hw-tx-38),18);
+    self.closeButton.frame=CGRectMake(hw-32,9,32,44);
+    self.pageTitle.textAlignment=NSTextAlignmentLeft;self.subtitle.textAlignment=NSTextAlignmentLeft;
+    self.sheen.frame=self.panel.bounds;self.specular.frame=self.panel.bounds;self.edgeMask.frame=self.panel.bounds;
+    self.edgeMask.path=[UIBezierPath bezierPathWithRoundedRect:CGRectInset(self.panel.bounds,.65,.65) cornerRadius:31.5].CGPath;
+    CGFloat width = MAX(200, self.panel.bounds.size.width - 24);
     CGFloat natural = [self.stack systemLayoutSizeFittingSize:CGSizeMake(width, UILayoutFittingCompressedSize.height)
-        withHorizontalFittingPriority:UILayoutPriorityRequired verticalFittingPriority:UILayoutPriorityFittingSizeLevel].height + 110;
+        withHorizontalFittingPriority:UILayoutPriorityRequired verticalFittingPriority:UILayoutPriorityFittingSizeLevel].height + 94;
     CGFloat top = self.view.safeAreaInsets.top + 12;
     CGFloat bottom = self.view.bounds.size.height - self.view.safeAreaInsets.bottom - 92;
     UIView *glass = [self.bar viewWithTag:kGlassTag];

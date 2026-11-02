@@ -1,6 +1,6 @@
 from pathlib import Path
 s=Path('Tweak.x').read_text()
-controller=s[s.index('@interface TTGSettingsController'):s.index('static void TTGShowSettings(UITabBar *bar) {',s.index('@interface TTGSettingsController'))]
+controller=s[s.index('// Physical LTR containers'):s.index('static void TTGShowSettings(UITabBar *bar) {',s.index('@interface TTGSettingsController'))]
 prefix=r"""
 #import <UIKit/UIKit.h>
 #import <Photos/Photos.h>
@@ -37,17 +37,27 @@ static void Shot(TTGSettingsController *vc,NSString *name) {
 @end
 @implementation PreviewApp
 - (BOOL)application:(UIApplication *)app didFinishLaunchingWithOptions:(NSDictionary *)options {
+    [[UIView appearance] setSemanticContentAttribute:UISemanticContentAttributeForceRightToLeft];
     self.window=[[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
     self.window.backgroundColor=[UIColor colorWithRed:.12 green:.16 blue:.22 alpha:1];
+    CAGradientLayer *backdrop=[CAGradientLayer layer];backdrop.frame=self.window.bounds;
+    backdrop.colors=@[(id)UIColor.systemTealColor.CGColor,(id)UIColor.systemOrangeColor.CGColor,(id)UIColor.systemBlueColor.CGColor];
+    [self.window.layer insertSublayer:backdrop atIndex:0];
     TTGSettingsController *vc=[TTGSettingsController new];self.window.rootViewController=vc;[self.window makeKeyAndVisible];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(), ^{
         Check([vc.pageTitle.text isEqual:@"Joker"],@"brand");
         Check(vc.backButton.hidden,@"home back hidden");
-        Check(vc.stack.arrangedSubviews.count==3,@"three grid rows");
+        Check(vc.stack.arrangedSubviews.count==1,@"one physical grid");
         NSInteger tiles=0;
-        for(UIStackView *row in vc.stack.arrangedSubviews)for(UIView *v in row.arrangedSubviews)if([v isKindOfClass:UIButton.class])tiles++;
+        for(UIView *row in vc.stack.arrangedSubviews)for(UIView *v in row.subviews)if([v isKindOfClass:UIButton.class])tiles++;
         Check(tiles==5,@"exactly five tiles");
         Check(vc.pageHeader.superview==vc.panel.contentView,@"pinned header");
+        [vc.view setNeedsLayout];[vc.view layoutIfNeeded];
+        Check(vc.panel.bounds.size.width<=vc.view.bounds.size.width*.71,@"compact width");
+        Check(CGRectGetMinX(vc.pageTitle.frame)<CGRectGetMinX(vc.closeButton.frame),@"physical title left close right");
+        UIView *grid=vc.stack.arrangedSubviews.firstObject;[grid layoutIfNeeded];
+        Check(grid.subviews[0].frame.origin.x<grid.subviews[1].frame.origin.x,@"download first left");
+        Check(grid.subviews[2].frame.origin.y==grid.subviews[0].frame.origin.y,@"three columns");
         Shot(vc,@"home");
         for(NSInteger page=0;page<5;page++){
             [vc showCategory:page animated:NO];
@@ -56,7 +66,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {
             Check(vc.panelHeight.constant>100,@"panel height");
             Shot(vc,[NSString stringWithFormat:@"category-%ld",(long)page]);
             [vc showCategory:-1 animated:NO];
-            Check(vc.category==-1 && vc.stack.arrangedSubviews.count==3,@"back restores grid");
+            Check(vc.category==-1 && vc.stack.arrangedSubviews.count==1,@"back restores grid");
         }
         // Persisted artwork, cache reload, target isolation and reset.
         UIGraphicsImageRenderer *renderer=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(64,40)];

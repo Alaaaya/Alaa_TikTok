@@ -10,11 +10,11 @@ assert 'TWEAK_NAME = Alaa_TikTok' in (root/'Makefile').read_text()
 assert 'brand.text=copy?@"Joker · نسخ":@"Joker · تنزيل"' in p
 page=s[s.index('- (void)showCategory:'):s.index('- (void)loadView {',s.index('- (void)showCategory:'))]
 home=page[page.index('    if(back) {'):page.index('    } else {')]
-assert 'for(NSInteger i=0;i<5;i+=2)' in home and '[self categoryTile:i]' in home
-assert 'row.distribution=UIStackViewDistributionFillEqually' in home
+assert 'for(NSInteger i=0;i<5;i++)' in home and '[self categoryTile:i]' in home
+assert 'TTJokerGrid *grid=' in home
 assert 'self row:' not in home
 assert '[self showCategory:-1 animated:YES]' in s
-assert '[back.leftAnchor constraintEqualToAnchor:header.leftAnchor]' in s
+assert 'self.backButton.frame=CGRectMake(0,9,32,44)' in s
 assert '[scroll.topAnchor constraintEqualToAnchor:header.bottomAnchor]' in s
 assert '[self.stack removeArrangedSubview:header]' in s
 assert 'snapshotViewAfterScreenUpdates:NO' in page and 'CGAffineTransformMakeTranslation' in page
@@ -34,3 +34,8 @@ assert 'TTToolGlyph(1222,self.uiHidden?' in p and 'TTToolGlyph(1221,@"arrow.down
 assert 'requestAuthorization' not in c # PHPicker requires no broad Photo Library access.
 assert 'TTToolRefresh();' in c
 print('PASS five LTR category tiles, scoped toggles, back/slide/reduced-motion, Joker display-only rename, safe persisted custom tool art')
+
+assert 'multiplier:.70' in s
+assert 'UIGlassEffect' in s and 'SystemThickMaterialDark' not in s
+assert 'self.closeButton.frame=CGRectMake(hw-32' in s
+assert 'self.subviews[i].frame=CGRectMake((i%3)' in s
