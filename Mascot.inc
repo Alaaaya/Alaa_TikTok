@@ -94,7 +94,10 @@
 - (void)step:(CADisplayLink *)link {
     if(!self.host.window || self.host.hidden || self.sprite.hidden || self.covered || self.uiHidden ||
        UIApplication.sharedApplication.applicationState!=UIApplicationStateActive){self.link.paused=YES;self.last=0;return;}
-    CGFloat dt=self.last?MIN(.04,MAX(0,link.timestamp-self.last)):0;self.last=link.timestamp;self.time+=dt;
+    CGFloat dt=self.last?MIN(.04,MAX(0,link.timestamp-self.last)):0;self.last=link.timestamp;[self advance:dt];
+}
+- (void)advance:(CGFloat)dt {
+    self.time+=dt;
     if(self.dragging)return;
     CGPoint p=self.sprite.center;CGFloat half=self.sprite.bounds.size.width/2,floor=[self floorY];
     self.velocity=CGPointMake(self.velocity.x,self.velocity.y+1100*dt);

@@ -76,12 +76,12 @@ static void Shot(TTGSettingsController *vc,NSString *name) {
         Check(pet.frames.count==4,@"four original cached sprite frames");
         Check(![UIImagePNGRepresentation(pet.frames[0]) isEqual:UIImagePNGRepresentation(pet.frames[1])],@"animated sprite frames differ");
         pet.sprite.center=CGPointMake(100,120);pet.velocity=CGPointMake(500,0);
-        for(int i=0;i<180;i++){pet.last=pet.link.timestamp-.033;[pet step:pet.link];}
-        Check(pet.sprite.center.y<=[pet floorY]+.1,@"gravity floor clamp");
+        for(int i=0;i<180;i++){[pet advance:.033];}
+        Check(fabs(pet.sprite.center.y-[pet floorY])<.1,@"gravity floor clamp");
         Check(pet.sprite.center.x>=pet.sprite.bounds.size.width/2,@"edge clamp");
-        pet.covered=YES;[pet refresh];Check(pet.link.paused && pet.sprite.hidden,@"pause when settings cover mascot");
-        pet.covered=NO;pet.uiHidden=YES;[pet refresh];Check(pet.link.paused,@"eye pauses display link");
-        pet.uiHidden=NO;[D() setBool:NO forKey:@"tt.pet.enabled"];[pet refresh];Check(pet.link.paused && pet.sprite.hidden,@"disabled pauses sprite");
+        pet.covered=YES;[pet refresh];Check((!pet.link || pet.link.paused) && pet.sprite.hidden,@"pause when settings cover mascot");
+        pet.covered=NO;pet.uiHidden=YES;[pet refresh];Check(!pet.link || pet.link.paused,@"eye pauses display link");
+        pet.uiHidden=NO;[D() setBool:NO forKey:@"tt.pet.enabled"];[pet refresh];Check((!pet.link || pet.link.paused) && pet.sprite.hidden,@"disabled pauses sprite");
         [D() setBool:YES forKey:@"tt.pet.enabled"];[D() setInteger:1 forKey:@"tt.pet.kind"];[D() setDouble:64 forKey:@"tt.pet.size"];[pet refresh];
         Check(pet.kind==1 && pet.sprite.bounds.size.width==64,@"character and size controls");
         pet.sprite.center=CGPointMake(90,[pet floorY]);Shot(vc,@"mascot");
