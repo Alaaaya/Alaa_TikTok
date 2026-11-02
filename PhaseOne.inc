@@ -367,9 +367,30 @@ static UIView *TT122Material(CGRect frame) {
             if (!videoTracks.count) {
                 [NSFileManager.defaultManager removeItemAtURL:file error:nil]; [self finish:@"الملف لا يحتوي على فيديو صالح"]; return;
             }
-            if (audioTracks.count) { [self saveVideo:file]; return; }
+            if (audioTracks.count) { [self normalizeVideo:file asset:asset]; return; }
             [self.progressButton setTitle:@"دمج" forState:UIControlStateNormal];
             [self muxVideo:file asset:asset candidate:0];
+        });
+    }];
+}
+- (void)normalizeVideo:(NSURL *)file asset:(AVAsset *)asset {
+    // Always output an actual MPEG-4 container, not just a renamed CDN file.
+    AVAssetExportSession *exporter=[[AVAssetExportSession alloc] initWithAsset:asset presetName:AVAssetExportPresetPassthrough];
+    if (![exporter.supportedFileTypes containsObject:AVFileTypeMPEG4])
+        exporter=[[AVAssetExportSession alloc] initWithAsset:asset presetName:AVAssetExportPresetHighestQuality];
+    if (!exporter || ![exporter.supportedFileTypes containsObject:AVFileTypeMPEG4]) {
+        [NSFileManager.defaultManager removeItemAtURL:file error:nil];[self finish:@"تعذر إنشاء MP4 مع الصوت"];return;
+    }
+    NSURL *output=[NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:[NSUUID.UUID.UUIDString stringByAppendingString:@".mp4"]]];
+    exporter.outputURL=output;exporter.outputFileType=AVFileTypeMPEG4;self.exporter=exporter;
+    [exporter exportAsynchronouslyWithCompletionHandler:^{
+        [NSFileManager.defaultManager removeItemAtURL:file error:nil];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.exporter=nil;
+            if (exporter.status!=AVAssetExportSessionStatusCompleted) {
+                [NSFileManager.defaultManager removeItemAtURL:output error:nil];[self finish:@"تعذر تجهيز فيديو MP4 مع الصوت"];return;
+            }
+            [self verifyMuxedVideo:output];
         });
     }];
 }
