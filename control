@@ -1,6 +1,6 @@
 Package: com.alaaaya.tiktokglass
 Name: Alaa_TikTok
-Version: 1.19
+Version: 1.20
 Architecture: iphoneos-arm64
 Description: Clear glass tab bar and persistent glass action glyphs (device-test build).
 Maintainer: Alaaaya

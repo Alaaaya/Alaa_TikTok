@@ -452,7 +452,7 @@ static void TTGDiagnostic(UIView *view, NSString *reason) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         pending = NO;
         NSString *dir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-        NSString *text = [@"Alaa_TikTok 1.19 class/source diagnostics\n" stringByAppendingString:[events.array componentsJoinedByString:@"\n"]];
+        NSString *text = [@"Alaa_TikTok 1.20 class/source diagnostics\n" stringByAppendingString:[events.array componentsJoinedByString:@"\n"]];
         if (dir) [text writeToFile:[dir stringByAppendingPathComponent:@"alaa_tiktok_debug.txt"] atomically:YES encoding:NSUTF8StringEncoding error:nil];
     });
 }
@@ -667,27 +667,7 @@ static NSArray<UIImage *> *TTGCommentMasks(CGSize size, CGFloat scale) {
     UIGraphicsEndImageContext();
     NSArray<UIImage *> *base = TTGGlyphMasksWithEdge(outer, size, UIViewContentModeScaleToFill, scale, 0.70);
     if (base.count != 3) return nil;
-    // Punch holes AFTER bevel generation. Eroding tiny apertures previously
-    // produced touching bevel rings, visually turning three dots into glasses.
-    CGFloat diameter = MAX(2.0 / scale, round(side * 0.085 * scale) / scale);
-    CGFloat spacing = MAX(diameter + 2.0 / scale, round(side * 0.20 * scale) / scale);
-    CGFloat cy = round((CGRectGetMinY(body) + body.size.height * 0.44) * scale) / scale;
-    NSMutableArray<UIImage *> *masks = [NSMutableArray arrayWithCapacity:3];
-    for (UIImage *mask in base) {
-        UIGraphicsBeginImageContextWithOptions(size, NO, scale);
-        [mask drawAtPoint:CGPointZero];
-        CGContextRef ctx = UIGraphicsGetCurrentContext();
-        CGContextSetBlendMode(ctx, kCGBlendModeClear);
-        for (NSInteger dot = -1; dot <= 1; dot++) {
-            CGFloat cx = round((size.width / 2 + dot * spacing) * scale) / scale;
-            CGContextFillEllipseInRect(ctx, CGRectMake(cx - diameter / 2, cy - diameter / 2, diameter, diameter));
-        }
-        UIImage *result = UIGraphicsGetImageFromCurrentImageContext();
-        UIGraphicsEndImageContext();
-        if (!result) return nil;
-        [masks addObject:result];
-    }
-    return masks;
+    return base;
 }
 
 @implementation TTGActionGlyph
@@ -789,7 +769,7 @@ static void TTGDimRenderers(TTGActionGlyph *glyph, UIView *button, CGRect rect) 
         // Weak box avoids retaining either the source view or the owning action.
         NSHashTable *owner = [NSHashTable weakObjectsHashTable]; [owner addObject:button];
         objc_setAssociatedObject(renderer, &kRendererOwnerKey, owner, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        // Comment's original dot bitmap must not ghost through the new apertures.
+        // Keep native dot artwork out of the plain glass bubble.
         CGFloat limit = TTGIsCommentAction(button) ? 0.0 : 0.10;
         renderer.alpha = MIN(limit, [[glyph.rendererAlphas objectForKey:renderer] doubleValue]);
         TTGDiagnostic(button, [@"paint root dimmed " stringByAppendingString:NSStringFromClass(renderer.class)]);
