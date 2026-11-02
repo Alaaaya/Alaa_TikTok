@@ -160,7 +160,7 @@ static UIView *TT122Material(CGRect frame) {
         if (s.numberOfArguments == 4) @try { ((void(*)(id,SEL,BOOL,id))objc_msgSend)(target,sel,NO,nil); } @catch (__unused NSException *e) {}
     }
     self.uiHidden = NO; self.hiddenInteraction = nil;
-    [self.eyeButton setImage:[UIImage systemImageNamed:@"eye"] forState:UIControlStateNormal];
+    [self.eyeButton setImage:TTToolGlyph(1222,@"eye") forState:UIControlStateNormal];
 }
 - (void)track:(UIViewController *)controller {
     if (!controller.isViewLoaded || !controller.view.window || controller.view.hidden) return;
@@ -227,13 +227,13 @@ static UIView *TT122Material(CGRect frame) {
     @try {
         ((void(*)(id,SEL,BOOL,id))objc_msgSend)(interaction,selector,YES,nil);
         self.hiddenInteraction=interaction;
-        [self.eyeButton setImage:[UIImage systemImageNamed:@"eye.slash"] forState:UIControlStateNormal];
+        [self.eyeButton setImage:TTToolGlyph(1222,@"eye.slash") forState:UIControlStateNormal];
     } @catch (__unused NSException *error) {}
 }
 - (UIButton *)floating:(NSString *)symbol tag:(NSInteger)tag {
     UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom]; b.bounds = CGRectMake(0,0,48,48); b.tag = tag;
     UIView *glass = TT122Material(b.bounds); glass.userInteractionEnabled = NO; glass.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
-    [b addSubview:glass]; [b setImage:[UIImage systemImageNamed:symbol] forState:UIControlStateNormal];
+    [b addSubview:glass]; [b setImage:TTToolGlyph(tag,symbol) forState:UIControlStateNormal];
     b.tintColor = [UIColor colorWithRed:1 green:.92 blue:.72 alpha:1];
     b.accessibilityLabel = tag == 1221 ? @"Download menu" : tag == 1222 ? @"Hide or show feed controls" : @"Download progress";
     [b addTarget:self action:@selector(tapped:) forControlEvents:UIControlEventTouchUpInside];
@@ -306,6 +306,11 @@ static UIView *TT122Material(CGRect frame) {
     self.eyeButton.hidden = !TT122Enabled(@"tt122.eye");
     self.progressButton.hidden = !self.busy || !TT122Enabled(@"tt122.progress");
     if (!TT122Enabled(@"tt122.eye") && self.uiHidden) [self restoreUI];
+    [self.downloadButton setImage:TTToolGlyph(1221,@"arrow.down") forState:UIControlStateNormal];
+    [self.eyeButton setImage:TTToolGlyph(1222,self.uiHidden?@"eye.slash":@"eye") forState:UIControlStateNormal];
+    self.eyeButton.accessibilityValue=self.uiHidden?@"العناصر مخفية":@"العناصر ظاهرة";
+    self.downloadButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
+    self.eyeButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
     // Never bring the overlay over a system permission prompt or the settings sheet.
 }
 - (void)closeMenu { [self.menu removeFromSuperview]; self.menu = nil; self.menuModel = nil; }
@@ -315,7 +320,7 @@ static UIView *TT122Material(CGRect frame) {
     b.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft; b.tintColor = UIColor.whiteColor;
     b.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
     [b setTitle:[@"  " stringByAppendingString:title] forState:UIControlStateNormal];
-    [b setImage:[UIImage systemImageNamed:symbol] forState:UIControlStateNormal];
+    [b setImage:TTToolGlyph(tag,symbol) forState:UIControlStateNormal];
     [b addAction:[UIAction actionWithHandler:^(__unused UIAction *a){ action(); }] forControlEvents:UIControlEventTouchUpInside];
     [b.heightAnchor constraintEqualToConstant:44].active = YES; [stack addArrangedSubview:b];
 }
@@ -344,6 +349,9 @@ static UIView *TT122Material(CGRect frame) {
         [stack.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-16],
         [stack.leftAnchor constraintEqualToAnchor:content.leftAnchor constant:18],
         [stack.rightAnchor constraintEqualToAnchor:content.rightAnchor constant:-18]]];
+    UILabel *brand=[UILabel new];brand.text=copy?@"Joker · نسخ":@"Joker · تنزيل";
+    brand.font=[UIFont systemFontOfSize:18 weight:UIFontWeightBold];brand.textColor=UIColor.whiteColor;
+    brand.textAlignment=NSTextAlignmentLeft;[stack addArrangedSubview:brand];
     __weak typeof(self) weak = self;
     if (copy) {
         NSArray *titles = @[@"نسخ الاسم",@"نسخ الوصف",@"نسخ اسم المستخدم"];
@@ -664,3 +672,5 @@ static UIView *TT122Material(CGRect frame) {
 }
 @end
 
+
+static void TTToolRefresh(void) { [[TT122Hub shared] refresh]; }

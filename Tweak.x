@@ -1253,6 +1253,7 @@ static void TT122Recover(void);
 }
 %end
 
+#include "CustomTools.inc"
 #include "PhaseOne.inc"
 #include "LaterFeatures.inc"
 #include "StoryTools.inc"
@@ -1311,6 +1312,12 @@ static void TT122Recover(void) {
 @property(nonatomic, strong) UIStackView *stack;
 @property(nonatomic, strong) NSLayoutConstraint *panelHeight;
 @property(nonatomic, strong) NSLayoutConstraint *panelCenter;
+@property(nonatomic, strong) UIButton *backButton;
+@property(nonatomic, strong) UILabel *pageTitle;
+@property(nonatomic, strong) UIView *pageHeader;
+@property(nonatomic, strong) UIScrollView *pageScroll;
+@property(nonatomic) NSInteger category;
+@property(nonatomic) BOOL pageAnimating;
 @end
 @implementation TTGSettingsController
 - (UILabel *)label:(NSString *)text size:(CGFloat)size weight:(UIFontWeight)weight {
@@ -1348,6 +1355,168 @@ static void TT122Recover(void) {
     ]];
     return row;
 }
+- (UIButton *)iconRow:(NSString *)title tag:(NSInteger)tag {
+    UIButton *row=[UIButton buttonWithType:UIButtonTypeSystem];row.tag=tag;
+    row.backgroundColor=[UIColor colorWithWhite:1 alpha:.08];row.layer.cornerRadius=18;
+    row.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft;row.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    [row setTitle:[@"  " stringByAppendingString:title] forState:UIControlStateNormal];
+    [row setImage:TTToolGlyph(tag,tag==1221?@"arrow.down.circle":@"eye") forState:UIControlStateNormal];
+    row.imageView.contentMode=UIViewContentModeScaleAspectFit;row.tintColor=UIColor.whiteColor;
+    row.titleLabel.font=[UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+    [row.heightAnchor constraintEqualToConstant:58].active=YES;
+    row.accessibilityLabel=title;row.accessibilityHint=@"اختيار صورة أو إعادة الافتراضي";
+    [row addTarget:self action:@selector(changeToolIcon:) forControlEvents:UIControlEventTouchUpInside];return row;
+}
+- (void)changeToolIcon:(UIButton *)sender {
+    [[TTToolPicker shared] choose:sender.tag presenter:self source:sender];
+}
+- (UIButton *)categoryTile:(NSInteger)index {
+    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر"];
+    NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3"];
+    UIButton *tile=[UIButton buttonWithType:UIButtonTypeCustom];tile.tag=index;
+    tile.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    tile.backgroundColor=[UIColor colorWithWhite:.15 alpha:.72];tile.layer.cornerRadius=22;
+    tile.layer.cornerCurve=kCACornerCurveContinuous;tile.layer.borderWidth=.8;
+    tile.layer.borderColor=[UIColor colorWithWhite:1 alpha:.22].CGColor;tile.clipsToBounds=YES;
+    UIVisualEffectView *glass=[[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    glass.userInteractionEnabled=NO;glass.translatesAutoresizingMaskIntoConstraints=NO;[tile addSubview:glass];
+    UIImageView *icon=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbols[index]]];
+    icon.tintColor=[UIColor colorWithRed:.86 green:.91 blue:1 alpha:1];icon.contentMode=UIViewContentModeScaleAspectFit;
+    UILabel *label=[self label:names[index] size:16 weight:UIFontWeightSemibold];
+    label.textAlignment=NSTextAlignmentCenter;label.numberOfLines=2;
+    for(UIView *view in @[icon,label]){view.userInteractionEnabled=NO;view.translatesAutoresizingMaskIntoConstraints=NO;[tile addSubview:view];}
+    [NSLayoutConstraint activateConstraints:@[
+        [tile.heightAnchor constraintGreaterThanOrEqualToConstant:108],
+        [glass.leftAnchor constraintEqualToAnchor:tile.leftAnchor],[glass.rightAnchor constraintEqualToAnchor:tile.rightAnchor],
+        [glass.topAnchor constraintEqualToAnchor:tile.topAnchor],[glass.bottomAnchor constraintEqualToAnchor:tile.bottomAnchor],
+        [icon.centerXAnchor constraintEqualToAnchor:tile.centerXAnchor],[icon.topAnchor constraintEqualToAnchor:tile.topAnchor constant:18],
+        [icon.widthAnchor constraintEqualToConstant:30],[icon.heightAnchor constraintEqualToConstant:30],
+        [label.leftAnchor constraintEqualToAnchor:tile.leftAnchor constant:8],[label.rightAnchor constraintEqualToAnchor:tile.rightAnchor constant:-8],
+        [label.topAnchor constraintEqualToAnchor:icon.bottomAnchor constant:12],
+        [label.bottomAnchor constraintLessThanOrEqualToAnchor:tile.bottomAnchor constant:-14]]];
+    tile.accessibilityLabel=names[index];tile.accessibilityHint=@"فتح إعدادات القسم";
+    tile.isAccessibilityElement=YES;
+    [tile addTarget:self action:@selector(openCategory:) forControlEvents:UIControlEventTouchUpInside];
+    [tile addTarget:self action:@selector(pressTile:) forControlEvents:UIControlEventTouchDown];
+    [tile addTarget:self action:@selector(releaseTile:) forControlEvents:UIControlEventTouchUpInside|UIControlEventTouchUpOutside|UIControlEventTouchCancel];
+    return tile;
+}
+- (void)pressTile:(UIButton *)tile {
+    [UIView animateWithDuration:.12 animations:^{tile.alpha=.76;if(!UIAccessibilityIsReduceMotionEnabled())tile.transform=CGAffineTransformMakeScale(.97,.97);}];
+}
+- (void)releaseTile:(UIButton *)tile {
+    [UIView animateWithDuration:.18 animations:^{tile.alpha=1;tile.transform=CGAffineTransformIdentity;}];
+}
+- (void)openCategory:(UIButton *)tile { [self showCategory:tile.tag animated:YES]; }
+- (void)goBack { [self showCategory:-1 animated:YES]; }
+- (void)showCategory:(NSInteger)category animated:(BOOL)animated {
+    if(self.pageAnimating || category < -1 || category > 4)return;
+    BOOL back=category==-1;
+    UIView *snapshot=animated?[self.pageScroll snapshotViewAfterScreenUpdates:NO]:nil;
+    if(snapshot){snapshot.frame=[self.pageScroll convertRect:self.pageScroll.bounds toView:self.panel.contentView];[self.panel.contentView addSubview:snapshot];}
+    for(UIView *view in self.stack.arrangedSubviews.copy) {
+        if(view==self.pageHeader)continue;
+        [self.stack removeArrangedSubview:view];[view removeFromSuperview];
+    }
+    self.category=category;self.backButton.hidden=back;
+    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر"];
+    self.pageTitle.text=back?@"Joker":names[category];
+    if(back) {
+        for(NSInteger i=0;i<5;i+=2) {
+            UIStackView *row=[UIStackView new];row.axis=UILayoutConstraintAxisHorizontal;row.spacing=12;
+            row.distribution=UIStackViewDistributionFillEqually;row.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+            [row addArrangedSubview:[self categoryTile:i]];
+            if(i+1<5)[row addArrangedSubview:[self categoryTile:i+1]];
+            else [row addArrangedSubview:[UIView new]];
+            [self.stack addArrangedSubview:row];
+        }
+    } else {
+    NSArray *featureTitles = @[@"زر التنزيل العائم",@"زر إخفاء العناصر",@"حلقة تقدم التنزيل",@"تنزيل عادي",@"تنزيل HD",@"أعلى جودة متاحة",@"تنزيل الصوت (ملفات)",@"قائمة النسخ"];
+    NSArray *featureSymbols = @[@"arrow.down.circle",@"eye",@"circle.dotted",@"arrow.down",@"h.circle",@"sparkles",@"waveform",@"doc.on.doc"];
+    NSArray *featureKeys = @[@"tt122.download",@"tt122.eye",@"tt122.progress",@"tt122.standard",@"tt122.hd",@"tt122.highest",@"tt122.audio",@"tt122.copy"];
+    for (NSInteger i=0;i<(NSInteger)featureKeys.count;i++)
+        if ((category==0 && i!=1) || (category==1 && i==1))
+        [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
+
+    if(category==0) {
+    [self.stack addArrangedSubview:[self row:@"استخدام رابط التشغيل (قد يكون بلا علامة)" symbol:@"play.rectangle" key:@"tt.extra.playbackAsset" defaultValue:NO tag:201]];
+    [self.stack addArrangedSubview:[self row:@"حفظ القصة بالضغط المطوّل" symbol:@"arrow.down.circle" key:@"tt.extra.storySave" defaultValue:NO tag:202]];
+    }
+    if(category==1) {
+
+    }
+    if(category==2) {
+    [self.stack addArrangedSubview:[self row:@"إخفاء إعلانات الخلاصة" symbol:@"eye.slash" key:@"tt.extra.noads" defaultValue:NO tag:200]];
+    [self.stack addArrangedSubview:[self row:@"الانتقال تلقائياً بعد نهاية الفيديو" symbol:@"arrow.down.to.line" key:@"tt.extra.autoScroll" defaultValue:NO tag:203]];
+    [self.stack addArrangedSubview:[self row:@"إظهار شريط تقدم الفيديو دائماً" symbol:@"slider.horizontal.3" key:@"tt.extra.progress" defaultValue:NO tag:204]];
+    [self.stack addArrangedSubview:[self row:@"إخفاء ملصقات تحذير الخلاصة" symbol:@"eye.slash" key:@"tt.extra.feedWarnings" defaultValue:NO tag:205]];
+    }
+    if(category==3) {
+    [self.stack addArrangedSubview:[self row:@"حفظ صورة الحساب بالضغط المطوّل" symbol:@"person.crop.square" key:@"tt.extra.profileImage" defaultValue:NO tag:206]];
+    }
+    if(category==4) {
+        [self.stack addArrangedSubview:[self iconRow:@"صورة زر التنزيل" tag:1221]];
+        [self.stack addArrangedSubview:[self iconRow:@"صورة زر العين" tag:1222]];
+    [self.stack addArrangedSubview:[self row:@"الشريط الزجاجي" symbol:@"rectangle.bottomthird.inset.filled" key:kPrefEnabled defaultValue:YES tag:0]];
+    [self.stack addArrangedSubview:[self row:@"كبسولة عائمة" symbol:@"capsule" key:kPrefFloating defaultValue:YES tag:1]];
+    [self.stack addArrangedSubview:[self row:@"الفيديو تحت الشريط" symbol:@"rectangle.expand.vertical" key:kPrefUnder defaultValue:YES tag:2]];
+    [self.stack addArrangedSubview:[self row:@"إخفاء أسماء الأزرار" symbol:@"textformat" key:kPrefLabels defaultValue:YES tag:3]];
+    UILabel *styleLabel = [self label:@"نمط الشريط" size:13 weight:UIFontWeightSemibold];
+    styleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.68];
+    [self.stack addArrangedSubview:styleLabel];
+    UISegmentedControl *styles = [[UISegmentedControl alloc] initWithItems:@[@"زجاج", @"داكن", @"فاتح"]];
+    styles.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
+    styles.selectedSegmentIndex = MAX(0, MIN(2, TTGStyle()));
+    styles.accessibilityLabel = @"نمط الشريط";
+    [styles.heightAnchor constraintEqualToConstant:42].active = YES;
+    [styles addTarget:self action:@selector(styleChanged:) forControlEvents:UIControlEventValueChanged];
+    styles.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
+    styles.selectedSegmentTintColor = [UIColor colorWithRed:0.80 green:0.74 blue:0.60 alpha:0.32];
+    [styles setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.whiteColor,
+        NSFontAttributeName:[UIFont systemFontOfSize:14 weight:UIFontWeightSemibold]} forState:UIControlStateNormal];
+    styles.layer.cornerRadius = 12; styles.clipsToBounds = YES;
+    styles.apportionsSegmentWidthsByContent = NO;
+    [self.stack addArrangedSubview:styles];
+
+    }
+
+        if(category==1) {
+            UILabel *note=[self label:@"زر العين بيخفي عناصر الشاشة. خيارات إخفاء القراءة والأونلاين مو متاحة بهالنسخة." size:13 weight:UIFontWeightRegular];
+            note.textColor=[UIColor colorWithWhite:1 alpha:.74];[self.stack addArrangedSubview:note];
+        }
+        if(category==4) {
+        [self.stack addArrangedSubview:[self iconRow:@"صورة زر التنزيل" tag:1221]];
+        [self.stack addArrangedSubview:[self iconRow:@"صورة زر العين" tag:1222]];
+    UILabel *note = [self label:@"الإطفاء الكامل بيتطبّق بعد ما تسكّر TikTok وترجع تفتحه." size:12 weight:UIFontWeightRegular];
+    note.textColor = [UIColor colorWithWhite:1 alpha:0.52];
+    UIView *footer = [UIView new]; footer.backgroundColor = [UIColor colorWithWhite:0 alpha:0.15];
+    footer.layer.cornerRadius = 14; note.translatesAutoresizingMaskIntoConstraints = NO;
+    [footer addSubview:note];
+    [NSLayoutConstraint activateConstraints:@[
+        [note.leftAnchor constraintEqualToAnchor:footer.leftAnchor constant:12],
+        [note.rightAnchor constraintEqualToAnchor:footer.rightAnchor constant:-12],
+        [note.topAnchor constraintEqualToAnchor:footer.topAnchor constant:14],
+        [note.bottomAnchor constraintEqualToAnchor:footer.bottomAnchor constant:-14]
+    ]];
+
+    [self.stack addArrangedSubview:footer];
+
+        }
+    }
+    [self.pageScroll setContentOffset:CGPointZero animated:NO];
+    [self.view setNeedsLayout];[self.view layoutIfNeeded];
+    [self forceLTR:self.view];
+    if(!snapshot){UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification,self.pageTitle);return;}
+    self.pageAnimating=YES;
+    CGFloat offset=UIAccessibilityIsReduceMotionEnabled()?0:MIN(90,self.panel.bounds.size.width*.25);
+    self.pageScroll.transform=CGAffineTransformMakeTranslation(back?-offset:offset,0);self.pageScroll.alpha=0;
+    [UIView animateWithDuration:UIAccessibilityIsReduceMotionEnabled()?.12:.28 delay:0
+        options:UIViewAnimationOptionCurveEaseInOut|UIViewAnimationOptionBeginFromCurrentState animations:^{
+            self.pageScroll.transform=CGAffineTransformIdentity;self.pageScroll.alpha=1;
+            snapshot.transform=CGAffineTransformMakeTranslation(back?offset:-offset,0);snapshot.alpha=0;
+        } completion:^(BOOL done){[snapshot removeFromSuperview];self.pageAnimating=NO;
+            UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification,self.pageTitle);}];
+}
 - (void)loadView {
     self.view = [UIView new]; self.view.backgroundColor = UIColor.clearColor;
     self.view.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
@@ -1371,6 +1540,7 @@ static void TT122Recover(void) {
     self.panel.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     [self.view addSubview:self.panel];
     UIScrollView *scroll = [UIScrollView new]; scroll.translatesAutoresizingMaskIntoConstraints = NO;
+    self.pageScroll=scroll;
     scroll.alwaysBounceVertical = NO; scroll.showsVerticalScrollIndicator = NO;
     scroll.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     [self.panel.contentView addSubview:scroll];
@@ -1386,7 +1556,8 @@ static void TT122Recover(void) {
     UIImageView *image = [[UIImageView alloc] initWithImage:app ?: [UIImage systemImageNamed:@"play.square.stack.fill"]];
     image.tintColor = UIColor.whiteColor; image.layer.cornerRadius = 15; image.clipsToBounds = YES;
     image.contentMode = UIViewContentModeScaleAspectFit;
-    UILabel *title = [self label:@"Alaa_TikTok" size:24 weight:UIFontWeightBold];
+    UILabel *title = [self label:@"Joker" size:24 weight:UIFontWeightBold];
+    self.pageTitle=title;
     title.textAlignment = NSTextAlignmentLeft;
     UILabel *subtitle = [self label:@"إعدادات الزجاج" size:13 weight:UIFontWeightMedium];
     subtitle.textAlignment = NSTextAlignmentLeft; subtitle.textColor = [UIColor colorWithWhite:1 alpha:0.64];
@@ -1394,13 +1565,21 @@ static void TT122Recover(void) {
     [close setImage:[UIImage systemImageNamed:@"xmark.circle.fill"] forState:UIControlStateNormal];
     close.tintColor = [UIColor colorWithWhite:1 alpha:0.75]; close.accessibilityLabel = @"إغلاق";
     [close addTarget:self action:@selector(close) forControlEvents:UIControlEventTouchUpInside];
-    for (UIView *view in @[image,title,subtitle,close]) { view.translatesAutoresizingMaskIntoConstraints=NO; [header addSubview:view]; }
+    UIButton *back=[UIButton buttonWithType:UIButtonTypeSystem];self.backButton=back;
+    [back setImage:[UIImage systemImageNamed:@"chevron.left"] forState:UIControlStateNormal];
+    back.tintColor=UIColor.whiteColor;back.accessibilityLabel=@"رجوع";back.hidden=YES;
+    [back addTarget:self action:@selector(goBack) forControlEvents:UIControlEventTouchUpInside];
+    image.hidden=YES;
+    for (UIView *view in @[image,title,subtitle,close,back]) { view.translatesAutoresizingMaskIntoConstraints=NO; [header addSubview:view]; }
     [NSLayoutConstraint activateConstraints:@[
         [header.heightAnchor constraintEqualToConstant:78],
+        [back.leftAnchor constraintEqualToAnchor:header.leftAnchor],
+        [back.centerYAnchor constraintEqualToAnchor:header.centerYAnchor],
+        [back.widthAnchor constraintEqualToConstant:44],[back.heightAnchor constraintEqualToConstant:44],
         [image.leftAnchor constraintEqualToAnchor:header.leftAnchor constant:2],
         [image.centerYAnchor constraintEqualToAnchor:header.centerYAnchor],
         [image.widthAnchor constraintEqualToConstant:52], [image.heightAnchor constraintEqualToConstant:52],
-        [title.leftAnchor constraintEqualToAnchor:image.rightAnchor constant:12],
+        [title.leftAnchor constraintEqualToAnchor:back.rightAnchor constant:8],
         [title.topAnchor constraintEqualToAnchor:header.topAnchor constant:12],
         [title.rightAnchor constraintLessThanOrEqualToAnchor:close.leftAnchor constant:-8],
         [subtitle.leftAnchor constraintEqualToAnchor:title.leftAnchor],
@@ -1410,51 +1589,8 @@ static void TT122Recover(void) {
         [close.widthAnchor constraintEqualToConstant:38], [close.heightAnchor constraintEqualToConstant:44]
     ]];
     [self.stack addArrangedSubview:header];
-    [self.stack addArrangedSubview:[self row:@"الشريط الزجاجي" symbol:@"rectangle.bottomthird.inset.filled" key:kPrefEnabled defaultValue:YES tag:0]];
-    [self.stack addArrangedSubview:[self row:@"كبسولة عائمة" symbol:@"capsule" key:kPrefFloating defaultValue:YES tag:1]];
-    [self.stack addArrangedSubview:[self row:@"الفيديو تحت الشريط" symbol:@"rectangle.expand.vertical" key:kPrefUnder defaultValue:YES tag:2]];
-    [self.stack addArrangedSubview:[self row:@"إخفاء أسماء الأزرار" symbol:@"textformat" key:kPrefLabels defaultValue:YES tag:3]];
-    NSArray *featureTitles = @[@"زر التنزيل العائم",@"زر إخفاء العناصر",@"حلقة تقدم التنزيل",@"تنزيل عادي",@"تنزيل HD",@"أعلى جودة متاحة",@"تنزيل الصوت (ملفات)",@"قائمة النسخ"];
-    NSArray *featureSymbols = @[@"arrow.down.circle",@"eye",@"circle.dotted",@"arrow.down",@"h.circle",@"sparkles",@"waveform",@"doc.on.doc"];
-    NSArray *featureKeys = @[@"tt122.download",@"tt122.eye",@"tt122.progress",@"tt122.standard",@"tt122.hd",@"tt122.highest",@"tt122.audio",@"tt122.copy"];
-    for (NSInteger i=0;i<(NSInteger)featureKeys.count;i++)
-        [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
-    [self.stack addArrangedSubview:[self row:@"إخفاء إعلانات الخلاصة" symbol:@"eye.slash" key:@"tt.extra.noads" defaultValue:NO tag:200]];
-    [self.stack addArrangedSubview:[self row:@"استخدام رابط التشغيل (قد يكون بلا علامة)" symbol:@"play.rectangle" key:@"tt.extra.playbackAsset" defaultValue:NO tag:201]];
-    [self.stack addArrangedSubview:[self row:@"حفظ القصة بالضغط المطوّل" symbol:@"arrow.down.circle" key:@"tt.extra.storySave" defaultValue:NO tag:202]];
-    [self.stack addArrangedSubview:[self row:@"الانتقال تلقائياً بعد نهاية الفيديو" symbol:@"arrow.down.to.line" key:@"tt.extra.autoScroll" defaultValue:NO tag:203]];
-    [self.stack addArrangedSubview:[self row:@"إظهار شريط تقدم الفيديو دائماً" symbol:@"slider.horizontal.3" key:@"tt.extra.progress" defaultValue:NO tag:204]];
-    [self.stack addArrangedSubview:[self row:@"إخفاء ملصقات تحذير الخلاصة" symbol:@"eye.slash" key:@"tt.extra.feedWarnings" defaultValue:NO tag:205]];
-    [self.stack addArrangedSubview:[self row:@"حفظ صورة الحساب بالضغط المطوّل" symbol:@"person.crop.square" key:@"tt.extra.profileImage" defaultValue:NO tag:206]];
-    UILabel *styleLabel = [self label:@"نمط الشريط" size:13 weight:UIFontWeightSemibold];
-    styleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.68];
-    [self.stack addArrangedSubview:styleLabel];
-    UISegmentedControl *styles = [[UISegmentedControl alloc] initWithItems:@[@"زجاج", @"داكن", @"فاتح"]];
-    styles.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
-    styles.selectedSegmentIndex = MAX(0, MIN(2, TTGStyle()));
-    styles.accessibilityLabel = @"نمط الشريط";
-    [styles.heightAnchor constraintEqualToConstant:42].active = YES;
-    [styles addTarget:self action:@selector(styleChanged:) forControlEvents:UIControlEventValueChanged];
-    styles.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
-    styles.selectedSegmentTintColor = [UIColor colorWithRed:0.80 green:0.74 blue:0.60 alpha:0.32];
-    [styles setTitleTextAttributes:@{NSForegroundColorAttributeName:UIColor.whiteColor,
-        NSFontAttributeName:[UIFont systemFontOfSize:14 weight:UIFontWeightSemibold]} forState:UIControlStateNormal];
-    styles.layer.cornerRadius = 12; styles.clipsToBounds = YES;
-    styles.apportionsSegmentWidthsByContent = NO;
-    [self.stack addArrangedSubview:styles];
-    UILabel *note = [self label:@"الإطفاء الكامل بيتطبّق بعد ما تسكّر TikTok وترجع تفتحه." size:12 weight:UIFontWeightRegular];
-    note.textColor = [UIColor colorWithWhite:1 alpha:0.52];
-    UIView *footer = [UIView new]; footer.backgroundColor = [UIColor colorWithWhite:0 alpha:0.15];
-    footer.layer.cornerRadius = 14; note.translatesAutoresizingMaskIntoConstraints = NO;
-    [footer addSubview:note];
-    [NSLayoutConstraint activateConstraints:@[
-        [note.leftAnchor constraintEqualToAnchor:footer.leftAnchor constant:12],
-        [note.rightAnchor constraintEqualToAnchor:footer.rightAnchor constant:-12],
-        [note.topAnchor constraintEqualToAnchor:footer.topAnchor constant:14],
-        [note.bottomAnchor constraintEqualToAnchor:footer.bottomAnchor constant:-14]
-    ]];
-    [self.stack setCustomSpacing:16 afterView:styles];
-    [self.stack addArrangedSubview:footer];
+    self.pageHeader=header;
+    [self showCategory:-1 animated:NO];
     UILayoutGuide *safe = self.view.safeAreaLayoutGuide;
     NSLayoutConstraint *height = [self.panel.heightAnchor constraintEqualToConstant:550];
     height.priority = UILayoutPriorityDefaultHigh;
@@ -1491,6 +1627,7 @@ static void TT122Recover(void) {
 }
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
+    if(!self.panelHeight)return;
     [self forceLTR:self.view];
     CGFloat width = MAX(200, self.panel.bounds.size.width - 40);
     CGFloat natural = [self.stack systemLayoutSizeFittingSize:CGSizeMake(width, UILayoutFittingCompressedSize.height)

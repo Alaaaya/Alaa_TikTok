@@ -22,6 +22,7 @@ jobs:
           python3 tests/check_phase_one.py
           python3 tests/check_lifecycle.py
           python3 tests/check_later_features.py
+          python3 tests/check_settings.py
       - name: Tools
         run: brew install ldid make dpkg
       - name: Build

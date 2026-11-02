@@ -7,7 +7,7 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = Alaa_TikTok
 Alaa_TikTok_FILES = Tweak.x
 Alaa_TikTok_CFLAGS = -fobjc-arc -Wno-unguarded-availability-new -Wno-deprecated-declarations
-Alaa_TikTok_FRAMEWORKS = UIKit QuartzCore AVFoundation MetalKit Photos CoreMedia CoreVideo
+Alaa_TikTok_FRAMEWORKS = UIKit QuartzCore AVFoundation MetalKit Photos PhotosUI UniformTypeIdentifiers ImageIO CoreMedia CoreVideo
 Alaa_TikTok_LOGOS_DEFAULT_GENERATOR = internal
 
 include $(THEOS_MAKE_PATH)/tweak.mk
