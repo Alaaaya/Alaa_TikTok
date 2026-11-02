@@ -452,7 +452,7 @@ static void TTGDiagnostic(UIView *view, NSString *reason) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
         pending = NO;
         NSString *dir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-        NSString *text = [@"Alaa_TikTok 1.20 class/source diagnostics\n" stringByAppendingString:[events.array componentsJoinedByString:@"\n"]];
+        NSString *text = [@"Alaa_TikTok 1.21 class/source diagnostics\n" stringByAppendingString:[events.array componentsJoinedByString:@"\n"]];
         if (dir) [text writeToFile:[dir stringByAppendingPathComponent:@"alaa_tiktok_debug.txt"] atomically:YES encoding:NSUTF8StringEncoding error:nil];
     });
 }
@@ -531,10 +531,11 @@ static BOOL TTGActionInFeed(UIView *button) {
 }
 
 
-static char kGlyphStateKey, kGlyphBusyKey, kRendererOwnerKey;
+static char kGlyphStateKey, kGlyphBusyKey, kRendererOwnerKey, kCommentLayerOwnerKey;
 @interface TTGActionGlyph : UIView
 @property(nonatomic, weak) UIView *sourceIcon;
 @property(nonatomic, strong) NSMapTable<UIView *, NSNumber *> *rendererAlphas;
+@property(nonatomic, strong) NSMapTable<CALayer *, NSNumber *> *commentLayerOpacities;
 @property(nonatomic) CGFloat savedAlpha;
 @property(nonatomic, strong) UIImage *sourceImage;
 @property(nonatomic) CGSize sourceSize;
@@ -725,9 +726,59 @@ static void TTGRestoreRenderer(TTGActionGlyph *glyph, UIView *renderer) {
     if (saved && renderer.alpha <= 0.103) renderer.alpha = saved.doubleValue;
     [glyph.rendererAlphas removeObjectForKey:renderer];
 }
+static void TTGRestoreCommentLayers(TTGActionGlyph *glyph) {
+    for (CALayer *layer in glyph.commentLayerOpacities.keyEnumerator.allObjects) {
+        NSNumber *saved = [glyph.commentLayerOpacities objectForKey:layer];
+        objc_setAssociatedObject(layer, &kCommentLayerOwnerKey, nil, OBJC_ASSOCIATION_ASSIGN);
+        [layer removeAnimationForKey:@"opacity"];
+        layer.opacity = saved.floatValue;
+    }
+    [glyph.commentLayerOpacities removeAllObjects];
+}
+static void TTGHideCommentLayer(CALayer *layer, TTGActionGlyph *glyph, UIView *button) {
+    if (!layer || layer == button.layer || layer == glyph.layer) return;
+    if (!glyph.commentLayerOpacities) glyph.commentLayerOpacities = [NSMapTable weakToStrongObjectsMapTable];
+    if (![glyph.commentLayerOpacities objectForKey:layer])
+        [glyph.commentLayerOpacities setObject:@(layer.opacity) forKey:layer];
+    NSHashTable *owner = [NSHashTable weakObjectsHashTable]; [owner addObject:button];
+    objc_setAssociatedObject(layer, &kCommentLayerOwnerKey, owner, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    [layer removeAnimationForKey:@"opacity"];
+    layer.opacity = 0;
+}
+static void TTGHideCommentDetails(UIView *node, TTGActionGlyph *glyph, UIView *button,
+                                  CGRect rect, NSUInteger depth) {
+    if (depth > 8 || node == glyph || node.tag == kActionGlassTag ||
+        [node isKindOfClass:UIVisualEffectView.class]) return;
+    CGRect frame = [node convertRect:node.bounds toView:button];
+    // Include dots drawn with UILabel/custom views, not just image/Lottie roots.
+    // Only a wholly contained glyph-area view can be hidden, never the count below.
+    CGRect region = CGRectInset(rect, -3, -3);
+    if (node != button && !CGRectIsEmpty(frame) && CGRectContainsRect(region, frame) &&
+        !TTGActionHasCount(node, 0)) {
+        if (!glyph.rendererAlphas) glyph.rendererAlphas = [NSMapTable weakToStrongObjectsMapTable];
+        if (![glyph.rendererAlphas objectForKey:node])
+            [glyph.rendererAlphas setObject:@(node.alpha) forKey:node];
+        NSHashTable *owner = [NSHashTable weakObjectsHashTable]; [owner addObject:button];
+        objc_setAssociatedObject(node, &kRendererOwnerKey, owner, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        node.alpha = 0;
+        TTGHideCommentLayer(node.layer, glyph, button);
+        TTGDiagnostic(button, [@"comment detail hidden " stringByAppendingString:NSStringFromClass(node.class)]);
+    }
+    for (UIView *child in node.subviews) TTGHideCommentDetails(child, glyph, button, rect, depth + 1);
+    // Unbacked CALayer siblings do not obey UIImageView alpha hooks.
+    for (CALayer *layer in node.layer.sublayers) {
+        if ([layer.delegate isKindOfClass:UIView.class]) continue;
+        CGRect layerFrame = [node.layer convertRect:layer.bounds fromLayer:layer];
+        CGRect inButton = [node convertRect:layerFrame toView:button];
+        if (!CGRectIsEmpty(inButton) && CGRectContainsRect(region, inButton))
+            TTGHideCommentLayer(layer, glyph, button);
+    }
+}
+
 static void TTGRestoreGlyph(UIView *button) {
     TTGActionGlyph *glyph = objc_getAssociatedObject(button, &kGlyphStateKey);
     if (!glyph) return;
+    TTGRestoreCommentLayers(glyph);
     for (UIView *renderer in glyph.rendererAlphas.keyEnumerator.allObjects) TTGRestoreRenderer(glyph, renderer);
     UIView *icon = glyph.sourceIcon;
     if (icon && fabs(icon.alpha - 0.15) < 0.002) icon.alpha = glyph.savedAlpha;
@@ -761,8 +812,10 @@ static void TTGDimRenderers(TTGActionGlyph *glyph, UIView *button, CGRect rect) 
     NSMutableArray *roots = [NSMutableArray array];
     TTGCollectRenderers(button, button, rect, roots, 0);
     if (glyph.sourceIcon && ![roots containsObject:glyph.sourceIcon]) [roots addObject:glyph.sourceIcon];
+    // Keep comment detail roots suppressed until overlay teardown, not merely
+    // until a later discovery pass chooses a different primary image view.
     for (UIView *old in glyph.rendererAlphas.keyEnumerator.allObjects)
-        if (![roots containsObject:old]) TTGRestoreRenderer(glyph, old);
+        if (![roots containsObject:old] && !TTGIsCommentAction(button)) TTGRestoreRenderer(glyph, old);
     for (UIView *renderer in roots) {
         if (![glyph.rendererAlphas objectForKey:renderer])
             [glyph.rendererAlphas setObject:@(renderer.alpha) forKey:renderer];
@@ -984,6 +1037,7 @@ static void TTGSyncActionGlass(UIView *button) {
         [glyph setNeedsLayout];
         objc_setAssociatedObject(button, &kGlyphStateKey, glyph, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         TTGDimRenderers(glyph, button, rect);
+        if (TTGIsCommentAction(button)) TTGHideCommentDetails(button, glyph, button, rect, 0);
         TTGDiagnostic(button, [@"source " stringByAppendingString:NSStringFromClass(icon.class)]);
         TTGActionDebug(button);
     } @finally {
@@ -1038,6 +1092,19 @@ static CGFloat TTGGuardRendererAlpha(UIView *renderer, CGFloat proposed) {
     }
     return MIN(proposed, TTGIsCommentAction(button) ? 0.0 : 0.10);
 }
+%hook CALayer
+- (void)setOpacity:(float)opacity {
+    NSHashTable *owners = objc_getAssociatedObject(self, &kCommentLayerOwnerKey);
+    UIView *button = owners.anyObject;
+    TTGActionGlyph *glyph = button ? objc_getAssociatedObject(button, &kGlyphStateKey) : nil;
+    if (glyph && glyph.superview == button && !glyph.hidden && TTGEnabled()) {
+        if (![objc_getAssociatedObject(button, &kGlyphBusyKey) boolValue])
+            [glyph.commentLayerOpacities setObject:@(opacity) forKey:self];
+        %orig(0.0f);
+    } else { %orig; }
+}
+%end
+
 %hook UIView
 - (void)setAlpha:(CGFloat)alpha { %orig(TTGGuardRendererAlpha(self, alpha)); }
 - (void)setHidden:(BOOL)hidden {
