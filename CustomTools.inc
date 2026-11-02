@@ -13,7 +13,12 @@ static NSMutableDictionary<NSNumber *,id> *TTToolCache(void) {
 static UIImage *TTToolImage(NSInteger tag) {
     if(tag!=1221 && tag!=1222)return nil;
     id cached=TTToolCache()[@(tag)];
-    if(!cached){cached=[[UIImage imageWithContentsOfFile:TTToolPath(tag)] imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] ?: NSNull.null;TTToolCache()[@(tag)]=cached;}
+    if(!cached){
+        UIImage *disk=[UIImage imageWithContentsOfFile:TTToolPath(tag)];
+        UIImage *icon=disk.CGImage?[UIImage imageWithCGImage:disk.CGImage scale:3 orientation:UIImageOrientationUp]:nil;
+        cached=[icon imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] ?: NSNull.null;
+        TTToolCache()[@(tag)]=cached;
+    }
     return [cached isKindOfClass:UIImage.class]?cached:nil;
 }
 static UIImage *TTToolGlyph(NSInteger tag,NSString *symbol) {

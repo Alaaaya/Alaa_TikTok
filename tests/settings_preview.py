@@ -68,7 +68,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {
             Check(TTToolImage(1221)!=nil,@"imported image");
             [TTToolCache() removeObjectForKey:@1221];
             UIImage *saved=TTToolImage(1221);
-            Check(saved && saved.size.width<=84,@"bounded persisted icon");
+            Check(saved && saved.size.width==28,@"bounded persisted icon");
             Check(saved.renderingMode==UIImageRenderingModeAlwaysOriginal,@"preserves photo color");
             Check(TTToolImage(1222)==nil,@"eye unchanged");
             [NSFileManager.defaultManager removeItemAtPath:TTToolPath(1221) error:nil];
