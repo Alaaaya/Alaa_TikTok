@@ -180,7 +180,7 @@
     // Native context-aware weighted behaviours, based on Shimeji-ee's stand/sit 200,
     // walk/run 100 and crawl 10 ratios, with mobile-friendly shorter durations.
     NSArray *names=@[@"stand",@"walk",@"run",@"dash",@"sit",@"lookup",@"dangle",@"lie",@"crawl",@"jump",@"spin",@"sprawl",@"trip"];
-    NSArray *weights=@[@100,@200,@100,@35,@200,@60,@70,@55,@10,@60,@35,@30,@20];
+    NSArray<NSNumber *> *weights=@[@100,@200,@100,@35,@200,@60,@70,@55,@10,@60,@35,@30,@20];
     NSUInteger total=0;for(NSNumber *n in weights)total+=n.unsignedIntegerValue;
     NSUInteger pick=[self random:(uint32_t)total],index=0;
     for(;index+1<weights.count;index++){if(pick<weights[index].unsignedIntegerValue)break;pick-=weights[index].unsignedIntegerValue;}
@@ -227,7 +227,7 @@
     if([self.behavior isEqual:@"bounce"]){
         p.y=self.bounceBase-sin(MIN(1,self.actionAge/.24)*M_PI)*7;
         if(self.remaining<=0){p.y=self.bounceBase;[self begin:@"stand" duration:.5];}
-        self.sprite.center=p;[self updateSprite:self.behavior];return;
+        p.x=MAX(half,MIN(width-half,p.x));p.y=MAX(top,MIN(floor,p.y));self.sprite.center=p;[self updateSprite:self.behavior];return;
     }
     BOOL wall=[@[@"climb",@"grab",@"wallsit"] containsObject:self.behavior];
     BOOL ceiling=[@[@"ceiling",@"hang"] containsObject:self.behavior];
@@ -252,7 +252,7 @@
             if(choice==0){[self begin:@"fall" duration:10];self.velocity=CGPointMake(-self.wallSide*85,30);p.x-=self.wallSide*3;}
             else [self begin:choice==1?@"wallsit":choice==2?@"grab":@"climb" duration:choice>2?12:2];
         }
-        self.sprite.center=p;[self updateSprite:self.behavior];return;
+        p.x=MAX(half,MIN(width-half,p.x));p.y=MAX(top,MIN(floor,p.y));self.sprite.center=p;[self updateSprite:self.behavior];return;
     }
     if(ceiling){
         CGFloat underside=CGRectIsEmpty(self.attachedRect)?top:CGRectGetMaxY(self.attachedRect)+half;
@@ -267,7 +267,7 @@
         }else if(self.remaining<=0){
             if([self random:4]==0){[self begin:@"fall" duration:10];p.y+=3;}
             else [self begin:[self random:3]==0?@"hang":@"ceiling" duration:2+[self random:400]/100.];
-        }self.sprite.center=p;[self updateSprite:self.behavior];return;
+        }p.x=MAX(half,MIN(width-half,p.x));p.y=MAX(top,MIN(floor,p.y));self.sprite.center=p;[self updateSprite:self.behavior];return;
     }
     CGFloat support=floor;
     for(NSValue *value in rects){

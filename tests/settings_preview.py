@@ -97,7 +97,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         Check(pet.frames.count==4,@"four original cached sprite frames");
         Check(![UIImagePNGRepresentation(pet.frames[0]) isEqual:UIImagePNGRepresentation(pet.frames[1])],@"animated sprite frames differ");
         pet.sprite.center=CGPointMake(100,120);[pet begin:@"fall" duration:10];pet.randomSeed=123;pet.velocity=CGPointMake(0,0);
-        for(int i=0;i<34;i++){[pet advance:.033];}
+        for(int i=0;i<180;i++){[pet advance:.033];if([pet.behavior isEqual:@"stand"])break;}
         Check(fabs(pet.sprite.center.y-[pet floorY])<.1,@"gravity floor clamp");
         Check(pet.sprite.center.x>=pet.sprite.bounds.size.width/2,@"edge clamp");
         pet.covered=YES;[pet refresh];Check((!pet.link || pet.link.paused) && pet.sprite.hidden,@"pause when settings cover mascot");
