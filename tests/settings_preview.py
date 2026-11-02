@@ -26,14 +26,15 @@ static void TTToolRefresh(void){}
 """
 suffix=r"""
 static void Check(BOOL ok,NSString *message) {if(!ok){NSLog(@"FAIL %@",message);exit(1);}}
-static void Shot(TTGSettingsController *vc,NSString *name) {
-    [vc.view setNeedsLayout];[vc.view layoutIfNeeded];
-    UIGraphicsImageRenderer *r=[[UIGraphicsImageRenderer alloc] initWithBounds:vc.view.bounds];
-    UIImage *im=[r imageWithActions:^(UIGraphicsImageRendererContext *c){[vc.view drawViewHierarchyInRect:vc.view.bounds afterScreenUpdates:YES];}];
+static void ShotView(UIView *view,NSString *name) {
+    [view setNeedsLayout];[view layoutIfNeeded];
+    UIGraphicsImageRenderer *r=[[UIGraphicsImageRenderer alloc] initWithBounds:view.bounds];
+    UIImage *im=[r imageWithActions:^(UIGraphicsImageRendererContext *c){[view drawViewHierarchyInRect:view.bounds afterScreenUpdates:YES];}];
     NSString *folder=[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject stringByAppendingPathComponent:@"shots"];
     [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
     [UIImagePNGRepresentation(im) writeToFile:[folder stringByAppendingPathComponent:[name stringByAppendingString:@".png"]] atomically:YES];
 }
+static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,name);}
 @interface PreviewApp:UIResponder<UIApplicationDelegate>
 @property(nonatomic,strong) UIWindow *window;
 @end
@@ -84,7 +85,15 @@ static void Shot(TTGSettingsController *vc,NSString *name) {
         pet.uiHidden=NO;[D() setBool:NO forKey:@"tt.pet.enabled"];[pet refresh];Check((!pet.link || pet.link.paused) && pet.sprite.hidden,@"disabled pauses sprite");
         [D() setBool:YES forKey:@"tt.pet.enabled"];[D() setInteger:1 forKey:@"tt.pet.kind"];[D() setDouble:64 forKey:@"tt.pet.size"];[pet refresh];
         Check(pet.kind==1 && pet.sprite.bounds.size.width==64,@"character and size controls");
-        pet.sprite.center=CGPointMake(90,[pet floorY]);Shot(vc,@"mascot");
+        pet.sprite.center=CGPointMake(90,[pet floorY]);
+        Check(pet.sprite.superview==self.window,@"mascot attached to window, not settings controller");
+        Check(!pet.sprite.hidden && pet.sprite.image && pet.sprite.alpha>.99,@"enabled mascot visible");
+        Check(CGRectContainsRect(self.window.bounds,pet.sprite.frame),@"nonzero mascot on screen");
+        Check(pet.sprite.bounds.size.width==64 && pet.sprite.bounds.size.height==64,@"nonzero sprite size");
+        ShotView(self.window,@"mascot");
+        vc.panel.hidden=YES;
+        ShotView(self.window,@"mascot-uncovered");
+        vc.panel.hidden=NO;
         [D() setBool:NO forKey:@"tt.pet.enabled"];[pet refresh];
         // Persisted artwork, cache reload, target isolation and reset.
         UIGraphicsImageRenderer *renderer=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(64,40)];
