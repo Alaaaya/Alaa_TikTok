@@ -311,6 +311,8 @@ static UIView *TT122Material(CGRect frame) {
     self.eyeButton.accessibilityValue=self.uiHidden?@"العناصر مخفية":@"العناصر ظاهرة";
     self.downloadButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
     self.eyeButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
+    [self.downloadButton bringSubviewToFront:self.downloadButton.imageView];
+    [self.eyeButton bringSubviewToFront:self.eyeButton.imageView];
     // Never bring the overlay over a system permission prompt or the settings sheet.
 }
 - (void)closeMenu { [self.menu removeFromSuperview]; self.menu = nil; self.menuModel = nil; }

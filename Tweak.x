@@ -1590,6 +1590,12 @@ static void TT122Recover(void) {
     ]];
     [self.stack addArrangedSubview:header];
     self.pageHeader=header;
+    [self.stack removeArrangedSubview:header];[header removeFromSuperview];
+    header.translatesAutoresizingMaskIntoConstraints=NO;[self.panel.contentView addSubview:header];
+    [NSLayoutConstraint activateConstraints:@[
+        [header.leftAnchor constraintEqualToAnchor:self.panel.contentView.leftAnchor constant:20],
+        [header.rightAnchor constraintEqualToAnchor:self.panel.contentView.rightAnchor constant:-20],
+        [header.topAnchor constraintEqualToAnchor:self.panel.contentView.topAnchor constant:10]]];
     [self showCategory:-1 animated:NO];
     UILayoutGuide *safe = self.view.safeAreaLayoutGuide;
     NSLayoutConstraint *height = [self.panel.heightAnchor constraintEqualToConstant:550];
@@ -1611,7 +1617,7 @@ static void TT122Recover(void) {
         height,
         [scroll.leftAnchor constraintEqualToAnchor:self.panel.contentView.leftAnchor],
         [scroll.rightAnchor constraintEqualToAnchor:self.panel.contentView.rightAnchor],
-        [scroll.topAnchor constraintEqualToAnchor:self.panel.contentView.topAnchor],
+        [scroll.topAnchor constraintEqualToAnchor:header.bottomAnchor],
         [scroll.bottomAnchor constraintEqualToAnchor:self.panel.contentView.bottomAnchor],
         [self.stack.leftAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.leftAnchor constant:20],
         [self.stack.rightAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.rightAnchor constant:-20],
@@ -1631,7 +1637,7 @@ static void TT122Recover(void) {
     [self forceLTR:self.view];
     CGFloat width = MAX(200, self.panel.bounds.size.width - 40);
     CGFloat natural = [self.stack systemLayoutSizeFittingSize:CGSizeMake(width, UILayoutFittingCompressedSize.height)
-        withHorizontalFittingPriority:UILayoutPriorityRequired verticalFittingPriority:UILayoutPriorityFittingSizeLevel].height + 32;
+        withHorizontalFittingPriority:UILayoutPriorityRequired verticalFittingPriority:UILayoutPriorityFittingSizeLevel].height + 110;
     CGFloat top = self.view.safeAreaInsets.top + 12;
     CGFloat bottom = self.view.bounds.size.height - self.view.safeAreaInsets.bottom - 92;
     UIView *glass = [self.bar viewWithTag:kGlassTag];

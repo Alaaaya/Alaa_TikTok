@@ -15,6 +15,8 @@ assert 'row.distribution=UIStackViewDistributionFillEqually' in home
 assert 'self row:' not in home
 assert '[self showCategory:-1 animated:YES]' in s
 assert '[back.leftAnchor constraintEqualToAnchor:header.leftAnchor]' in s
+assert '[scroll.topAnchor constraintEqualToAnchor:header.bottomAnchor]' in s
+assert '[self.stack removeArrangedSubview:header]' in s
 assert 'snapshotViewAfterScreenUpdates:NO' in page and 'CGAffineTransformMakeTranslation' in page
 assert 'UIAccessibilityIsReduceMotionEnabled()' in page and 'UIAccessibilityScreenChangedNotification' in page
 assert '(category==0 && i!=1) || (category==1 && i==1)' in page
