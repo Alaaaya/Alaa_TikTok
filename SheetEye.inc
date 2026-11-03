@@ -26,6 +26,9 @@ static BOOL TT51Download(UIView *v) {
     return [@[@"download",@"arrow.down.to.line",@"square.and.arrow.down",@"arrow.down.to.line.compact"] containsObject:identity] ||
            ([v isKindOfClass:UIImageView.class] && [@[@"download",@"تنزيل"] containsObject:accessible]);
 }
+static BOOL TT51NotInterested(UIView *v) {
+    return [@[@"غير مهتم",@"not interested",@"nicht interessiert",@"pas intéressé",@"no me interesa"] containsObject:TT51Text(v)];
+}
 static BOOL TT51SheetPeers(UIView *root) {
     BOOL uninterested=NO,report=NO;
     for(UIView *v in TT51Descendants(root)) {
@@ -110,13 +113,52 @@ static BOOL TT51SheetPeers(UIView *root) {
     }
     self.extra=newExtra;
 }
+- (UIScrollView *)revealScroll {
+    if(self.scroll)return self.scroll;
+    for(UIView *p=self.row2.superview;p && p!=self.row2.window;p=p.superview)
+        if([p isKindOfClass:UIScrollView.class] && p.bounds.size.height>150)return (UIScrollView *)p;
+    return nil;
+}
+// Bring the expanded card into view from its top, after layout, without user scrolling.
+- (void)revealCard {
+    UIScrollView *sc=[self revealScroll];if(!sc || !self.row2.window || self.mode==0)return;
+    [sc layoutIfNeeded];
+    CGRect r=[self.row2 convertRect:self.row2.bounds toView:sc];
+    UIEdgeInsets ins=sc.adjustedContentInset;
+    CGFloat minY=-ins.top,maxY=MAX(minY,sc.contentSize.height-sc.bounds.size.height+ins.bottom);
+    CGFloat want=r.origin.y-ins.top-10;
+    CGFloat visible=sc.bounds.size.height-ins.top-ins.bottom;
+    if(r.size.height+20>visible)want=r.origin.y-ins.top-10; // card top + scroll remainder
+    want=MAX(minY,MIN(maxY,want));
+    if(fabs(sc.contentOffset.y-want)>.5)[sc setContentOffset:CGPointMake(sc.contentOffset.x,want) animated:NO];
+}
+- (void)scheduleReveal {
+    __weak TT51SheetEye *w=self;
+    for(NSNumber *d in @[@0,@.08,@.35]){
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(d.doubleValue*NSEC_PER_SEC)),dispatch_get_main_queue(),^{[w revealCard];});
+    }
+}
+static const void *kTT55Card=&kTT55Card;
+- (void)styleCard:(BOOL)on {
+    UIView *card=self.cardHost;
+    if(!on){
+        NSDictionary *d=objc_getAssociatedObject(card,kTT55Card);
+        if(d){card.layer.cornerRadius=[d[@"r"] doubleValue];card.layer.masksToBounds=[d[@"m"] boolValue];card.layer.maskedCorners=(CACornerMask)[d[@"c"] unsignedIntegerValue];
+            objc_setAssociatedObject(card,kTT55Card,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
+        return;
+    }
+    if(!card || objc_getAssociatedObject(card,kTT55Card))return;
+    objc_setAssociatedObject(card,kTT55Card,@{@"r":@(card.layer.cornerRadius),@"m":@(card.layer.masksToBounds),@"c":@(card.layer.maskedCorners)},OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    card.layer.cornerRadius=MAX(card.layer.cornerRadius,12);card.layer.maskedCorners=kCALayerMinXMinYCorner|kCALayerMaxXMinYCorner|kCALayerMinXMaxYCorner|kCALayerMaxXMaxYCorner;
+    card.layer.masksToBounds=YES;
+}
 - (void)showMode:(NSInteger)mode {
     if(!self.row2)return;
     for(UIView *v in self.subRows)[v removeFromSuperview];
     self.subRows=nil;self.mode=mode;
     BOOL open=mode!=0;
     self.row2.caption.alpha=self.row2.glyph.alpha=open?0:1;
-    if(!open){[self relayoutExtra:0];self.row2.clipsToBounds=NO;[self.row2 setNeedsLayout];return;}
+    if(!open){[self relayoutExtra:0];self.row2.clipsToBounds=NO;[self styleCard:NO];[self.row2 setNeedsLayout];return;}
     NSArray *items=mode==1?@[@[@"تنزيل",@"arrow.down",@0],@[@"تنزيل HD",@"arrow.down",@1],@[@"أعلى جودة متاحة",@"arrow.down",@2],@[@"تنزيل الصوت",@"waveform",@3],@[@"حفظ الصوت كفيديو بغلاف",@"photo.on.rectangle",@4],@[@"نسخ",@"doc.on.doc",@101],@[@"رجوع",@"chevron.left",@100]]
         :@[@[@"نسخ الاسم",@"doc.on.doc",@10],@[@"نسخ الوصف",@"doc.on.doc",@11],@[@"نسخ اسم المستخدم",@"doc.on.doc",@12],@[@"رجوع",@"chevron.left",@102]];
     NSMutableArray *rows=[NSMutableArray array];
@@ -129,12 +171,15 @@ static BOOL TT51SheetPeers(UIView *root) {
     self.subRows=rows;self.row2.clipsToBounds=YES;
     [self relayoutExtra:self.rowH*(rows.count-1)];
     [self layoutSubRows];
+    [self styleCard:YES];
+    [self scheduleReveal];
 }
 - (void)layoutSubRows {
     CGFloat y=0;
     for(UIView *r in self.subRows){r.frame=CGRectMake(0,y,self.row2.bounds.size.width,self.rowH);y+=self.rowH;}
 }
 - (void)detach {
+    [self styleCard:NO];
     if(self.stack){
         [self.stack removeArrangedSubview:self.row];[self.stack removeArrangedSubview:self.row2];
         if(self.createdStackHeight)self.stackHeight.active=NO;
@@ -204,8 +249,12 @@ static BOOL TT51SheetPeers(UIView *root) {
         return;
     }
     [self detach];
+    BOOL anyDownload=NO;
+    for(UIWindow *window in windows){for(UIView *leaf in TT51Descendants(window))if(TT51Visible(leaf) && TT51Download(leaf)){
+        CGRect f=[leaf convertRect:leaf.bounds toView:window];if(f.origin.y>=window.bounds.size.height*.2){anyDownload=YES;break;}}
+        if(anyDownload)break;}
     for(UIWindow *window in windows)for(UIView *leaf in TT51Descendants(window)) {
-        if(!TT51Visible(leaf) || !TT51Download(leaf))continue;
+        if(!TT51Visible(leaf) || !(anyDownload?TT51Download(leaf):TT51NotInterested(leaf)))continue;
         UIView *native=nil;
         // The first wide compact ancestor is the actual action row, not its whole card.
         for(UIView *p=leaf;p && p!=window;p=p.superview) {
@@ -289,7 +338,7 @@ static BOOL TT51SheetPeers(UIView *root) {
             row.layer.cornerRadius=12;row.layer.maskedCorners=kCALayerMinXMinYCorner|kCALayerMaxXMinYCorner;
             [scroll addSubview:row];[scroll addSubview:row2];self.scroll=scroll;
         }
-        self.row=row;self.row2=row2;self.nativeRow=native;self.scope=scope;self.sampleLabel=label;self.rowH=screen.size.height;self.extra=0;
+        self.cardHost=stack?branch:nil;self.row=row;self.row2=row2;self.nativeRow=native;self.scope=scope;self.sampleLabel=label;self.rowH=screen.size.height;self.extra=0;
         [self.row.glyph setImage:[UIImage systemImageNamed:hidden?@"eye.slash":@"eye"]];
         [self.row.toggleSwitch setOn:hidden animated:NO];
         [row setNeedsLayout];[row layoutIfNeeded];[row2 setNeedsLayout];[row2 layoutIfNeeded];return;

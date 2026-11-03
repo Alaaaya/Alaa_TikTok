@@ -77,4 +77,38 @@ ShotView(self.window,@"51-native-sheet-scroll");
 UIImageView *symbol=[UIImageView new];symbol.accessibilityIdentifier=@"arrow.down.to.line";Check(TT51Download(symbol),@"51 explicit download icon fallback");
 UILabel *unrelated=[UILabel new];unrelated.text=@"Download HD";Check(!TT51Download(unrelated),@"51 own download menu excluded");
 Check(!TT51SheetPeers(unrelated),@"51 no insertion without native Report and Not Interested peers");
+
+// 55: sheet WITHOUT a native Download row still gets Joker rows; small viewport scrolls to the expanded card top automatically.
+{
+    UIScrollView *vs=[[UIScrollView alloc] initWithFrame:CGRectMake(0,420,self.window.bounds.size.width,330)];
+    vs.backgroundColor=UIColor.systemGroupedBackgroundColor;
+    UIView *content=[[UIView alloc] initWithFrame:CGRectMake(0,0,vs.bounds.size.width,900)];[vs addSubview:content];vs.contentSize=content.bounds.size;
+    UIStackView *card2=[[UIStackView alloc] initWithFrame:CGRectMake(14,500,vs.bounds.size.width-28,112)];
+    card2.axis=UILayoutConstraintAxisVertical;card2.backgroundColor=UIColor.secondarySystemGroupedBackgroundColor;card2.layer.cornerRadius=12;
+    card2.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;[content addSubview:card2];
+    for(NSString *name in @[@"غير مهتم",@"إبلاغ"]){
+        UIButton *r=[UIButton buttonWithType:UIButtonTypeCustom];r.frame=CGRectMake(0,0,card2.bounds.size.width,56);[r.heightAnchor constraintEqualToConstant:56].active=YES;
+        UILabel *l=[[UILabel alloc] initWithFrame:CGRectMake(18,0,r.bounds.size.width-70,56)];l.text=name;l.textAlignment=NSTextAlignmentRight;[r addSubview:l];
+        UIImageView *im=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"flag"]];im.frame=CGRectMake(r.bounds.size.width-40,16,24,24);[r addSubview:im];
+        [card2 addArrangedSubview:r];
+    }
+    [self.window addSubview:vs];[card2 layoutIfNeeded];
+    vs.contentOffset=CGPointMake(0,vs.contentSize.height-vs.bounds.size.height);
+    TT51SheetEye *se2=[TT51SheetEye new];
+    [se2 scanWindows:@[self.window] enabled:YES hidden:NO];[card2 layoutIfNeeded];
+    Check(se2.row && card2.arrangedSubviews[0]==se2.row && card2.arrangedSubviews[1]==se2.row2,@"55 Joker rows inserted without native Download row");
+    vs.contentOffset=CGPointMake(0,vs.contentSize.height-vs.bounds.size.height);
+    [se2.row2 sendActionsForControlEvents:UIControlEventTouchUpInside];
+    CFRunLoopRunInMode(kCFRunLoopDefaultMode,.6,false);
+    CGRect rr=[se2.row2 convertRect:se2.row2.bounds toView:vs];
+    CGFloat topVis=rr.origin.y-vs.contentOffset.y;
+    Check(topVis>=-.5 && topVis<=40,@"55 expanded card top visible automatically after tap (started scrolled down)");
+    Check(card2.layer.cornerRadius>=12 && card2.layer.maskedCorners==(kCALayerMinXMinYCorner|kCALayerMaxXMinYCorner|kCALayerMinXMaxYCorner|kCALayerMaxXMaxYCorner),@"55 card keeps all four rounded corners");
+    ShotView(self.window,@"55-expanded-reveal");
+    [(UIControl *)se2.subRows[se2.subRows.count-1] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    Check(se2.mode==0 || se2.mode==1,@"55 back works");
+    [se2 scanWindows:@[self.window] enabled:NO hidden:NO];
+    Check(card2.arrangedSubviews.count==2 && CGRectGetHeight(card2.bounds)>=111,@"55 restored original geometry");
+    [vs removeFromSuperview];
+}
 NSLog(@"PASS 51 native sheet stack+scroll row, exact Arabic title, two-way eye, native frames, duplicate prevention, cleanup and symbol fallback");
