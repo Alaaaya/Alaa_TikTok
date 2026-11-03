@@ -138,7 +138,47 @@
         UIStackView *ph=[UIStackView new];JKAddStylePicker(ph);
         UISegmentedControl *sg=(UISegmentedControl *)ph.arrangedSubviews[1];
         Check(sg.selectedSegmentIndex==3 && [[sg titleForSegmentAtIndex:3] isEqualToString:@"Alaa"],@"56 picker shows Alaa selected");
-        ShotView(self.window,@"56-alaa-style");
+        // Native-feed fixture from the observed hierarchy (TEST DATA): rail, description, progress, dock.
+        UIView *fd=[[feedCls alloc] initWithFrame:self.window.bounds];[self.window addSubview:fd];
+        CAGradientLayer *gl=[CAGradientLayer layer];gl.frame=fd.bounds;
+        gl.colors=@[(id)[UIColor colorWithRed:.04 green:.07 blue:.2 alpha:1].CGColor,(id)[UIColor colorWithRed:.85 green:.35 blue:.2 alpha:1].CGColor,(id)[UIColor colorWithRed:.25 green:.05 blue:.2 alpha:1].CGColor];
+        [fd.layer addSublayer:gl];
+        UIView *fr=[[stackClass alloc] initWithFrame:CGRectMake(W-70,H-122-250-120,60,330)];[fd addSubview:fr];
+        NSMutableArray<UIButton *> *fn=[NSMutableArray new];NSMutableArray<NSNumber *> *ff=[NSMutableArray new];
+        for(NSUInteger i=0;i<4;i++){
+            UIButton *b=[btnClass buttonWithType:UIButtonTypeCustom];b.frame=CGRectMake(0,i*80,60,72);b.accessibilityIdentifier=@[@"digg",@"comment",@"collect",@"share"][i];
+            UILabel *cl=[[UILabel alloc] initWithFrame:CGRectMake(0,50,60,18)];cl.text=@[@"29.4K",@"163",@"87",@"19K"][i];cl.textColor=UIColor.whiteColor;cl.font=[UIFont systemFontOfSize:12];cl.textAlignment=NSTextAlignmentCenter;[b addSubview:cl];
+            NSUInteger ix=i;JKTestWire(b,^{[ff addObject:@(ix)];});[fr addSubview:b];[fn addObject:b];
+        }
+        Class dc=NSClassFromString(@"AWEPlayInteractionDescriptionLabel");if(!dc){dc=objc_allocateClassPair(UILabel.class,"AWEPlayInteractionDescriptionLabel",0);objc_registerClassPair(dc);}
+        UILabel *dl=[[dc alloc] initWithFrame:CGRectMake(12,H-200,318,42)];dl.numberOfLines=2;dl.textColor=UIColor.whiteColor;dl.font=[UIFont systemFontOfSize:14];
+        dl.attributedText=[[NSAttributedString alloc] initWithString:@"The sun goes down and takes the day with it #sunset #desert #calm" attributes:@{NSForegroundColorAttributeName:UIColor.whiteColor,NSFontAttributeName:[UIFont systemFontOfSize:14]}];
+        [fd addSubview:dl];
+        UIView *pbar=[[NSClassFromString(@"AWEFeedPlayerBottomProgressBar") alloc] initWithFrame:CGRectMake(12,H-86,406,2)];
+        UIView *pf=[[UIView alloc] initWithFrame:CGRectMake(0,0,300,2)];pf.backgroundColor=UIColor.redColor;[pbar addSubview:pf];[fd addSubview:pbar];
+        UIView *dock=[[NSClassFromString(@"TTKTabBarBlurView")?:UIView.class alloc] initWithFrame:CGRectMake(0,H-83,430,83)];[fd addSubview:dock];
+        JKStyleApplyAll();
+        UIView *tgl=[fr viewWithTag:9156];
+        Check(tgl!=nil && JKRailClosed,@"56 rail toggle present and closed by default");
+        for(UIView *v in fr.subviews)if([v isKindOfClass:JKStyleItem.class])Check(v.alpha==0 && !v.userInteractionEnabled,@"56 collapsed items hidden and inert");
+        ShotView(self.window,@"56-alaa-collapsed");
+        [(UIControl *)tgl sendActionsForControlEvents:UIControlEventTouchUpInside];
+        [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:1.2]];
+        Check(!JKRailClosed,@"56 toggle opens rail");
+        for(UIView *v in fr.subviews)if([v isKindOfClass:JKStyleItem.class])Check(v.alpha==1 && v.userInteractionEnabled,@"56 expanded items visible");
+        [(UIControl *)JKItemOf(fn[0]) sendActionsForControlEvents:UIControlEventTouchUpInside];
+        Check(ff.count==1 && [ff[0] isEqual:@0],@"56 expanded like forwards to native action");
+        JKStyleApplyAll();Check(!JKRailClosed && ((UIView *)[fr viewWithTag:9156]).superview==fr && [fr.subviews filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id v,id b){return [v tag]==9156;}]].count==1,@"56 reuse keeps state, single toggle");
+        Check([dl.attributedText.string containsString:@"#sunset"],@"56 caption text intact");
+        UIColor *hc=[dl.attributedText attribute:NSForegroundColorAttributeName atIndex:dl.attributedText.length-3 effectiveRange:nil];CGFloat hr,hg,hb,ha;[hc getRed:&hr green:&hg blue:&hb alpha:&ha];
+        Check(hr>.99 && hg>.7 && hg<.72,@"56 hashtags amber");
+        ShotView(self.window,@"56-alaa-expanded");
+        [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();JKRailClosed=YES;
+        Check([fr viewWithTag:9156]==nil && JKItemOf(fn[0])==nil && fn[0].alpha==1,@"56 default restore removes toggle and overlays");
+        UIColor *rc=[dl.attributedText attribute:NSForegroundColorAttributeName atIndex:dl.attributedText.length-3 effectiveRange:nil];
+        Check(CGColorEqualToColor(rc.CGColor,UIColor.whiteColor.CGColor),@"56 hashtag color restored");
+        ShotView(self.window,@"56-alaa-default");
+        [fd removeFromSuperview];[D() setInteger:3 forKey:JKStyleKey];
         [D() setInteger:0 forKey:JKStyleKey];JKInstaApplyAll();
         Check(CGRectEqualToRect(tb.frame,CGRectMake(0,0,430,83)) && tb.layer.cornerRadius==0 && tb.layer.borderWidth==0,@"56 dock restored to TikTok");
         [tb removeFromSuperview];

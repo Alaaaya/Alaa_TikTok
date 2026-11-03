@@ -84,6 +84,47 @@ static NSString *JKCountText(UIView *view,NSUInteger depth) {
     for(UIView *c in view.subviews){NSString *t=JKCountText(c,depth+1);if(t)return t;}
     return nil;
 }
+
+// 56: Alaa style collapsible rail. The toggle only shows/hides OUR overlay glyphs; native views are never touched.
+static BOOL JKRailClosed=YES;
+@interface JKAlaaToggle:UIControl
+@property(nonatomic,strong) UIImageView *dots,*xmark;
+@end
+@implementation JKAlaaToggle
+- (instancetype)initWithFrame:(CGRect)f {
+    self=[super initWithFrame:f];if(!self)return nil;
+    self.tag=9156;self.accessibilityLabel=@"Rail";self.accessibilityTraits=UIAccessibilityTraitButton;
+    self.layer.cornerRadius=24;self.layer.borderWidth=1;self.layer.masksToBounds=YES;
+    UIImageSymbolConfiguration *c=[UIImageSymbolConfiguration configurationWithPointSize:20 weight:UIImageSymbolWeightBold];
+    self.dots=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"ellipsis" withConfiguration:c]];
+    self.xmark=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"xmark" withConfiguration:c]];
+    for(UIImageView *v in @[self.dots,self.xmark]){v.contentMode=UIViewContentModeCenter;v.userInteractionEnabled=NO;[self addSubview:v];}
+    [self addTarget:self action:@selector(flip) forControlEvents:UIControlEventTouchUpInside];
+    [self paint];
+    return self;
+}
+- (void)layoutSubviews{[super layoutSubviews];self.dots.frame=self.bounds;self.xmark.frame=self.bounds;}
+- (void)paint {
+    UIColor *amber=[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1];
+    self.backgroundColor=JKRailClosed?[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58]:amber;
+    self.layer.borderColor=(JKRailClosed?[UIColor colorWithRed:.937 green:.957 blue:.945 alpha:.14]:UIColor.clearColor).CGColor;
+    self.dots.tintColor=UIColor.whiteColor;self.xmark.tintColor=[UIColor colorWithRed:.141 green:.086 blue:0 alpha:1];
+    self.dots.alpha=JKRailClosed?1:0;self.xmark.alpha=JKRailClosed?0:1;
+    self.dots.transform=JKRailClosed?CGAffineTransformIdentity:CGAffineTransformMakeRotation(M_PI_2);
+    self.xmark.transform=JKRailClosed?CGAffineTransformMakeRotation(-M_PI_2):CGAffineTransformIdentity;
+}
+- (void)flip {JKRailClosed=!JKRailClosed;[UIView animateWithDuration:.35 animations:^{[self paint];}];[self applyAnimated:YES];}
+- (void)applyAnimated:(BOOL)anim {
+    NSArray *subs=self.superview.subviews;NSUInteger k=0,n=0;
+    for(UIView *v in subs)if([v isKindOfClass:NSClassFromString(@"JKStyleItem")])n++;
+    for(UIView *v in subs){
+        if(![v isKindOfClass:NSClassFromString(@"JKStyleItem")])continue;k++;
+        UIView *item=v;NSUInteger kk=k;BOOL closed=JKRailClosed;
+        void(^st)(void)=^{item.alpha=closed?0:1;item.transform=closed?CGAffineTransformConcat(CGAffineTransformMakeScale(.25,.25),CGAffineTransformMakeTranslation(0,kk*40.0)):CGAffineTransformIdentity;item.userInteractionEnabled=!closed;};
+        if(anim)[UIView animateWithDuration:.5 delay:(closed?(n-kk)*.025:(kk-1)*.045) usingSpringWithDamping:.62 initialSpringVelocity:0 options:0 animations:st completion:nil];else st();
+    }
+}
+@end
 @interface JKStyleItem:UIControl
 @property(nonatomic,weak) UIView *native;
 @property(nonatomic) JKKind kind;
@@ -164,6 +205,7 @@ static CGFloat JKStyleAlpha(UIView *view,CGFloat requested) {
 static void JKStyleDetach(UIView *native) {
     JKStyleItem *item=JKItemOf(native);if(!item)return;
     objc_setAssociatedObject(native,kJKItemKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if(!JKAlaa())[[native.superview viewWithTag:9156] removeFromSuperview];
     [item.timer invalidate];item.timer=nil;[item removeFromSuperview];
     NSNumber *orig=objc_getAssociatedObject(native,kJKOrigAlphaKey);
     objc_setAssociatedObject(native,kJKOrigAlphaKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -183,6 +225,13 @@ static void JKStyleSync(UIView *native) {
         [native.superview insertSubview:item aboveSubview:native];
     }
     item.frame=native.frame;item.transform=native.transform;[item refresh];
+    UIView *tg=[native.superview viewWithTag:9156];
+    if(JKAlaa()){
+        if(!tg){CGFloat mx=0;for(UIView *v in native.superview.subviews)if(!v.hidden && v.tag!=9156)mx=MAX(mx,CGRectGetMaxY(v.frame));
+            JKAlaaToggle *t=[[JKAlaaToggle alloc] initWithFrame:CGRectMake((native.superview.bounds.size.width-48)/2,mx+8,48,48)];
+            [native.superview addSubview:t];tg=t;}
+        JKAlaaToggle *t=(JKAlaaToggle *)tg;[t paint];[t applyAnimated:NO];
+    } else if(tg){[tg removeFromSuperview];}
     if(native.alpha!=0)native.alpha=0; // setAlpha hook records the real value first
 }
 
@@ -224,6 +273,16 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
                 l.font=[UIFont systemFontOfSize:l.font.pointSize weight:UIFontWeightBold];}
             else if(!on){UIFont *f=objc_getAssociatedObject(l,kJKRec);if(f){l.font=f;objc_setAssociatedObject(l,kJKRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}
         }
+    } else if([n isEqualToString:@"AWEPlayInteractionDescriptionLabel"] && [v isKindOfClass:UILabel.class]){
+        UILabel *l=(UILabel *)v;
+        if(on && JKAlaa() && !objc_getAssociatedObject(l,kJKRec) && l.attributedText.length){
+            objc_setAssociatedObject(l,kJKRec,[l.attributedText copy],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            NSMutableAttributedString *m=[l.attributedText mutableCopy];NSString *t=m.string;
+            NSRegularExpression *re=[NSRegularExpression regularExpressionWithPattern:@"#[^\\s#]+" options:0 error:nil];
+            for(NSTextCheckingResult *r in [re matchesInString:t options:0 range:NSMakeRange(0,t.length)])
+                [m addAttribute:NSForegroundColorAttributeName value:[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1] range:r.range];
+            l.attributedText=m;
+        } else if(!on || !JKAlaa()){NSAttributedString *o=objc_getAssociatedObject(l,kJKRec);if(o){l.attributedText=o;objc_setAssociatedObject(l,kJKRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}
     }
     if(depth<14)for(UIView *c in v.subviews)JKInstaPass(c,on,depth+1);
 }
