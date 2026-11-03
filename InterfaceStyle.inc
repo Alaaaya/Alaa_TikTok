@@ -180,8 +180,7 @@ static NSArray<UIWindow *> *TT48Windows(void);
     UIImageSymbolConfiguration *cfg=[UIImageSymbolConfiguration configurationWithPointSize:27 weight:(JKAlaa()?UIImageSymbolWeightRegular:UIImageSymbolWeightLight)];
     self.glyph.image=[UIImage systemImageNamed:name withConfiguration:cfg];
     if(JKAlaa()){
-        self.glyph.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];self.glyph.layer.cornerRadius=16;
-        self.glyph.layer.borderWidth=1;self.glyph.layer.borderColor=[UIColor colorWithRed:.937 green:.957 blue:.945 alpha:.14].CGColor;
+        self.glyph.backgroundColor=nil;self.glyph.layer.cornerRadius=0;self.glyph.layer.borderWidth=0;
     } else {self.glyph.backgroundColor=nil;self.glyph.layer.cornerRadius=0;self.glyph.layer.borderWidth=0;}
     self.glyph.tintColor=(selected && self.kind==JKKindLike)?(JKAlaa()?[UIColor colorWithRed:1 green:.302 blue:.416 alpha:1]:[UIColor colorWithRed:1 green:.19 blue:.33 alpha:1]):((selected && self.kind==JKKindSave && JKAlaa())?[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1]:UIColor.whiteColor);
     NSString *t=JKCountText(n,0);
@@ -264,6 +263,8 @@ static const void *kJKAvaRec=&kJKAvaRec;
 @property(nonatomic) BOOL wasArranged;
 @property(nonatomic) CGRect frame;
 @property(nonatomic) CGAffineTransform transform;
+@property(nonatomic,weak) UIView *author;
+@property(nonatomic) CGAffineTransform authorTx;
 @end
 @implementation JKAvaRec
 @end
@@ -276,6 +277,8 @@ static UIView *JKFindClass(UIView *root,NSString *name,NSUInteger depth){
 static void JKAvatarRestore(UIView *avatar){
     JKAvaRec *r=objc_getAssociatedObject(avatar,kJKAvaRec);if(!r)return;
     objc_setAssociatedObject(avatar,kJKAvaRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if(r.author)r.author.transform=r.authorTx;
+    for(UIView *rs in avatar.subviews)JKRecRestore(rs);
     UIView *parent=r.parent;
     if(!parent){[r.spacer removeFromSuperview];return;}
     [avatar removeFromSuperview];
@@ -290,7 +293,7 @@ static void JKAvatarRestore(UIView *avatar){
     }
     avatar.frame=r.frame;avatar.transform=r.transform;
 }
-static void JKAvatarApply(UIView *avatar,UIWindow *window,BOOL on){
+static void JKAvatarApply(UIView *avatar,UIWindow *window,BOOL on,int mode){
     JKAvaRec *r=objc_getAssociatedObject(avatar,kJKAvaRec);
     UIView *author=JKFindClass(window,@"AWEPlayInteractionAuthorView",0);
     if(!on || !author || !author.window){if(r)JKAvatarRestore(avatar);return;}
@@ -318,12 +321,26 @@ static void JKAvatarApply(UIView *avatar,UIWindow *window,BOOL on){
         [host addSubview:avatar];
     }
     if(avatar.superview!=host)return;
+    if(!r.author && author.transform.tx==0){r.author=author;r.authorTx=author.transform;author.transform=CGAffineTransformMakeTranslation(48,0);}
     CGRect a=[author convertRect:author.bounds toView:host];
-    CGFloat k=.62,w=avatar.bounds.size.width*k,h=avatar.bounds.size.height*k;
-    avatar.transform=CGAffineTransformMakeScale(k,k);
-    avatar.center=CGPointMake(a.origin.x+w/2,a.origin.y-h/2-2);
+    CGFloat midY=CGRectGetMidY(a);
+    if(mode==0){
+        CGFloat k=34.0/44.0;
+        avatar.transform=CGAffineTransformMakeScale(k,k);
+        avatar.center=CGPointMake(33,midY+(avatar.bounds.size.height/2-28)*k);
+        for(UIView *rs in avatar.subviews){
+            CGSize z=rs.bounds.size;
+            if(([rs isKindOfClass:UIButton.class]||[rs isKindOfClass:UIImageView.class]) && z.width>=30 && z.width<=50 && fabs(z.width-z.height)<2){
+                JKRecSave(rs);rs.clipsToBounds=YES;rs.layer.cornerRadius=z.width/2;rs.layer.borderWidth=2;rs.layer.borderColor=UIColor.whiteColor.CGColor;
+            }
+        }
+    } else {
+        UIView *nl=JKFindClass(author,@"AWEUserNameLabel",0);
+        CGRect nr=nl?[nl convertRect:nl.bounds toView:host]:a;
+        avatar.transform=CGAffineTransformIdentity;
+        CGRect f=avatar.frame;f.origin.x=CGRectGetMaxX(nr)+10;f.origin.y=midY-f.size.height/2;avatar.frame=f;
+    }
 }
-
 static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
     NSString *n=NSStringFromClass(v.class);
     if([n isEqualToString:@"TTKTabBarBlurView"] && [v.superview isKindOfClass:UITabBar.class]==NO && [NSStringFromClass(v.superview.class) isEqualToString:@"TTKTabBar"]==NO){}
@@ -332,7 +349,7 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
             v.frame=CGRectMake(o.origin.x+18,o.origin.y+6,o.size.width-36,o.size.height-31);
             v.layer.cornerRadius=v.frame.size.height/2;v.layer.masksToBounds=YES;
             v.layer.borderWidth=.5;v.layer.borderColor=(JKAlaa()?[UIColor colorWithRed:.937 green:.957 blue:.945 alpha:.14]:[UIColor colorWithWhite:1 alpha:.18]).CGColor;
-            if(JKAlaa()){CGRect f=v.frame;v.frame=CGRectMake(f.origin.x-6,f.origin.y-4,f.size.width+12,f.size.height+8);v.layer.cornerRadius=v.frame.size.height/2;v.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];}}
+            if(JKAlaa()){CGFloat sw=v.superview.bounds.size.width,sh=v.superview.bounds.size.height;v.frame=CGRectMake(16,sh-74,sw-32,62);v.layer.cornerRadius=31;v.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];}}
         else JKRecRestore(v);
     } else if([n isEqualToString:@"AWETabBarPlusButton"]){
         UIView *ov=[v viewWithTag:9157];
@@ -365,18 +382,19 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
                     UILabel *l=[UILabel new];l.tag=1;l.text=@"متابعة";l.textColor=UIColor.whiteColor;l.font=[UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];l.textAlignment=NSTextAlignmentCenter;[ch addSubview:l];[v addSubview:ch];}
                 ch.frame=CGRectMake(0,(v.bounds.size.height-24)/2,MAX(60,v.bounds.size.width),24);[ch viewWithTag:1].frame=ch.bounds;[v bringSubviewToFront:ch];}
             else if(ch)[ch removeFromSuperview];
+            if(v.window)JKAvatarApply(v,v.window,al,1);
         }
     } else if([n isEqualToString:@"AWEFeedPlayerBottomProgressBar"]){
         UIView *trk=[v viewWithTag:9160];
         if(on && JKAlaa() && v.bounds.size.width>0){
             if(!trk){trk=[UIView new];trk.tag=9160;trk.userInteractionEnabled=NO;[v insertSubview:trk atIndex:0];}
-            trk.backgroundColor=[UIColor colorWithWhite:1 alpha:.22];trk.frame=CGRectMake(0,0,v.bounds.size.width,MAX(v.bounds.size.height,2));
+            trk.backgroundColor=[UIColor colorWithWhite:1 alpha:.28];trk.frame=CGRectMake(0,0,v.bounds.size.width,MAX(v.bounds.size.height,2));
         } else if(trk){[trk removeFromSuperview];}
         for(UIView *s in v.subviews){ if(s.tag==9160)continue;
-            if(on){JKRecSave(s);s.backgroundColor=JKAlaa()?[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1]:UIColor.whiteColor;} else JKRecRestore(s);
+            if(on){JKRecSave(s);s.backgroundColor=UIColor.whiteColor;} else JKRecRestore(s);
         }
     } else if([n isEqualToString:@"AWEPlayInteractionUserAvatarView"] && v.window){
-        JKAvatarApply(v,v.window,on&&JKAlaa());return;
+        JKAvatarApply(v,v.window,on&&JKAlaa(),0);return;
     } else if([n isEqualToString:@"AWEUserNameLabel"]){
         for(UIView *s in v.subviews) if([s isKindOfClass:UILabel.class]){
             UILabel *l=(UILabel *)s;if(!l.text.length)continue;
