@@ -13,7 +13,7 @@
     tint.value=.9;[tint sendActionsForControlEvents:UIControlEventValueChanged];blur.value=.3;[blur sendActionsForControlEvents:UIControlEventValueChanged];edge.value=.8;[edge sendActionsForControlEvents:UIControlEventValueChanged];
     Check([rows isEqual:vc.stack.arrangedSubviews]&&tint==[vc.stack viewWithTag:610],@"61 live preview never rebuilds slider controls mid-drag");
     for(UIView *v in owned){JK61GlassRecord *r=[JK61Glasses() objectForKey:v];Check(v.layer.borderWidth>0&&r.animator&&fabs(r.animator.fractionComplete-.3)<.001&&CGColorGetAlpha(r.tint.backgroundColor.CGColor)>.3,@"61 every explicit owned surface receives tint/blur/edge live");}
-    Check([native.backgroundColor isEqual:UIColor.orangeColor]&&native.alpha==.7&&native.layer.borderWidth==3&&![JK61Glasses() objectForKey:native],@"61 native UIKit/media views never registered or modified");
+    Check([native.backgroundColor isEqual:UIColor.orangeColor]&&fabs(native.alpha-.7)<.001&&native.layer.borderWidth==3&&![JK61Glasses() objectForKey:native],@"61 native UIKit/media views never registered or modified");
     Check(vc.panel.layer.borderWidth>0&&[JK61Glasses() objectForKey:vc.panel].animator,@"61 open settings panel itself is live preview");Shot(vc,@"61-glass-varied");
     // Fire actual debounce to model process relaunch, not a direct defaults write.
     [[JK61Persistence shared].timer fire];JK61Values=nil;Check(fabs(JK61Value(@"tint")-.9)<.001&&fabs(JK61Value(@"blur")-.3)<.001,@"61 debounced values reload after in-memory cache recreation");
