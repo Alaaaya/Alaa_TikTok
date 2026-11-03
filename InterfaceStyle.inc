@@ -120,7 +120,7 @@ static BOOL JKRailClosed=YES;
     for(UIView *v in subs){
         if(![v isKindOfClass:NSClassFromString(@"JKStyleItem")]&&v.tag!=9161&&v.tag!=9162)continue;k++;
         UIView *item=v;NSUInteger kk=k;BOOL closed=JKRailClosed;
-        void(^st)(void)=^{item.alpha=closed?0:1;item.transform=closed?CGAffineTransformConcat(CGAffineTransformMakeScale(.25,.25),CGAffineTransformMakeTranslation(0,kk*40.0)):CGAffineTransformIdentity;item.userInteractionEnabled=!closed;};
+        void(^st)(void)=^{item.alpha=closed?0:1;item.transform=closed?CGAffineTransformConcat(CGAffineTransformMakeScale(.25,.25),CGAffineTransformMakeTranslation(0,kk*40.0)):CGAffineTransformIdentity;item.userInteractionEnabled=(item.tag==9161||item.tag==9162)?NO:!closed;};
         if(anim)[UIView animateWithDuration:.5 delay:(closed?(n-kk)*.025:(kk-1)*.045) usingSpringWithDamping:.62 initialSpringVelocity:0 options:0 animations:st completion:nil];else st();
     }
 }
@@ -354,6 +354,19 @@ static void JKDockRestore(UIView *blur){
     UIView *tbar=blur.superview;NSValue *t=tbar?objc_getAssociatedObject(tbar,kJKTbTx):nil;
     if(t){tbar.transform=t.CGAffineTransformValue;objc_setAssociatedObject(tbar,kJKTbTx,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
 }
+static UIImage *JKDisc(UIImage *thumb){
+    CGFloat S=42;UIGraphicsImageRenderer *r=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(S,S)];
+    return [r imageWithActions:^(UIGraphicsImageRendererContext *c){
+        CGContextRef g=c.CGContext;CGRect all=CGRectMake(0,0,S,S);
+        [[UIColor colorWithRed:.051 green:.071 blue:.078 alpha:1] setFill];CGContextFillEllipseInRect(g,all);
+        [[UIColor colorWithWhite:1 alpha:.09] setStroke];CGContextSetLineWidth(g,.6);
+        for(CGFloat in=3;in<10;in+=2.6)CGContextStrokeEllipseInRect(g,CGRectInset(all,in,in));
+        CGRect ctr=CGRectInset(all,12,12);
+        if(thumb){CGContextSaveGState(g);CGContextAddEllipseInRect(g,ctr);CGContextClip(g);[thumb drawInRect:ctr];CGContextRestoreGState(g);}
+        else {[[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1] setFill];CGContextFillEllipseInRect(g,ctr);}
+        [[UIColor colorWithRed:.051 green:.071 blue:.078 alpha:1] setFill];CGContextFillEllipseInRect(g,CGRectInset(all,19,19));
+    }];
+}
 static UIImage *JKSnap(UIView *v){
     if(v.bounds.size.width<2||v.bounds.size.height<2)return nil;
     UIGraphicsImageRenderer *r=[[UIGraphicsImageRenderer alloc] initWithSize:v.bounds.size];
@@ -365,10 +378,10 @@ static void JKDecoApply(UIWindow *w,NSInteger tag,UIView *src,CGRect fr,CGFloat 
     UIView *st=w?JKRailStack(w):nil;if(!st)return;
     UIImageView *iv=(UIImageView *)[st viewWithTag:tag];
     if(!on||!src){[iv.layer removeAllAnimations];[iv removeFromSuperview];return;}
-    UIImage *im=JKSnap(src);if(!im && iv)return;
+    UIImage *im=JKSnap(src);if(tag==9162)im=JKDisc(im);if(!im && iv)return;
     if(!iv){iv=[UIImageView new];iv.tag=tag;iv.userInteractionEnabled=NO;iv.clipsToBounds=YES;iv.contentMode=UIViewContentModeScaleAspectFill;[st insertSubview:iv atIndex:0];}
-    if(im)iv.image=im;
-    iv.frame=fr;iv.layer.cornerRadius=fr.size.width/2;iv.layer.borderWidth=border;iv.layer.borderColor=bc.CGColor;
+    if(im)iv.image=im;iv.userInteractionEnabled=NO;if(!iv.window||!iv.layer.presentationLayer){iv.alpha=JKRailClosed?0:1;iv.transform=JKRailClosed?CGAffineTransformConcat(CGAffineTransformMakeScale(.25,.25),CGAffineTransformMakeTranslation(0,40)):CGAffineTransformIdentity;}
+    iv.frame=fr;iv.layer.cornerRadius=fr.size.width/2;iv.layer.borderWidth=(tag==9162)?0:border;iv.layer.borderColor=bc.CGColor;
     if(spin && ![iv.layer animationForKey:@"jkspin"]){CABasicAnimation *a=[CABasicAnimation animationWithKeyPath:@"transform.rotation.z"];a.fromValue=@0;a.toValue=@(M_PI*2);a.duration=6;a.repeatCount=HUGE_VALF;[iv.layer addAnimation:a forKey:@"jkspin"];}
 }
 static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
@@ -405,8 +418,7 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
             if(al){if(!objc_getAssociatedObject(v,kT))objc_setAssociatedObject(v,kT,v.tintColor?:(id)NSNull.null,OBJC_ASSOCIATION_RETAIN_NONATOMIC);v.tintColor=[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1];}
             else{id o=objc_getAssociatedObject(v,kT);if(o){v.tintColor=o==NSNull.null?nil:o;objc_setAssociatedObject(v,kT,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}
         } else if([n isEqualToString:@"TTKFeedTabCornerItemView"]){
-            if(al){JKRecSave(v);v.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];v.layer.cornerRadius=MIN(v.bounds.size.width,v.bounds.size.height)/2;v.layer.borderWidth=1;v.layer.borderColor=[UIColor colorWithRed:.937 green:.957 blue:.945 alpha:.14].CGColor;}
-            else JKRecRestore(v);
+            JKRecRestore(v); // no dead pill backgrounds: no native 1x/speaker actions
         } else if([n isEqualToString:@"TikTokFeedTabControl"]){
             UIView *ul=[v viewWithTag:9158];UIView *sel=nil;
             if(al){for(UIView *c in v.subviews)if(c.tag!=9158 && [c isKindOfClass:UIControl.class] && ((UIControl *)c).selected){sel=c;break;}}

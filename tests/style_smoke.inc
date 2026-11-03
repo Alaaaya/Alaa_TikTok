@@ -193,7 +193,7 @@
         {CGFloat r1,g1,b1,a1;[tabbar.tintColor getRed:&r1 green:&g1 blue:&b1 alpha:&a1];Check(r1>.99&&g1>.7&&g1<.72,@"56 dock tint amber");}
         Check([tc viewWithTag:9158]!=nil && CGRectGetMidX([tc viewWithTag:9158].frame)==CGRectGetMidX(t1.frame),@"56 tab underline under selected native tab");
         t1.selected=NO;JKStyleApplyAll();Check([tc viewWithTag:9158]==nil,@"56 no selected tab -> no underline (fail closed)");t1.selected=YES;JKStyleApplyAll();
-        Check(c1.layer.cornerRadius==20 && c2.layer.cornerRadius==20,@"56 corner items glass circles");
+        Check(c1.layer.cornerRadius==0 && c1.backgroundColor==nil && c2.backgroundColor==nil,@"56 no dead pill backgrounds on corner items");
         Check([fp viewWithTag:9159]!=nil && ![fp viewWithTag:9159].userInteractionEnabled,@"56 follow chip presentational");
         {CGRect ar=av.frame;CGRect ur=[au convertRect:au.bounds toView:self.window];CGRect nr2=[nlv convertRect:nlv.bounds toView:self.window];CGRect fr2=fp.frame;
          CGFloat gy=CGRectGetMidY([avb convertRect:avb.bounds toView:self.window]),gx=CGRectGetMidX([avb convertRect:avb.bounds toView:self.window]);
@@ -213,6 +213,7 @@
         UIView *tgl=[fr viewWithTag:9156];
         Check(tgl!=nil && CGRectGetMaxY(tgl.frame)>=fr.bounds.size.height-1 && JKRailClosed,@"56 rail toggle present and closed by default");
         for(UIView *v in fr.subviews)if([v isKindOfClass:JKStyleItem.class])Check(v.alpha==0 && !v.userInteractionEnabled,@"56 collapsed items hidden and inert");
+        Check([fr viewWithTag:9161].alpha==0 && [fr viewWithTag:9162].alpha==0,@"56 collapsed: avatar copy and disc hidden with rail");
         ShotView(self.window,@"56-alaa-collapsed");
         [(UIControl *)tgl sendActionsForControlEvents:UIControlEventTouchUpInside];
         [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:1.2]];
