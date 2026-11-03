@@ -375,8 +375,8 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
         for(UIView *s in v.subviews){ if(s.tag==9160)continue;
             if(on){JKRecSave(s);s.backgroundColor=JKAlaa()?[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1]:UIColor.whiteColor;} else JKRecRestore(s);
         }
-    } else if(JKAlaa() && [n isEqualToString:@"AWEPlayInteractionUserAvatarView"] && v.window){
-        JKAvatarApply(v,v.window,on);return;
+    } else if([n isEqualToString:@"AWEPlayInteractionUserAvatarView"] && v.window){
+        JKAvatarApply(v,v.window,on&&JKAlaa());return;
     } else if([n isEqualToString:@"AWEUserNameLabel"]){
         for(UIView *s in v.subviews) if([s isKindOfClass:UILabel.class]){
             UILabel *l=(UILabel *)s;if(!l.text.length)continue;
