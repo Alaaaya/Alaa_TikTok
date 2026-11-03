@@ -209,6 +209,15 @@ static void JKRailApply(UIWindow *w,BOOL animated){
     // Clean any 59 per-child spring state first, before taking 60 snapshots.
     NSMutableArray *q=[NSMutableArray arrayWithObject:w];
     for(NSUInteger i=0;i<q.count&&i<8000;i++){UIView *v=q[i];if(objc_getAssociatedObject(v,kJK59RailState))JKRailRestore(v);[q addObjectsFromArray:[v.subviews copy]];}
+    UIView *rail=JKRailStack(w);BOOL navigationChild=NO;
+    for(UIView *v in q)if(([NSStringFromClass(v.class) isEqualToString:@"TTKTabBar"]||[v isKindOfClass:UITabBar.class])&&[v isDescendantOfView:rail])navigationChild=YES;
+    // Preserve 59 expanded rail geometry without translating a navigation ancestor.
+    if(rail&&!navigationChild){
+        NSValue *g=objc_getAssociatedObject(rail,kJK59RailGeometry);
+        if(!g){g=[NSValue valueWithCGAffineTransform:rail.transform];objc_setAssociatedObject(rail,kJK59RailGeometry,g,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
+        rail.transform=g.CGAffineTransformValue;CGRect rr=[rail convertRect:rail.bounds toView:w];
+        rail.transform=CGAffineTransformConcat(g.CGAffineTransformValue,CGAffineTransformMakeTranslation(0,-MAX(0,CGRectGetMaxY(rr)-(w.bounds.size.height-186))));
+    }
     if(JK60Active())JK60Tree(w);else JK60Restore();
     JKAlaaToggle *toggle=(id)[w viewWithTag:9156];[toggle paint];
     JKResult(YES,JKRailClosed?@"all-feed-chrome-collapsed":@"all-feed-chrome-restored");
