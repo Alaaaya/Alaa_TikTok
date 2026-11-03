@@ -12,6 +12,8 @@
     JKRailClosed=YES;JKRailApply(self.window,NO);JK61SetBarColor(UIColor.whiteColor);Check(dock.hidden&&dock.alpha==0&&!dock.userInteractionEnabled,@"61 changing bottom color cannot reveal collapsed bar");
     JKRailClosed=NO;JKRailApply(self.window,NO);Check(!dock.hidden&&dock.alpha>0&&dock.userInteractionEnabled,@"61 expansion restores colored dock without action regression");
     JK61SetBarColor(nil);JK61BarApply(dock);Check(![dock viewWithTag:9369]&&!JK61BarColor()&&[dock.backgroundColor isEqual:original]&&CGRectEqualToRect(before,dock.frame),@"61 reset removes override and restores current theme rather than hardcoded background");
+    dock.hidden=YES;dock.alpha=.21;dock.userInteractionEnabled=NO;JK61SetBarColor(UIColor.blueColor);Check(dock.hidden&&dock.alpha==.21&&!dock.userInteractionEnabled,@"61 color changes respect independently hidden/dim/noninteractive bar");JK61SetBarColor(nil);dock.hidden=NO;dock.alpha=1;dock.userInteractionEnabled=YES;
+    JK61SetBarColor(UIColor.orangeColor);JK61BarRestore(dock);dock.backgroundColor=UIColor.cyanColor;JK61BarApply(dock);JK61SetBarColor(nil);Check([dock.backgroundColor isEqual:UIColor.cyanColor],@"61 reset after theme update keeps the current theme background");dock.backgroundColor=original;
     for(UIView *v in children)Check(v.superview==dock,@"61 bottom color never removes existing native/decor children");
     NSLog(@"PASS 61 bottom-bar color opt-in/persistence/theme reset/shape/native recognizers/collapse isolation");
 }
