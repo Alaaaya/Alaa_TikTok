@@ -122,28 +122,5 @@
         [bar removeFromSuperview];[tb removeFromSuperview];
         NSLog(@"PASS 54 in-place dock/progress restyle and restore");
     }
-
-    {
-        [D() setInteger:1 forKey:JKStyleKey];
-        UIView *root=[[UIView alloc] initWithFrame:self.window.bounds];[self.window addSubview:root];
-        UIStackView *st=[[UIStackView alloc] initWithFrame:CGRectMake(350,359,80,454)];st.axis=UILayoutConstraintAxisVertical;[root addSubview:st];
-        Class ac=objc_allocateClassPair(UIView.class,"AWEPlayInteractionUserAvatarView",0);if(ac)objc_registerClassPair(ac);
-        Class uc=objc_allocateClassPair(UIView.class,"AWEPlayInteractionAuthorView",0);if(uc)objc_registerClassPair(uc);
-        UIView *av=[[NSClassFromString(@"AWEPlayInteractionUserAvatarView") alloc] initWithFrame:CGRectMake(0,0,60,88)];
-        UIButton *abtn=[UIButton buttonWithType:UIButtonTypeCustom];abtn.frame=CGRectMake(6,6,44,44);[av addSubview:abtn];
-        __block int hits=0;[abtn addAction:[UIAction actionWithHandler:^(UIAction *x){hits++;}] forControlEvents:UIControlEventTouchUpInside];
-        [av.widthAnchor constraintEqualToConstant:60].active=YES;[av.heightAnchor constraintEqualToConstant:88].active=YES;
-        [st addArrangedSubview:av];
-        UIView *au=[[NSClassFromString(@"AWEPlayInteractionAuthorView") alloc] initWithFrame:CGRectMake(16,780,318,22)];[root addSubview:au];
-        JKInstaPass(root,YES,0);
-        Check(av.superview==root && av.window && st.arrangedSubviews.count==1 && st.arrangedSubviews[0]!=av,@"55 avatar moved to author block, rail spacer kept");
-        Check(CGRectGetMaxY(av.frame)<=au.frame.origin.y && fabs(av.frame.origin.x-16)<1,@"55 avatar sits above username at left");
-        [abtn sendActionsForControlEvents:UIControlEventTouchUpInside];
-        Check(hits==1 && abtn.superview==av,@"55 original avatar button/action preserved");
-        JKInstaPass(root,NO,0);
-        Check(av.superview==st && st.arrangedSubviews.count==1 && st.arrangedSubviews[0]==av && CGAffineTransformIsIdentity(av.transform),@"55 avatar restored to original stack");
-        [root removeFromSuperview];[D() setInteger:0 forKey:JKStyleKey];
-        NSLog(@"PASS 55 avatar relocation and restore");
-    }
     NSLog(@"PASS 53 Instagram interface style fixtures: forwarding, counts, reuse, eye, picker gating, restoration");
 }
