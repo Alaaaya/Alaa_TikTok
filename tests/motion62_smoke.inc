@@ -1,6 +1,6 @@
 // Same production module, UIKit Arabic/LTR fixture. No private target guesses.
 {
-    for(CALayer *a=fr.layer;a;a=a.superlayer){fprintf(stderr,"62 ancestor speed=%g timeOffset=%g begin=%g class=%s\n",a.speed,a.timeOffset,a.beginTime,NSStringFromClass(a.class).UTF8String);fflush(stderr);}
+    for(CALayer *a=fr.layer;a;a=a.superlayer)Check(a.speed>0,@"62 fixture window timing is not frozen by screenshots");
     [CATransaction flush];
     banner.text=@"Joker 62 · simulator TEST DATA\nDots motion, native actions preserved";
     JKRailClosed=NO;JK62Finish();JKStyleApplyAll();dots=(id)[self.window viewWithTag:9156];
@@ -74,7 +74,10 @@
     [dots flip];waitMotion();[dots flip];
     NSDate *half=[NSDate dateWithTimeIntervalSinceNow:.09];while(half.timeIntervalSinceNow>0)[NSRunLoop.mainRunLoop runMode:NSDefaultRunLoopMode beforeDate:half];
     UIView *sample=fr.subviews.firstObject;CALayer *presentation=sample.layer.presentationLayer;
+    Check(presentation!=nil,@"62 compositor exposes an actual presentation layer midflight");
     float opacity=presentation?presentation.opacity:sample.layer.opacity;
+    Check(opacity>0&&opacity<.999,@"62 real simulator presentation opacity progresses between endpoints");
+    ShotView(self.window,@"62-midflight-entry");
     CATransform3D tx=presentation?presentation.transform:sample.layer.transform;
     [dots flip];CAAnimationGroup *reverse=(id)[sample.layer animationForKey:JK62Track];
     if(reverse){
