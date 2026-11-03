@@ -7,6 +7,7 @@
     Class feedCls=Fixture(@"TTKFeedFixtureView",UIView.class),btnCls=Fixture(@"AWEFeedVideoButton",UIButton.class);
     UIView *fd=[[feedCls alloc] initWithFrame:self.window.bounds];[self.window addSubview:fd];
     fd.backgroundColor=[UIColor colorWithRed:.08 green:.12 blue:.18 alpha:1];
+    fd.semanticContentAttribute=UISemanticContentAttributeForceRightToLeft;
     UILabel *banner=[[UILabel alloc] initWithFrame:CGRectMake(12,110,W-24,44)];banner.numberOfLines=2;banner.text=@"Joker 58 simulator TEST DATA\nCosmetic fixture, NOT the full HTML overlay";banner.textColor=UIColor.whiteColor;banner.font=[UIFont systemFontOfSize:12];[fd addSubview:banner];
     UIView *fr=[[Fixture(@"TTKFeedRightInteractionStackView",UIView.class) alloc] initWithFrame:CGRectMake(W-80,359,80,454)];[fd addSubview:fr];
     NSMutableArray *buttons=[NSMutableArray new],*recognizers=[NSMutableArray new],*images=[NSMutableArray new];
@@ -40,7 +41,7 @@
     UIView *offscreen=[[auCls alloc] initWithFrame:CGRectMake(12,-136,318,22)];[fd addSubview:offscreen];
     UIView *author=[[auCls alloc] initWithFrame:CGRectMake(12,H-232,318,22)];[fd addSubview:author];
     UIView *name=[[Fixture(@"AWEUserNameLabel",UIView.class) alloc] initWithFrame:CGRectMake(0,0,95,22)];[author addSubview:name];
-    UILabel *nameText=[[UILabel alloc] initWithFrame:name.bounds];nameText.text=@"ليالي الكثبان";nameText.font=[UIFont systemFontOfSize:15];nameText.textColor=UIColor.whiteColor;[name addSubview:nameText];
+    UILabel *nameText=[[UILabel alloc] initWithFrame:name.bounds];nameText.text=@"blinx ✓";nameText.font=[UIFont systemFontOfSize:15];nameText.textColor=UIColor.whiteColor;[name addSubview:nameText];
     UIView *avatar=[[Fixture(@"AWEPlayInteractionUserAvatarView",UIView.class) alloc] initWithFrame:CGRectMake(20,36,60,88)];[fr addSubview:avatar];
     UIButton *avatarButton=[[UIButton alloc] initWithFrame:CGRectMake(6,6,44,44)];[avatarButton setImage:[UIImage systemImageNamed:@"person.crop.circle.fill"] forState:UIControlStateNormal];[avatar addSubview:avatarButton];
     UIView *follow=[[Fixture(@"AWEPlayInteractionFollowPromptView",UIView.class) alloc] initWithFrame:CGRectMake(0,44,60,40)];[avatar addSubview:follow];
@@ -91,7 +92,17 @@
     Check(CGRectEqualToRect(tc.frame,originalTop),@"58 top native geometry unchanged");
     Check(avatar.superview==fr && follow.superview==avatar && avatar.alpha>0 && !avatar.hidden,@"58 real avatar remains visible inside the native rail");
     Check(music.alpha>0 && !music.hidden && [music.gestureRecognizers containsObject:musicGR] && ![fr viewWithTag:9162],@"58 original music remains visible and interactive, no inert replacement");
+    // Bind the drawing view itself, not a label or unrelated narrow wrapper.
+    UIView *captionCanvas=caption;
+    Check(class_getMethodImplementation(captionCanvas.class,@selector(drawRect:))!=class_getMethodImplementation(UIView.class,@selector(drawRect:)),@"58 actual attributed caption canvas implements drawing");
+    CGRect canvasRect=[captionCanvas convertRect:captionCanvas.bounds toView:self.window];
+    Check(CGRectEqualToRect(canvasRect,capRect) && canvasRect.origin.x==12 && CGRectGetMaxX(canvasRect)<=CGRectGetMinX(railRect)-12 && !CGRectIntersectsRect(canvasRect,railRect),@"58 actual black drawing canvas outside rail, not just text label");
+    Check(!CGRectIntersectsRect(canvasRect,avatarRect) && !CGRectIntersectsRect(canvasRect,discRect),@"58 Arabic drawing canvas outside avatar/disc");
+    Check(fd.semanticContentAttribute==UISemanticContentAttributeForceRightToLeft && caption.semanticContentAttribute==UISemanticContentAttributeForceLeftToRight && nameText.semanticContentAttribute==UISemanticContentAttributeForceLeftToRight && nameText.textAlignment==NSTextAlignmentLeft && [nameText.text isEqual:@"blinx ✓"],@"58 Arabic RTL fixture keeps checked blinx author and caption physically left");
+    Check(CGRectGetMaxX(authorRect)<=CGRectGetMinX(railRect)-12 && caption.textAlignment==NSTextAlignmentLeft,@"58 Arabic author/caption inside physical-left bounded region");
+    NSLog(@"PASS 58 Arabic canvas %@ rail %@ author %@ avatar %@ disc %@",NSStringFromCGRect(canvasRect),NSStringFromCGRect(railRect),NSStringFromCGRect(authorRect),NSStringFromCGRect(avatarRect),NSStringFromCGRect(discRect));
     ShotView(self.window,@"58-alaa-style");
+    ShotView(self.window,@"58-alaa-arabic");
     TT50EyeActive=YES;TT50Tree(fd);JKStyleApplyAll();
     Check(fr.hidden && fr.alpha==0 && !fr.userInteractionEnabled && avatar.hidden && follow.hidden && music.hidden,@"58 eye ON hides native rail and moved controls separately");
     TT50Restore();JKStyleApplyAll();
