@@ -50,7 +50,7 @@ static void JK61Register(UIView *v,UIView *tint,NSString *role){
     if(!r){r=[JK61GlassRecord new];r.view=v;r.tint=tint;r.role=role;r.background=v.backgroundColor;r.tintColor=tint.backgroundColor;r.border=v.layer.borderColor?[UIColor colorWithCGColor:v.layer.borderColor]:nil;r.width=v.layer.borderWidth;if([v isKindOfClass:UIVisualEffectView.class])r.effect=((UIVisualEffectView *)v).effect;[JK61Glasses() setObject:r forKey:v];}
     JK61Apply(r);
 }
-static void JK61Refresh(void){for(UIView *v in JK61Glasses())JK61Apply([JK61Glasses() objectForKey:v]);}
+static void JK61Refresh(void){for(UIView *v in JK61Glasses().keyEnumerator.allObjects)JK61Apply([JK61Glasses() objectForKey:v]);}
 @interface JK61Persistence:NSObject
 @property(nonatomic,strong) NSTimer *timer;
 +(instancetype)shared;
