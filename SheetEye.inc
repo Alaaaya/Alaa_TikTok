@@ -61,6 +61,7 @@ static BOOL TT51SheetPeers(UIView *root) {
 @property(nonatomic) CGFloat originalHeight;
 @property(nonatomic) CGRect originalStackFrame;
 @property(nonatomic) BOOL resizedStack;
+@property(nonatomic) BOOL createdStackHeight;
 @property(nonatomic,copy) void (^toggle)(void);
 - (void)scanWindows:(NSArray<UIWindow *> *)windows enabled:(BOOL)enabled hidden:(BOOL)hidden;
 - (void)detach;
@@ -72,7 +73,8 @@ static BOOL TT51SheetPeers(UIView *root) {
 - (void)detach {
     if(self.stack){
         [self.stack removeArrangedSubview:self.row];
-        if(self.stackHeight)self.stackHeight.constant=self.originalHeight;
+        if(self.createdStackHeight)self.stackHeight.active=NO;
+        else if(self.stackHeight)self.stackHeight.constant=self.originalHeight;
         if(self.resizedStack)self.stack.frame=self.originalStackFrame;
     }
     [self.row removeFromSuperview];
@@ -85,7 +87,7 @@ static BOOL TT51SheetPeers(UIView *root) {
         UIEdgeInsets indicators=self.scroll.verticalScrollIndicatorInsets;
         indicators.top-=self.addedInset;self.scroll.verticalScrollIndicatorInsets=indicators;
     }
-    self.row=nil;self.nativeRow=nil;self.scope=nil;self.stack=nil;self.scroll=nil;self.addedInset=0;self.stackHeight=nil;self.resizedStack=NO;
+    self.row=nil;self.nativeRow=nil;self.scope=nil;self.stack=nil;self.scroll=nil;self.addedInset=0;self.stackHeight=nil;self.resizedStack=NO;self.createdStackHeight=NO;
 }
 - (TT51EyeRow *)makeRow:(UIView *)native label:(UILabel *)label {
     TT51EyeRow *row=[TT51EyeRow buttonWithType:UIButtonTypeCustom];
@@ -161,9 +163,22 @@ static BOOL TT51SheetPeers(UIView *root) {
                 if(c.active && c.firstItem==stack && c.firstAttribute==NSLayoutAttributeHeight && !c.secondItem && c.relation==NSLayoutRelationEqual){
                     self.stackHeight=c;self.originalHeight=c.constant;c.constant+=screen.size.height;break;
                 }
-            if(!self.stackHeight && stack.translatesAutoresizingMaskIntoConstraints){
-                self.resizedStack=YES;self.originalStackFrame=stack.frame;
-                CGRect f=stack.frame;f.size.height+=screen.size.height;stack.frame=f;
+            if(!self.stackHeight){
+                // UIStackView may disable autoresizing even when its host assigned only a frame.
+                // Preserve externally constrained layouts, reserve an explicit height only for free stacks.
+                BOOL externallySized=NO;
+                for(UIView *p=stack.superview;p;p=p.superview)
+                    for(NSLayoutConstraint *c in p.constraints)
+                        if(c.active && ((c.firstItem==stack && (c.firstAttribute==NSLayoutAttributeHeight || c.firstAttribute==NSLayoutAttributeTop || c.firstAttribute==NSLayoutAttributeBottom)) ||
+                           (c.secondItem==stack && (c.secondAttribute==NSLayoutAttributeHeight || c.secondAttribute==NSLayoutAttributeTop || c.secondAttribute==NSLayoutAttributeBottom))))externallySized=YES;
+                if(!externallySized){
+                    self.resizedStack=YES;self.originalStackFrame=stack.frame;
+                    CGRect f=stack.frame;f.size.height+=screen.size.height;stack.frame=f;
+                    if(!stack.translatesAutoresizingMaskIntoConstraints){
+                        self.createdStackHeight=YES;self.stackHeight=[stack.heightAnchor constraintEqualToConstant:f.size.height];
+                        self.stackHeight.active=YES;
+                    }
+                }
             }
             [stack insertArrangedSubview:row atIndex:index];self.stack=stack;
         } else {
