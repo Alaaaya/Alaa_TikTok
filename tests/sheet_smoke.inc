@@ -112,4 +112,30 @@ Check(!TT51SheetPeers(unrelated),@"51 no insertion without native Report and Not
     Check(card2.arrangedSubviews.count==2 && CGRectGetHeight(card2.bounds)>=111,@"55 restored original geometry");
     [vs removeFromSuperview];
 }
+
+// 55 visual fixture: native-like autolayout sheet, gray background, Joker card + peer card below with gap.
+{
+    UIView *cover=[[UIView alloc] initWithFrame:self.window.bounds];cover.backgroundColor=UIColor.systemGroupedBackgroundColor;[self.window addSubview:cover];
+    UIScrollView *vs=[[UIScrollView alloc] initWithFrame:CGRectMake(0,200,self.window.bounds.size.width,520)];vs.backgroundColor=UIColor.systemGroupedBackgroundColor;[cover addSubview:vs];
+    UIStackView *outer=[[UIStackView alloc] initWithFrame:CGRectMake(14,12,vs.bounds.size.width-28,0)];outer.axis=UILayoutConstraintAxisVertical;outer.spacing=10;outer.translatesAutoresizingMaskIntoConstraints=NO;[vs addSubview:outer];
+    [NSLayoutConstraint activateConstraints:@[[outer.topAnchor constraintEqualToAnchor:vs.contentLayoutGuide.topAnchor constant:12],[outer.leadingAnchor constraintEqualToAnchor:vs.contentLayoutGuide.leadingAnchor constant:14],[outer.bottomAnchor constraintEqualToAnchor:vs.contentLayoutGuide.bottomAnchor constant:-12],[outer.widthAnchor constraintEqualToConstant:vs.bounds.size.width-28]]];
+    NSMutableArray *cards=[NSMutableArray new];
+    for(NSArray *names in @[@[@"غير مهتم",@"إبلاغ"],@[@"السرعة",@"شاشة خالية",@"الشرح"]]){
+        UIStackView *c=[UIStackView new];c.axis=UILayoutConstraintAxisVertical;c.backgroundColor=UIColor.secondarySystemGroupedBackgroundColor;c.layer.cornerRadius=12;c.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+        for(NSString *n in names){UIButton *b=[UIButton buttonWithType:UIButtonTypeCustom];[b.heightAnchor constraintEqualToConstant:56].active=YES;
+            UILabel *l=[[UILabel alloc] initWithFrame:CGRectMake(18,0,vs.bounds.size.width-100,56)];l.text=n;l.textAlignment=NSTextAlignmentRight;[b addSubview:l];[c addArrangedSubview:b];}
+        [outer addArrangedSubview:c];[cards addObject:c];
+    }
+    [vs layoutIfNeeded];
+    TT51SheetEye *se3=[TT51SheetEye new];[se3 scanWindows:@[self.window] enabled:YES hidden:NO];[vs layoutIfNeeded];
+    Check(se3.row && se3.cardHost==cards[0],@"55 card host is the native white card, not a row");
+    [se3.row2 sendActionsForControlEvents:UIControlEventTouchUpInside];[vs layoutIfNeeded];
+    CFRunLoopRunInMode(kCFRunLoopDefaultMode,.5,false);[vs layoutIfNeeded];
+    UIView *c0=cards[0],*c1=cards[1];
+    CGRect f0=[c0 convertRect:c0.bounds toView:vs],f1=[c1 convertRect:c1.bounds toView:vs];
+    Check(f1.origin.y-CGRectGetMaxY(f0)>=9.5,@"55 native gap below Joker card preserved (autolayout)");
+    Check(c0.layer.cornerRadius>=12 && c0.layer.masksToBounds && c1.layer.cornerRadius>=12,@"55 both cards rounded");
+    ShotView(self.window,@"55-card-gap");
+    [se3 scanWindows:@[self.window] enabled:NO hidden:NO];[cover removeFromSuperview];
+}
 NSLog(@"PASS 51 native sheet stack+scroll row, exact Arabic title, two-way eye, native frames, duplicate prevention, cleanup and symbol fallback");

@@ -29,6 +29,14 @@ static BOOL TT51Download(UIView *v) {
 static BOOL TT51NotInterested(UIView *v) {
     return [@[@"غير مهتم",@"not interested",@"nicht interessiert",@"pas intéressé",@"no me interesa"] containsObject:TT51Text(v)];
 }
+// The native white card that holds the action rows: nearest ancestor with an opaque background taller than one row.
+static UIView *TT55Card(UIView *native,UIView *fallback) {
+    for(UIView *p=native.superview;p && p!=native.window;p=p.superview){
+        if(p.bounds.size.height>native.bounds.size.height*1.5 && p.backgroundColor && CGColorGetAlpha(p.backgroundColor.CGColor)>.9)return p;
+        if(p.bounds.size.height>native.window.bounds.size.height*.6)break;
+    }
+    return fallback;
+}
 static BOOL TT51SheetPeers(UIView *root) {
     BOOL uninterested=NO,report=NO;
     for(UIView *v in TT51Descendants(root)) {
@@ -353,7 +361,7 @@ static const void *kTT55Card=&kTT55Card;
             row.layer.cornerRadius=12;row.layer.maskedCorners=kCALayerMinXMinYCorner|kCALayerMaxXMinYCorner;
             [scroll addSubview:row];[scroll addSubview:row2];self.scroll=scroll;
         }
-        self.cardHost=stack?branch:nil;self.row=row;self.row2=row2;self.nativeRow=native;self.scope=scope;self.sampleLabel=label;self.rowH=screen.size.height;self.extra=0;
+        self.cardHost=TT55Card(native,stack);self.row=row;self.row2=row2;self.nativeRow=native;self.scope=scope;self.sampleLabel=label;self.rowH=screen.size.height;self.extra=0;
         [self.row.glyph setImage:[UIImage systemImageNamed:hidden?@"eye.slash":@"eye"]];
         [self.row.toggleSwitch setOn:hidden animated:NO];
         [row setNeedsLayout];[row layoutIfNeeded];[row2 setNeedsLayout];[row2 layoutIfNeeded];return;
