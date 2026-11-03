@@ -1331,9 +1331,28 @@ static void TTJokerForceLTR(UIView *view) {
     }
     for(UIView *child in view.subviews) TTJokerForceLTR(child);
 }
+// Physical layer coordinates avoid host-app UIView frame mirroring swizzles.
+// This helper is only used for Joker's manually laid-out children.
+static void TTJokerPhysicalFrame(UIView *view,CGRect frame) {
+    view.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    view.transform=CGAffineTransformIdentity;
+    view.layer.bounds=(CGRect){CGPointZero,frame.size};
+    view.layer.position=CGPointMake(frame.origin.x+frame.size.width*view.layer.anchorPoint.x,
+                                   frame.origin.y+frame.size.height*view.layer.anchorPoint.y);
+}
+@interface TTJokerSwitch : UISwitch
+@end
+@implementation TTJokerSwitch
+- (UISemanticContentAttribute)semanticContentAttribute {return UISemanticContentAttributeForceLeftToRight;}
+- (void)setSemanticContentAttribute:(UISemanticContentAttribute)value {[super setSemanticContentAttribute:UISemanticContentAttributeForceLeftToRight];}
+- (UIUserInterfaceLayoutDirection)effectiveUserInterfaceLayoutDirection {return UIUserInterfaceLayoutDirectionLeftToRight;}
+- (void)didMoveToWindow {[super didMoveToWindow];TTJokerForceLTR(self);}
+- (void)layoutSubviews {[super layoutSubviews];TTJokerForceLTR(self);}
+@end
 @interface TTJokerRoot : UIView
 @end
 @implementation TTJokerRoot
+- (void)setSemanticContentAttribute:(UISemanticContentAttribute)value {[super setSemanticContentAttribute:UISemanticContentAttributeForceLeftToRight];}
 - (UISemanticContentAttribute)semanticContentAttribute {return UISemanticContentAttributeForceLeftToRight;}
 - (UIUserInterfaceLayoutDirection)effectiveUserInterfaceLayoutDirection {return UIUserInterfaceLayoutDirectionLeftToRight;}
 - (void)layoutSubviews {[super layoutSubviews];TTJokerForceLTR(self);}
@@ -1343,6 +1362,7 @@ static void TTJokerForceLTR(UIView *view) {
 @implementation TTJokerLabel
 - (NSTextAlignment)textAlignment {return NSTextAlignmentLeft;}
 - (void)setTextAlignment:(NSTextAlignment)value {[super setTextAlignment:NSTextAlignmentLeft];}
+- (void)setSemanticContentAttribute:(UISemanticContentAttribute)value {[super setSemanticContentAttribute:UISemanticContentAttributeForceLeftToRight];}
 - (UISemanticContentAttribute)semanticContentAttribute {return UISemanticContentAttributeForceLeftToRight;}
 @end
 @interface TTJokerRow : TTJokerRoot
@@ -1353,22 +1373,23 @@ static void TTJokerForceLTR(UIView *view) {
     [super layoutSubviews];
     CGFloat w=self.bounds.size.width,h=self.bounds.size.height;
     CGSize ts=[self.toggle sizeThatFits:CGSizeZero];
-    self.icon.frame=CGRectMake(16,(h-24)/2,24,24);
-    self.toggle.frame=CGRectMake(w-14-ts.width,(h-ts.height)/2,ts.width,ts.height);
-    self.caption.frame=CGRectMake(52,12,MAX(0,w-52-ts.width-26),MAX(0,h-24));
+    TTJokerPhysicalFrame(self.icon,CGRectMake(16,(h-24)/2,24,24));
+    TTJokerPhysicalFrame(self.toggle,CGRectMake(w-14-ts.width,(h-ts.height)/2,ts.width,ts.height));
+    TTJokerPhysicalFrame(self.caption,CGRectMake(52,12,MAX(0,w-52-ts.width-26),MAX(0,h-24)));
 }
 @end
 
 @interface TTJokerGrid : UIView
 @end
 @implementation TTJokerGrid
+- (void)setSemanticContentAttribute:(UISemanticContentAttribute)value {[super setSemanticContentAttribute:UISemanticContentAttributeForceLeftToRight];}
 - (UISemanticContentAttribute)semanticContentAttribute {return UISemanticContentAttributeForceLeftToRight;}
 - (UIUserInterfaceLayoutDirection)effectiveUserInterfaceLayoutDirection {return UIUserInterfaceLayoutDirectionLeftToRight;}
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGFloat gap=8,w=(self.bounds.size.width-gap*2)/3;
     for(NSInteger i=0;i<(NSInteger)self.subviews.count;i++)
-        self.subviews[i].frame=CGRectMake((i%3)*(w+gap),(i/3)*94,w,86);
+        TTJokerPhysicalFrame(self.subviews[i],CGRectMake((i%3)*(w+gap),(i/3)*94,w,86));
 }
 @end
 @interface TTJokerHeader : UIView
@@ -1376,15 +1397,16 @@ static void TTJokerForceLTR(UIView *view) {
 @property(nonatomic) BOOL home;
 @end
 @implementation TTJokerHeader
+- (void)setSemanticContentAttribute:(UISemanticContentAttribute)value {[super setSemanticContentAttribute:UISemanticContentAttributeForceLeftToRight];}
 - (UISemanticContentAttribute)semanticContentAttribute {return UISemanticContentAttributeForceLeftToRight;}
 - (UIUserInterfaceLayoutDirection)effectiveUserInterfaceLayoutDirection {return UIUserInterfaceLayoutDirectionLeftToRight;}
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGFloat hw=self.bounds.size.width,tx=self.home?0:36;
-    self.back.frame=CGRectMake(0,9,32,44);
-    self.titleView.frame=CGRectMake(tx,5,MAX(0,hw-tx-38),27);
-    self.subtitleView.frame=CGRectMake(tx,33,MAX(0,hw-tx-38),18);
-    self.closeView.frame=CGRectMake(hw-32,9,32,44);
+    TTJokerPhysicalFrame(self.back,CGRectMake(0,9,32,44));
+    TTJokerPhysicalFrame(self.titleView,CGRectMake(tx,5,MAX(0,hw-tx-38),27));
+    TTJokerPhysicalFrame(self.subtitleView,CGRectMake(tx,33,MAX(0,hw-tx-38),18));
+    TTJokerPhysicalFrame(self.closeView,CGRectMake(hw-32,9,32,44));
 }
 @end
 static UIVisualEffect *TTJokerGlass(void) {
@@ -1457,7 +1479,7 @@ static UIVisualEffect *TTJokerGlass(void) {
     icon.tintColor = [UIColor colorWithRed:0.82 green:0.93 blue:1 alpha:1];
     icon.contentMode = UIViewContentModeScaleAspectFit;
     UILabel *label = [self label:title size:15 weight:UIFontWeightMedium];
-    UISwitch *toggle = [UISwitch new]; toggle.on = PB(key, value); toggle.tag = tag;
+    UISwitch *toggle = [TTJokerSwitch new]; toggle.on = PB(key, value); toggle.tag = tag;
     toggle.accessibilityLabel = title;
     toggle.onTintColor = [UIColor colorWithRed:0.78 green:0.70 blue:0.51 alpha:1];
     [toggle addTarget:self action:@selector(changed:) forControlEvents:UIControlEventValueChanged];
@@ -1555,7 +1577,7 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
 
     if(category==0) {
-    [self.stack addArrangedSubview:[self row:@"show in emoji bar" symbol:@"face.smiling" key:@"tt46.emojiBar" defaultValue:NO tag:246]];
+    [self.stack addArrangedSubview:[self row:@"إظهار بشريط الإيموجي" symbol:@"face.smiling" key:@"tt46.emojiBar" defaultValue:NO tag:246]];
     [self.stack addArrangedSubview:[self row:@"استخدام رابط التشغيل (قد يكون بلا علامة)" symbol:@"play.rectangle" key:@"tt.extra.playbackAsset" defaultValue:NO tag:201]];
     [self.stack addArrangedSubview:[self row:@"حفظ القصة بالضغط المطوّل" symbol:@"arrow.down.circle" key:@"tt.extra.storySave" defaultValue:NO tag:202]];
     }
@@ -1864,6 +1886,7 @@ static UIVisualEffect *TTJokerGlass(void) {
 - (void)petSize:(UISlider *)sender {[D() setDouble:sender.value forKey:@"tt.pet.size"];[[TTJokerPet shared] refresh];}
 - (void)petKind:(UISegmentedControl *)sender {[D() setInteger:sender.selectedSegmentIndex forKey:@"tt.pet.kind"];[[TTJokerPet shared] refresh];}
 - (void)changed:(UISwitch *)sender {
+    if(sender.tag==246){[D() setBool:sender.on forKey:@"tt46.emojiBar"];[[TT122Hub shared] refresh];return;}
     if(sender.tag==360){[D() setBool:sender.on forKey:@"tt.pet.enabled"];[[TTJokerPet shared] refresh];return;}
 
     if (sender.tag == 210) { [D() setBool:sender.on forKey:@"tt.extra.videoCount"]; return; }

@@ -14,7 +14,7 @@ assert 'for(NSInteger i=0;i<7;i++)' in home and '[self categoryTile:i]' in home
 assert 'TTJokerGrid *grid=' in home
 assert 'self row:' not in home
 assert '[self showCategory:-1 animated:YES]' in s
-assert 'self.back.frame=CGRectMake(0,9,32,44)' in s
+assert 'TTJokerPhysicalFrame(self.back,CGRectMake(0,9,32,44))' in s
 assert '[scroll.topAnchor constraintEqualToAnchor:header.bottomAnchor]' in s
 assert '[self.stack removeArrangedSubview:header]' in s
 assert 'snapshotViewAfterScreenUpdates:NO' in page and 'CGAffineTransformMakeTranslation' in page
@@ -37,8 +37,8 @@ print('PASS five LTR category tiles, scoped toggles, back/slide/reduced-motion, 
 
 assert 'multiplier:.70' in s
 assert 'SystemThinMaterialDark' in s and 'SystemThickMaterialDark' not in s
-assert 'self.closeView.frame=CGRectMake(hw-32' in s
-assert 'self.subviews[i].frame=CGRectMake((i%3)' in s
+assert 'TTJokerPhysicalFrame(self.closeView,CGRectMake(hw-32' in s
+assert 'TTJokerPhysicalFrame(self.subviews[i],CGRectMake((i%3)' in s
 assert "TTJokerHeader new" in s
 
 settings=s[s.index('// Physical LTR containers'):]
@@ -55,3 +55,7 @@ assert 'sw.on=installed;sw.enabled=NO' in s
 assert 'not installed' in s
 
 assert 'category > 6' in s
+
+assert 'if(sender.tag==246){[D() setBool:sender.on forKey:@"tt46.emojiBar"]' in settings
+assert '@"إظهار بشريط الإيموجي"' in settings
+assert "TTJokerSwitch new" in settings

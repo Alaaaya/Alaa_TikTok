@@ -89,6 +89,24 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
             [vc showCategory:-1 animated:NO];
             Check(vc.category==-1 && vc.stack.arrangedSubviews.count==1,@"back restores grid");
         }
+        // Regression 47: persist both toggle directions and reopen the category.
+        [vc showCategory:0 animated:NO];[vc.view layoutIfNeeded];
+        UISwitch *emojiSwitch=(UISwitch *)[vc.stack viewWithTag:246];
+        Check(emojiSwitch && emojiSwitch.enabled,@"47 emoji switch enabled");
+        Check([emojiSwitch.accessibilityLabel isEqual:@"إظهار بشريط الإيموجي"],@"47 Arabic emoji label");
+        [emojiSwitch setOn:YES];[emojiSwitch sendActionsForControlEvents:UIControlEventValueChanged];
+        Check([D() boolForKey:@"tt46.emojiBar"],@"47 ON persists");
+        [vc showCategory:-1 animated:NO];[vc showCategory:0 animated:NO];[vc.view layoutIfNeeded];
+        emojiSwitch=(UISwitch *)[vc.stack viewWithTag:246];
+        Check(emojiSwitch.on,@"47 ON survives category reopen");
+        [emojiSwitch setSemanticContentAttribute:UISemanticContentAttributeForceRightToLeft];
+        [emojiSwitch layoutIfNeeded];
+        Check(emojiSwitch.semanticContentAttribute==UISemanticContentAttributeForceLeftToRight,@"47 switch resists RTL host");
+        Shot(vc,@"47-download-on");
+        [emojiSwitch setOn:NO];[emojiSwitch sendActionsForControlEvents:UIControlEventValueChanged];
+        Check(![D() boolForKey:@"tt46.emojiBar"],@"47 OFF persists");
+        [vc showCategory:-1 animated:NO];[vc showCategory:0 animated:NO];
+        Check(!((UISwitch *)[vc.stack viewWithTag:246]).on,@"47 OFF survives reopen");
         InstalledSettings *installed=[InstalledSettings new];[installed loadViewIfNeeded];
         [installed showCategory:-1 animated:NO];
         Check(installed.stack.arrangedSubviews.firstObject.subviews.count==7,@"installed Shijima tile retained");
