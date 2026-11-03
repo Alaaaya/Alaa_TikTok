@@ -186,6 +186,7 @@ static const void *kTT55Card=&kTT55Card;
     [self relayoutExtra:self.rowH*(rows.count-1)];
     [self layoutSubRows];
     [self styleCard:YES];
+    [self revealCard];
     [self scheduleReveal];
 }
 - (void)layoutSubRows {
