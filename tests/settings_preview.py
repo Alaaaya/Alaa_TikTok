@@ -47,6 +47,8 @@ prefix+=overlay+helpers+r"""
 @property(nonatomic,strong) UIView *overlay;
 @property(nonatomic) BOOL dragging,dragExceeded;
 @property(nonatomic) CGPoint dragOrigin;
+@property(nonatomic) CGSize placedSize;
+@property(nonatomic,strong) UIButton *downloadButton,*eyeButton,*progressButton;
 @property(nonatomic) NSInteger tapCount;
 +(instancetype)shared;
 -(void)refresh;

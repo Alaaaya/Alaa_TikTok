@@ -1,5 +1,7 @@
 from pathlib import Path
 p=Path('PhaseOne.inc').read_text();b=Path('BarColor61.inc').read_text();g=Path('Glass61.inc').read_text()
+assert 'CGSizeEqualToSize(self.placedSize,window.bounds.size)' in p
+assert '[self layoutFloatingInWindow:window]' in p
 assert 'tt61.feedFloating' in p and 'TT61FloatingHidden' in p
 assert 'if(b.tag!=1221&&b.tag!=1222)return;' in p
 assert '[TT61FloatingButton buttonWithType:UIButtonTypeCustom]' in p and 'return self.bounds;' in p

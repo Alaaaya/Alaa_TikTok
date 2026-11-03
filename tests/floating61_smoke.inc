@@ -22,6 +22,17 @@
     NSDictionary *saved=[[D() dictionaryForKey:@"tt122.position.1222"] copy];
     UIButton *recreated=[hub floating:@"eye" tag:1222];[hub place:recreated y:0];Check(CGPointEqualToPoint(recreated.center,eye.center),@"61 saved main-feed drag restores after recreation");
     CGRect portrait=hub.overlay.frame;hub.overlay.frame=CGRectMake(0,0,portrait.size.height,portrait.size.width);[hub place:eye y:0];CGPoint expected=[hub clamp:CGPointMake([saved[@"x"] doubleValue]*hub.overlay.bounds.size.width,[saved[@"y"] doubleValue]*hub.overlay.bounds.size.height) view:eye];Check(CGPointEqualToPoint(expected,eye.center),@"61 rotation uses persisted normalized position");hub.overlay.frame=portrait;[hub place:eye y:0];
+    // Real refresh-layout helper must notice rotation even after UIKit already
+    // autoresized the overlay to the new window bounds.
+    hub.downloadButton=download;hub.eyeButton=eye;
+    hub.overlay.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+    [hub layoutFloatingInWindow:self.window];CGRect windowPortrait=self.window.frame;
+    self.window.frame=CGRectMake(windowPortrait.origin.x,windowPortrait.origin.y,windowPortrait.size.height,windowPortrait.size.width);
+    hub.overlay.frame=self.window.bounds; // Model autoresizing before refresh.
+    [hub layoutFloatingInWindow:self.window];
+    CGPoint rotated=[hub clamp:CGPointMake([saved[@"x"] doubleValue]*hub.overlay.bounds.size.width,[saved[@"y"] doubleValue]*hub.overlay.bounds.size.height) view:eye];
+    Check(CGSizeEqualToSize(hub.placedSize,self.window.bounds.size)&&hypot(eye.center.x-rotated.x,eye.center.y-rotated.y)<.01,@"61 real refresh layout repositions normalized drag after UIKit autoresizes overlay");
+    self.window.frame=windowPortrait;hub.overlay.frame=self.window.bounds;[hub layoutFloatingInWindow:self.window];
     [eye sendActionsForControlEvents:UIControlEventTouchDown];pan.fixtureState=UIGestureRecognizerStateBegan;pan.fixtureDelta=CGPointMake(2,2);[hub pan:pan];pan.fixtureState=UIGestureRecognizerStateEnded;[hub pan:pan];Check(!hub.dragExceeded,@"61 sub8pt translation is not a drag");
     [eye sendActionsForControlEvents:UIControlEventTouchUpInside];
     [hub place:download y:210];eye.center=CGPointMake(40,280);ShotView(self.window,@"61-floating-main-feed");

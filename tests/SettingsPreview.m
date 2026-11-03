@@ -98,6 +98,8 @@ static UIView *TT122Material(CGRect frame) {
 @property(nonatomic,strong) UIView *overlay;
 @property(nonatomic) BOOL dragging,dragExceeded;
 @property(nonatomic) CGPoint dragOrigin;
+@property(nonatomic) CGSize placedSize;
+@property(nonatomic,strong) UIButton *downloadButton,*eyeButton,*progressButton;
 @property(nonatomic) NSInteger tapCount;
 +(instancetype)shared;
 -(void)refresh;
@@ -148,6 +150,17 @@ static UIView *TT122Material(CGRect frame) {
     }
     // Keep cumulative translation so sub-threshold motion never starts a drag.
     if(g.state==UIGestureRecognizerStateCancelled)[g setTranslation:CGPointZero inView:self.overlay];
+}
+// Compare the last positioned size, not autoresized overlay bounds.
+- (void)layoutFloatingInWindow:(UIWindow *)window {
+    BOOL resized = !CGSizeEqualToSize(self.placedSize,window.bounds.size);
+    if (self.overlay.superview != window) { self.overlay.frame = window.bounds; [window addSubview:self.overlay]; resized = YES; }
+    if (resized || CGPointEqualToPoint(self.downloadButton.center,CGPointZero)) {
+        self.overlay.frame = window.bounds;self.placedSize=window.bounds.size;
+        [self place:self.downloadButton y:window.bounds.size.height*.42];
+        [self place:self.eyeButton y:window.bounds.size.height*.42+64];
+        [self place:self.progressButton y:window.bounds.size.height*.42+128];
+    }
 }
 
 @end

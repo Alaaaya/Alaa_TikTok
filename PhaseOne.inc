@@ -126,6 +126,7 @@ static NSURL *TT122VideoURL(id model, NSInteger quality) {
 @property(nonatomic) BOOL dragging;
 @property(nonatomic) BOOL dragExceeded;
 @property(nonatomic) CGPoint dragOrigin;
+@property(nonatomic) CGSize placedSize;
 @property(nonatomic) BOOL started;
 @property(nonatomic) BOOL refreshing;
 + (instancetype)shared;
@@ -325,6 +326,17 @@ static UIView *TT122Material(CGRect frame) {
     // Keep cumulative translation so sub-threshold motion never starts a drag.
     if(g.state==UIGestureRecognizerStateCancelled)[g setTranslation:CGPointZero inView:self.overlay];
 }
+// Compare the last positioned size, not autoresized overlay bounds.
+- (void)layoutFloatingInWindow:(UIWindow *)window {
+    BOOL resized = !CGSizeEqualToSize(self.placedSize,window.bounds.size);
+    if (self.overlay.superview != window) { self.overlay.frame = window.bounds; [window addSubview:self.overlay]; resized = YES; }
+    if (resized || CGPointEqualToPoint(self.downloadButton.center,CGPointZero)) {
+        self.overlay.frame = window.bounds;self.placedSize=window.bounds.size;
+        [self place:self.downloadButton y:window.bounds.size.height*.42];
+        [self place:self.eyeButton y:window.bounds.size.height*.42+64];
+        [self place:self.progressButton y:window.bounds.size.height*.42+128];
+    }
+}
 - (void)refresh {
     UIWindow *window = nil;
     for(UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
@@ -347,14 +359,7 @@ static UIView *TT122Material(CGRect frame) {
         self.ring.fillColor = UIColor.clearColor.CGColor; self.ring.strokeColor = self.downloadButton.tintColor.CGColor; self.ring.lineWidth = 2.5;
         self.ring.strokeEnd = 0; [self.progressButton.layer addSublayer:self.ring];
     }
-    BOOL resized = !CGSizeEqualToSize(self.overlay.bounds.size,window.bounds.size);
-    if (self.overlay.superview != window) { self.overlay.frame = window.bounds; [window addSubview:self.overlay]; resized = YES; }
-    if (resized || CGPointEqualToPoint(self.downloadButton.center,CGPointZero)) {
-        self.overlay.frame = window.bounds;
-        [self place:self.downloadButton y:window.bounds.size.height*.42];
-        [self place:self.eyeButton y:window.bounds.size.height*.42+64];
-        [self place:self.progressButton y:window.bounds.size.height*.42+128];
-    }
+    [self layoutFloatingInWindow:window];
     UIViewController *top = TT122TopVC();
     BOOL feedTop=NO;
     for(UIViewController *vc=self.feed;vc;vc=vc.parentViewController)if(vc==top){feedTop=YES;break;}
