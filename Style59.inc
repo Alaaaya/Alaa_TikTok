@@ -231,7 +231,7 @@ static void JK59Window(UIWindow *w,BOOL on){
         JK60Restore();
         // Find rails even if hidden by eye. Restore is independent of style selection.
         NSMutableArray *q=[NSMutableArray arrayWithObject:w];
-        for(NSUInteger i=0;i<q.count&&i<8000;i++){UIView *v=q[i];if(objc_getAssociatedObject(v,kJK59RailState))JKRailRestore(v);[q addObjectsFromArray:[v.subviews copy]];}
+        for(NSUInteger i=0;i<q.count&&i<8000;i++){UIView *v=q[i];if(objc_getAssociatedObject(v,kJK59RailState)||objc_getAssociatedObject(v,kJK59RailGeometry))JKRailRestore(v);[q addObjectsFromArray:[v.subviews copy]];}
         [toggle removeFromSuperview];
         for(NSInteger tag=9360;tag<=9361;tag++)[[w viewWithTag:tag] removeFromSuperview];
         return;
