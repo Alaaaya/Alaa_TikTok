@@ -273,7 +273,7 @@ static const void *kJKAvaRec=&kJKAvaRec;
 @end
 static UIView *JKFindClass(UIView *root,NSString *name,NSUInteger depth){
     if([NSStringFromClass(root.class) isEqualToString:name])return root;
-    if(depth>16)return nil;
+    if(depth>80)return nil;
     for(UIView *c in root.subviews){UIView *f=JKFindClass(c,name,depth+1);if(f)return f;}
     return nil;
 }
@@ -384,7 +384,7 @@ static void JKDecoApply(UIWindow *w,NSInteger tag,UIView *src,CGRect fr,CGFloat 
     iv.frame=fr;iv.layer.cornerRadius=fr.size.width/2;iv.layer.borderWidth=(tag==9162)?0:border;iv.layer.borderColor=bc.CGColor;
     if(spin && ![iv.layer animationForKey:@"jkspin"]){CABasicAnimation *a=[CABasicAnimation animationWithKeyPath:@"transform.rotation.z"];a.fromValue=@0;a.toValue=@(M_PI*2);a.duration=6;a.repeatCount=HUGE_VALF;[iv.layer addAnimation:a forKey:@"jkspin"];}
 }
-static NSMutableDictionary *JKHits;static NSUInteger JKNodes;
+static NSMutableDictionary *JKHits;static NSUInteger JKNodes,JKDeep;
 static void JKLog(NSString *line){
     NSString *folder=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject;if(!folder)return;
     NSString *path=[folder stringByAppendingPathComponent:@"joker_debug.txt"];
@@ -396,7 +396,7 @@ static void JKLog(NSString *line){
     }
 }
 static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
-    NSString *n=NSStringFromClass(v.class);JKNodes++;
+    NSString *n=NSStringFromClass(v.class);JKNodes++;if(depth>JKDeep)JKDeep=depth;
     if(JKHits&&([n hasPrefix:@"TTK"]||[n hasPrefix:@"AWEPlayInteraction"]||[n hasPrefix:@"AWEFeed"]||[n hasPrefix:@"AWETabBar"]||[n hasPrefix:@"AWEUser"]))JKHits[n]=@([JKHits[n] integerValue]+1);
     if([n isEqualToString:@"TTKTabBarBlurView"] && [v.superview isKindOfClass:UITabBar.class]==NO && [NSStringFromClass(v.superview.class) isEqualToString:@"TTKTabBar"]==NO){}
     if([n isEqualToString:@"TTKTabBarBlurView"]){
@@ -481,11 +481,11 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
 }
 static void JKInstaApplyAll(void){
     BOOL on=JKStyleOn();static NSString *last;
-    JKHits=[NSMutableDictionary new];JKNodes=0;NSArray *ws=TT48Windows();
+    JKHits=[NSMutableDictionary new];JKNodes=0;JKDeep=0;NSArray *ws=TT48Windows();
     for(UIWindow *w in ws)JKInstaPass(w,on,0);
     NSArray *keys=[JKHits.allKeys sortedArrayUsingSelector:@selector(compare:)];NSMutableString *m=[NSMutableString new];
     for(NSString *k in keys)[m appendFormat:@" %@=%@",k,JKHits[k]];
-    NSString *sum=[NSString stringWithFormat:@"apply style=%ld on=%d windows=%lu nodes=%lu hits:%@",(long)JKStyle(),on,(unsigned long)ws.count,(unsigned long)JKNodes,m];
+    NSString *sum=[NSString stringWithFormat:@"apply style=%ld on=%d windows=%lu nodes=%lu deepest=%lu capped=%d hits:%@",(long)JKStyle(),on,(unsigned long)ws.count,(unsigned long)JKNodes,(unsigned long)JKDeep,JKNodes>=8000,m];
     if(![sum isEqualToString:last]){last=sum;JKLog(sum);}
     JKHits=nil;
 }
