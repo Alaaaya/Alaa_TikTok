@@ -6,6 +6,7 @@
 #import <MetalKit/MetalKit.h>
 #include "Glass61.inc"
 #include "BarColor61.inc"
+#include "Comments65.inc"
 static char kBtnsKey;
 
 static const NSInteger kGlassTag = 0x61A55;
@@ -359,6 +360,12 @@ static void TTGFillFeed(UIView *v, CGFloat barTop, CGFloat fullH, int d) {
         TTGFillFeed(s, barTop, fullH, d + 1);
     }
 }
+
+%hook AWECommentPanelCell
+- (void)layoutSubviews {%orig;JK65Apply((UITableViewCell *)self);}
+- (void)didMoveToWindow {%orig;JK65Apply((UITableViewCell *)self);}
+- (void)prepareForReuse {%orig;JK65Restore((UITableViewCell *)self);}
+%end
 
 %hook AWEFeedSlidingScrollView
 - (void)layoutSubviews {
@@ -1796,6 +1803,7 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack addArrangedSubview:[self iconRow:@"صورة زر التنزيل" tag:1221]];
         [self.stack addArrangedSubview:[self iconRow:@"صورة زر العين" tag:1222]];
         JKAddStylePicker(self.stack);
+        JK65AddPicker(self.stack);
     [self.stack addArrangedSubview:[self row:@"الشريط الزجاجي" symbol:@"rectangle.bottomthird.inset.filled" key:kPrefEnabled defaultValue:YES tag:0]];
     [self.stack addArrangedSubview:[self row:@"كبسولة عائمة" symbol:@"capsule" key:kPrefFloating defaultValue:YES tag:1]];
     [self.stack addArrangedSubview:[self row:@"الفيديو تحت الشريط" symbol:@"rectangle.expand.vertical" key:kPrefUnder defaultValue:YES tag:2]];

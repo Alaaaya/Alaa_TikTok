@@ -39,6 +39,7 @@ static BOOL JK62FixtureReduceMotion(void){return JK62FixtureReduce;}
 #undef UIAccessibilityIsReduceMotionEnabled
 #include "../HierarchyDump.inc"
 #include "../AutoCapture64.inc"
+#include "../Comments65.inc"
 static UIVisualEffect *TTGEffect(void){return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];}
 static BOOL TT122Enabled(NSString *key){return PB(key,YES);}
 @interface TT122Passthrough : UIView
@@ -1018,6 +1019,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         #include "style_smoke.inc"
         JK62SetStyle(0);
         #include "sheet_smoke.inc"
+        #include "comments65_smoke.inc"
         #include "glass61_smoke.inc"
         Shot(vc,@"home");
         for(NSInteger page=0;page<8;page++){

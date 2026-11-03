@@ -5,7 +5,7 @@ for bad in ['.text','.attributedText','titleForState:','accessibilityLabel','acc
 for token in ['JK64_SESSION 45','JK64_TTL 600','JK64_SCAN_BUDGET 12','JK64_VISITS 1800','JK64Events>=24','weakObjectsHashTable','score>JK64Best','JK64Baseline containsObject','JK64Expire','nodeCapReached','discoveryCapped','retainedAgeSeconds','writeToFile:','view.window']:
  if token=='view.window': continue
  assert token in s,token
-assert 'Version: 64' in Path('control').read_text()
+assert int(Path('control').read_text().split('Version: ')[1].splitlines()[0])>=64
 assert '#include "AutoCapture64.inc"' in t
 for token in ['JK64Event(@"controller_present")','JK64Event(@"controller_appear")','JK64Event(@"controller_child")','JK64Event(@"view_window")','JK64Arm();','JK64Export(path);','joker_comments64.txt','armCommentsRow']:
  assert token in t,token

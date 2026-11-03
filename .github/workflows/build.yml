@@ -1,7 +1,7 @@
 name: Build Alaa_TikTok
 on:
   push:
-    branches: [main, tiktok-glass, insta57, fix57b, fix58, fix58-fixtures, fix59, fix60, fix61, fix62, fix63, fix64]
+    branches: [main, tiktok-glass, insta57, fix57b, fix58, fix58-fixtures, fix59, fix60, fix61, fix62, fix63, fix64, fix65]
   workflow_dispatch:
 permissions:
   contents: write
@@ -29,6 +29,7 @@ jobs:
           python3 tests/check62.py
           python3 tests/check63.py
           python3 tests/check64.py
+          python3 tests/check65.py
       - name: Tools
         run: brew install ldid make dpkg
       - name: Build

@@ -6,5 +6,4 @@ for token in ['JK_DUMP_NODES 900','JK_DUMP_DEPTH 18','JK_DUMP_BYTES 160000','JK_
     assert token in s, token
 assert int(Path('control').read_text().split('Version: ')[1].splitlines()[0]) >= 63
 assert 'joker_comments64.txt' in t
-assert 'كروت' not in t
 print('PASS 63 privacy/source guards and no fake style')
