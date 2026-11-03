@@ -56,7 +56,7 @@ static void JK62Animate(UIWindow *w){
     NSInteger style=JK62Effective(JK62Style(),UIAccessibilityIsReduceMotionEnabled());
     // Capture presentation values BEFORE cancelling an interrupted sequence.
     NSMapTable *from=[NSMapTable weakToStrongObjectsMapTable];
-    for(UIView *v in JK62Held()){
+    for(UIView *v in JK62Held().keyEnumerator.allObjects){
         CALayer *shown=v.layer.presentationLayer;
         if([v.layer animationForKey:JK62Track]) [from setObject:@[@(shown?shown.opacity:v.layer.opacity),[NSValue valueWithCATransform3D:shown?shown.transform:v.layer.transform]] forKey:v];
     }
@@ -93,7 +93,7 @@ static void JK62Animate(UIWindow *w){
     JK62Running=YES;NSUInteger generation=JK62Generation;
     // Disable real input throughout exit and delayed entry. Exact native state
     // is restored at settlement. Do not alter targets, recognizers or geometry.
-    for(UIView *v in JK62Held())v.userInteractionEnabled=NO;
+    for(UIView *v in JK62Held().keyEnumerator.allObjects)v.userInteractionEnabled=NO;
     NSMutableArray *all=[NSMutableArray arrayWithArray:buttons];[all addObjectsFromArray:roots];
     CFTimeInterval total=.2,now=CACurrentMediaTime();BOOL closed=JKRailClosed;
     for(NSUInteger i=0;i<all.count;i++){
