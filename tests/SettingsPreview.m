@@ -1074,6 +1074,19 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
             Check(TTToolImage(1222)==nil,@"eye unchanged");
             [NSFileManager.defaultManager removeItemAtPath:TTToolPath(1221) error:nil];
             [TTToolCache() removeObjectForKey:@1221];Check(TTToolImage(1221)==nil,@"reset");
+            // UIKit presentation requires returning to the main dispatch queue;
+            // nested NSRunLoop pumping inside the long fixture block cannot do it.
+            [vc barPicker:nil];
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,2*NSEC_PER_SEC),dispatch_get_main_queue(), ^{
+                Check([vc.presentedViewController isKindOfClass:UIColorPickerViewController.class],@"61 public native color picker presented");
+                UIColorPickerViewController *picker=(id)vc.presentedViewController;
+                Check(!picker.supportsAlpha,@"61 custom bar color remains opaque/readable");
+                picker.selectedColor=UIColor.orangeColor;[vc colorPickerViewControllerDidSelectColor:picker];
+                Check(JK61BarColor()!=nil,@"61 native picker delegate live-persisted");
+                ShotView(self.window,@"61-native-color-picker");
+                [vc dismissViewControllerAnimated:NO completion:^{
+                [vc barReset:nil];
+                NSLog(@"PASS 61 real public color picker presentation and live delegate");
             [vc showCategory:-1 animated:NO];
             UIButton *button=(UIButton *)vc.stack.arrangedSubviews.lastObject;
             [button sendActionsForControlEvents:UIControlEventTouchUpInside];
@@ -1083,6 +1096,8 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
                 NSLog(@"PASS 49 local file and native share presentation");
                 NSLog(@"PASS UIKit grid/category/back/layout/art persistence smoke");
                 fflush(stdout);exit(0);
+            });
+                }];
             });
         });
     });

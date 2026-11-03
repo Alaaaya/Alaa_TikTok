@@ -27,8 +27,7 @@
     [vc showCategory:-1 animated:NO];[vc showCategory:0 animated:NO];Check(((UISwitch *)[vc.stack viewWithTag:261]).on&&((UISwitch *)[vc.stack viewWithTag:246]).on,@"61 both independent switches persist on reopen");
     Shot(vc,@"61-floating-toggle");[D() setBool:NO forKey:@"tt61.feedFloating"];[D() setBool:NO forKey:@"tt46.emojiBar"];[vc showCategory:-1 animated:NO];
     [vc showCategory:4 animated:NO];[vc.view layoutIfNeeded];Check([vc.stack viewWithTag:620]&&[vc.stack viewWithTag:626]&&[vc.stack viewWithTag:627],@"61 bar swatches custom picker and reset reachable");Shot(vc,@"61-bar-color-swatches");
-    UIButton *swatch=(id)[vc.stack viewWithTag:621];[swatch sendActionsForControlEvents:UIControlEventTouchUpInside];Check(JK61BarColor()!=nil,@"61 swatch action persists color");[vc barPicker:nil];
-    NSDate *until=[NSDate dateWithTimeIntervalSinceNow:.8];while([until timeIntervalSinceNow]>0)[NSRunLoop.currentRunLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:.02]];
-    Check([vc.presentedViewController isKindOfClass:UIColorPickerViewController.class],@"61 public native color picker presented");UIColorPickerViewController *picker=(id)vc.presentedViewController;Check(!picker.supportsAlpha,@"61 custom bar color remains readable opaque");picker.selectedColor=UIColor.orangeColor;[vc colorPickerViewControllerDidSelectColor:picker];Check(JK61BarColor()!=nil,@"61 native picker delegate live-persisted");ShotView(self.window,@"61-native-color-picker");[vc dismissViewControllerAnimated:NO completion:nil];[vc barReset:nil];[vc showCategory:-1 animated:NO];
+    UIButton *swatch=(id)[vc.stack viewWithTag:621];[swatch sendActionsForControlEvents:UIControlEventTouchUpInside];Check(JK61BarColor()!=nil,@"61 swatch action persists color");// Real UIKit picker presentation runs asynchronously after this long fixture block returns.
+    [vc barReset:nil];[vc showCategory:-1 animated:NO];
     NSLog(@"PASS 61 global explicit glass registry live tint/public blur/edge, debounce reload reset sync, no native mutation and independent floating switch");
 }
