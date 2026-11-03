@@ -134,7 +134,7 @@ static BOOL TT51SheetPeers(UIView *root) {
     [sc layoutIfNeeded];
     CGRect r=[self.row2 convertRect:self.row2.bounds toView:sc];
     UIView *ch=self.cardHost;
-    if(ch && ch!=self.stack && [ch isDescendantOfView:sc] && [self.row2 isDescendantOfView:ch]){
+    if(ch && [ch isDescendantOfView:sc] && [self.row2 isDescendantOfView:ch]){
         CGRect cr=[ch convertRect:ch.bounds toView:sc];r.origin.y=cr.origin.y;r.size.height=MAX(r.size.height,CGRectGetMaxY(cr)-cr.origin.y);
     }
     // The native sheet may not grow its content size for our extra rows: grow it so the card can be scrolled fully into view.
