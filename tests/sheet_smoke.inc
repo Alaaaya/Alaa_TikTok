@@ -100,7 +100,7 @@ Check(!TT51SheetPeers(unrelated),@"51 no insertion without native Report and Not
     vs.contentOffset=CGPointMake(0,vs.contentSize.height-vs.bounds.size.height);
     [se2.row2 sendActionsForControlEvents:UIControlEventTouchUpInside];
     CFRunLoopRunInMode(kCFRunLoopDefaultMode,.6,false);
-    CGRect rr=[se2.row2 convertRect:se2.row2.bounds toView:vs];
+    CGRect rr=[card2 convertRect:card2.bounds toView:vs];
     CGFloat topVis=rr.origin.y-vs.contentOffset.y;
     NSLog(@"55 dbg topVis=%f off=%f rr=%@ cs=%f mode=%ld",topVis,vs.contentOffset.y,NSStringFromCGRect(rr),vs.contentSize.height,(long)se2.mode);
     Check(topVis>=-.5 && topVis<=40,@"55 expanded card top visible automatically after tap (started scrolled down)");
