@@ -727,7 +727,14 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
     backdrop.colors=@[(id)UIColor.systemTealColor.CGColor,(id)UIColor.systemOrangeColor.CGColor,(id)UIColor.systemBlueColor.CGColor];
     [self.window.layer insertSublayer:backdrop atIndex:0];
     TTGSettingsController *vc=[TTGSettingsController new];self.window.rootViewController=vc;[self.window makeKeyAndVisible];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(), ^{
+    // Prime real AVPlayers before entering the long main-queue fixture block.
+    // AVFoundation's main-queue readiness callbacks cannot drain reentrantly
+    // from runUntilDate inside that same block.
+    NSURL *fixtureURL=[NSBundle.mainBundle URLForResource:@"player-fixture" withExtension:@"mp4"];
+    AVPlayer *fixtureActive=[AVPlayer playerWithURL:fixtureURL],*fixtureInactive=[AVPlayer playerWithURL:fixtureURL];
+    [fixtureActive.currentItem.asset loadValuesAsynchronouslyForKeys:@[@"playable",@"tracks"] completionHandler:^{}];
+    [fixtureInactive.currentItem.asset loadValuesAsynchronouslyForKeys:@[@"playable",@"tracks"] completionHandler:^{}];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,5*NSEC_PER_SEC),dispatch_get_main_queue(), ^{
         Check([vc.pageTitle.text isEqual:@"Joker"],@"brand");
         Check(vc.backButton.hidden,@"home back hidden");
         Check(vc.stack.arrangedSubviews.count==2,@"one physical grid");

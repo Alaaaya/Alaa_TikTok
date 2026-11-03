@@ -30,7 +30,7 @@
     UIView *off=[[playerCls alloc] initWithFrame:CGRectOffset(fd.bounds,0,-h)];[fd insertSubview:off atIndex:0];
     NSURL *url=[NSBundle.mainBundle URLForResource:@"player-fixture" withExtension:@"mp4"];
     Check(url!=nil,@"59 bundled local playable media fixture");
-    AVPlayer *active=[AVPlayer playerWithURL:url],*inactive=[AVPlayer playerWithURL:url];active.automaticallyWaitsToMinimizeStalling=NO;inactive.automaticallyWaitsToMinimizeStalling=NO;
+    AVPlayer *active=fixtureActive,*inactive=fixtureInactive;active.automaticallyWaitsToMinimizeStalling=NO;inactive.automaticallyWaitsToMinimizeStalling=NO;
     AVPlayerLayer *pl=[AVPlayerLayer playerLayerWithPlayer:active];pl.frame=pv.bounds;[pv.layer addSublayer:pl];
     AVPlayerLayer *ol=[AVPlayerLayer playerLayerWithPlayer:inactive];ol.frame=off.bounds;[off.layer addSublayer:ol];
     [active playImmediatelyAtRate:1];
