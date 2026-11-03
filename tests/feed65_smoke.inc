@@ -100,7 +100,15 @@
     for(NSInteger s=0;s<=5;s++){
         JK65SetStyle(s);pass65(0);pass65(H65*.38);
         UIGraphicsImageRenderer *rr65=[[UIGraphicsImageRenderer alloc] initWithBounds:host65.bounds];
-        UIImage *im65=[rr65 imageWithActions:^(UIGraphicsImageRendererContext *c){[host65.layer renderInContext:c.CGContext];}];
+        UIImage *im65=nil;
+        for(int meth=0;meth<2;meth++){
+            im65=[rr65 imageWithActions:^(UIGraphicsImageRendererContext *c){if(meth==0)[host65 drawViewHierarchyInRect:host65.bounds afterScreenUpdates:NO];else [host65.layer renderInContext:c.CGContext];}];
+            CGImageRef g0=im65.CGImage;NSMutableData *b0=[NSMutableData dataWithLength:CGImageGetWidth(g0)*CGImageGetHeight(g0)*4];CGColorSpaceRef c0=CGColorSpaceCreateDeviceRGB();
+            CGContextRef x0=CGBitmapContextCreate(b0.mutableBytes,CGImageGetWidth(g0),CGImageGetHeight(g0),8,CGImageGetWidth(g0)*4,c0,kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder32Big);CGContextDrawImage(x0,CGRectMake(0,0,CGImageGetWidth(g0),CGImageGetHeight(g0)),g0);CGContextRelease(x0);CGColorSpaceRelease(c0);
+            const uint8_t *q0=b0.bytes;size_t o0=((size_t)(CGImageGetHeight(g0)*.12)*CGImageGetWidth(g0)+CGImageGetWidth(g0)/2)*4;
+            NSLog(@"65 shot method %d top pixel %d %d %d",meth,q0[o0],q0[o0+1],q0[o0+2]);
+            if(!(q0[o0]>240&&q0[o0+1]>240&&q0[o0+2]>240))break;
+        }
         NSString *fld=[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject stringByAppendingPathComponent:@"shots"];
         [NSFileManager.defaultManager createDirectoryAtPath:fld withIntermediateDirectories:YES attributes:nil error:nil];
         [UIImagePNGRepresentation(im65) writeToFile:[fld stringByAppendingPathComponent:[NSString stringWithFormat:@"65-%@-mid-fixture.png",shotNames[s]]] atomically:YES];
