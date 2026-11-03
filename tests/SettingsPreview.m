@@ -1038,8 +1038,8 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         #include "style_smoke.inc"
         JK62SetStyle(0);
         #include "sheet_smoke.inc"
-        #include "feed65_smoke.inc"
         #include "glass61_smoke.inc"
+        #include "feed65_smoke.inc"
         Shot(vc,@"home");
         for(NSInteger page=0;page<8;page++){
             [vc showCategory:page animated:NO];

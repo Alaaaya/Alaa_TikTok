@@ -39,7 +39,9 @@ static BOOL JK62FixtureReduceMotion(void){return JK62FixtureReduce;}
 #define JK62_FIXTURE 1
 #define UIAccessibilityIsReduceMotionEnabled JK62FixtureReduceMotion
 #include "../InterfaceStyle.inc"
+#include "../FeedTransitions65.inc"
 #undef UIAccessibilityIsReduceMotionEnabled
+#include "feed65_fixture.inc"
 #include "../HierarchyDump.inc"
 #include "../AutoCapture64.inc"
 static UIVisualEffect *TTGEffect(void){return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];}
@@ -196,6 +198,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         JK62SetStyle(0);
         #include "sheet_smoke.inc"
         #include "glass61_smoke.inc"
+        #include "feed65_smoke.inc"
         Shot(vc,@"home");
         for(NSInteger page=0;page<8;page++){
             [vc showCategory:page animated:NO];
