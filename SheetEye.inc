@@ -46,7 +46,6 @@ static BOOL TT51SheetPeers(UIView *root) {
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGFloat h=self.bounds.size.height;
-    CGFloat w=self.bounds.size.width;
     self.glyph.frame=CGRectMake(self.iconX,(h-24)/2,24,24);
     // Physical layout like the native auto-scroll row: switch at the left edge, full-width caption, icon at the icon column.
     CGFloat left=16;

@@ -41,7 +41,7 @@
     for(NSUInteger i=0;i<4;i++){
         JKStyleItem *it=JKItemOf(natives[i]);
         Check(it && natives[i].alpha==0 && JKStyleAlpha(natives[i],1)==0,@"52 native hidden synchronously");
-        Check([it.count.text isEqual:counts[i]],@"52 counts read from native labels");
+        Check([it.countLabel.text isEqual:counts[i]],@"52 counts read from native labels");
         Check(CGRectEqualToRect(it.frame,natives[i].frame) && it.semanticContentAttribute==UISemanticContentAttributeForceLeftToRight,@"52 aligned LTR even under RTL locale");
     }
     Check(JKItemOf(natives[0]).kind==JKKindLike && JKItemOf(natives[1]).kind==JKKindComment && JKItemOf(natives[2]).kind==JKKindSave && JKItemOf(natives[3]).kind==JKKindShare,@"52 kinds mapped");
@@ -51,7 +51,7 @@
     // Count refresh and reuse without duplicates.
     for(UIView *v in natives[0].subviews)if([v isKindOfClass:UILabel.class])((UILabel *)v).text=@"29.5K";
     natives[0].selected=YES;JKStyleSync(natives[0]);JKStyleSync(natives[0]);JKStyleSync(natives[2]);
-    Check([JKItemOf(natives[0]).count.text isEqual:@"29.5K"],@"52 count refreshed on reuse");
+    Check([JKItemOf(natives[0]).countLabel.text isEqual:@"29.5K"],@"52 count refreshed on reuse");
     Check([rail.subviews filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id v,id b){return [v isKindOfClass:JKStyleItem.class];}]].count==4,@"52 no duplicate overlays");
     natives[0].selected=NO;JKStyleSync(natives[0]);
     // Pass-through: blank rail area is not captured by overlay items.

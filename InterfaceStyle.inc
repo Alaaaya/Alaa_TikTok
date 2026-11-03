@@ -87,7 +87,7 @@ static NSString *JKCountText(UIView *view,NSUInteger depth) {
 @property(nonatomic,weak) UIView *native;
 @property(nonatomic) JKKind kind;
 @property(nonatomic,strong) UIImageView *glyph;
-@property(nonatomic,strong) UILabel *count;
+@property(nonatomic,strong) UILabel *countLabel;
 @property(nonatomic,strong) NSTimer *timer;
 - (void)refresh;
 @end
@@ -101,11 +101,11 @@ static NSArray<UIWindow *> *TT48Windows(void);
     self.glyph=[UIImageView new];self.glyph.contentMode=UIViewContentModeScaleAspectFit;self.glyph.tintColor=UIColor.whiteColor;
     self.glyph.userInteractionEnabled=NO;
     self.glyph.layer.shadowColor=UIColor.blackColor.CGColor;self.glyph.layer.shadowOpacity=.35;self.glyph.layer.shadowRadius=2;self.glyph.layer.shadowOffset=CGSizeZero;
-    self.count=[UILabel new];self.count.font=[UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
-    self.count.textColor=UIColor.whiteColor;self.count.textAlignment=NSTextAlignmentCenter;self.count.userInteractionEnabled=NO;
-    self.count.adjustsFontSizeToFitWidth=YES;self.count.minimumScaleFactor=.7;
-    self.count.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
-    [self addSubview:self.glyph];[self addSubview:self.count];
+    self.countLabel=[UILabel new];self.countLabel.font=[UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
+    self.countLabel.textColor=UIColor.whiteColor;self.countLabel.textAlignment=NSTextAlignmentCenter;self.countLabel.userInteractionEnabled=NO;
+    self.countLabel.adjustsFontSizeToFitWidth=YES;self.countLabel.minimumScaleFactor=.7;
+    self.countLabel.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    [self addSubview:self.glyph];[self addSubview:self.countLabel];
     [self addTarget:self action:@selector(tapped) forControlEvents:UIControlEventTouchUpInside];
     return self;
 }
@@ -113,7 +113,7 @@ static NSArray<UIWindow *> *TT48Windows(void);
     [super layoutSubviews];
     CGFloat w=self.bounds.size.width,h=self.bounds.size.height;
     self.glyph.frame=CGRectMake((w-32)/2,MAX(0,(h-32-16)/2),32,32);
-    self.count.frame=CGRectMake(0,CGRectGetMaxY(self.glyph.frame)+1,w,16);
+    self.countLabel.frame=CGRectMake(0,CGRectGetMaxY(self.glyph.frame)+1,w,16);
 }
 - (void)didMoveToWindow {
     [super didMoveToWindow];
@@ -138,9 +138,9 @@ static NSArray<UIWindow *> *TT48Windows(void);
     self.glyph.image=[UIImage systemImageNamed:name withConfiguration:cfg];
     self.glyph.tintColor=(selected && self.kind==JKKindLike)?[UIColor colorWithRed:1 green:.19 blue:.33 alpha:1]:UIColor.whiteColor;
     NSString *t=JKCountText(n,0);
-    if(![self.count.text isEqual:t])self.count.text=t;
+    if(![self.countLabel.text isEqual:t])self.countLabel.text=t;
     BOOL can=JKCanForward(n);
-    self.glyph.alpha=can?1:.45;self.count.alpha=can?1:.45;self.enabled=can;
+    self.glyph.alpha=can?1:.45;self.countLabel.alpha=can?1:.45;self.enabled=can;
     self.accessibilityLabel=t.length?[NSString stringWithFormat:@"%@, %@",label,t]:label;
     self.hidden=n.hidden;
 }
