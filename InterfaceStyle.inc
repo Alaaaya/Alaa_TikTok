@@ -256,6 +256,74 @@ static void JKRecRestore(UIView *v){
     id bg=d[@"bg"];v.backgroundColor=bg==NSNull.null?nil:bg;
     objc_setAssociatedObject(v,kJKRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
+static const void *kJKAvaRec=&kJKAvaRec;
+@interface JKAvaRec:NSObject
+@property(nonatomic,weak) UIView *parent;
+@property(nonatomic,strong) UIView *spacer;
+@property(nonatomic) NSInteger subIndex,arrIndex;
+@property(nonatomic) BOOL wasArranged;
+@property(nonatomic) CGRect frame;
+@property(nonatomic) CGAffineTransform transform;
+@end
+@implementation JKAvaRec
+@end
+static UIView *JKFindClass(UIView *root,NSString *name,NSUInteger depth){
+    if([NSStringFromClass(root.class) isEqualToString:name])return root;
+    if(depth>16)return nil;
+    for(UIView *c in root.subviews){UIView *f=JKFindClass(c,name,depth+1);if(f)return f;}
+    return nil;
+}
+static void JKAvatarRestore(UIView *avatar){
+    JKAvaRec *r=objc_getAssociatedObject(avatar,kJKAvaRec);if(!r)return;
+    objc_setAssociatedObject(avatar,kJKAvaRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    UIView *parent=r.parent;
+    if(!parent){[r.spacer removeFromSuperview];return;}
+    [avatar removeFromSuperview];
+    avatar.transform=CGAffineTransformIdentity;
+    if(r.wasArranged && [parent isKindOfClass:UIStackView.class]){
+        UIStackView *st=(UIStackView *)parent;
+        [r.spacer removeFromSuperview];
+        [st insertArrangedSubview:avatar atIndex:MIN((NSUInteger)MAX(r.arrIndex,0),st.arrangedSubviews.count)];
+    } else {
+        [parent insertSubview:avatar atIndex:MIN((NSUInteger)MAX(r.subIndex,0),parent.subviews.count)];
+        [r.spacer removeFromSuperview];
+    }
+    avatar.frame=r.frame;avatar.transform=r.transform;
+}
+static void JKAvatarApply(UIView *avatar,UIWindow *window,BOOL on){
+    JKAvaRec *r=objc_getAssociatedObject(avatar,kJKAvaRec);
+    UIView *author=JKFindClass(window,@"AWEPlayInteractionAuthorView",0);
+    if(!on || !author || !author.window){if(r)JKAvatarRestore(avatar);return;}
+    UIView *host=nil;
+    if(r){host=avatar.superview;}
+    else{
+        UIView *parent=avatar.superview;if(!parent)return;
+        for(UIView *p=parent.superview;p;p=p.superview){
+            if([author isDescendantOfView:p] && p.bounds.size.width>=window.bounds.size.width*.9){host=p;break;}
+        }
+        if(!host)return;
+        r=[JKAvaRec new];r.parent=parent;r.frame=avatar.frame;r.transform=avatar.transform;
+        r.subIndex=[parent.subviews indexOfObject:avatar];
+        UIView *spacer=[UIView new];spacer.userInteractionEnabled=NO;spacer.backgroundColor=UIColor.clearColor;spacer.hidden=NO;
+        r.spacer=spacer;
+        if([parent isKindOfClass:UIStackView.class] && [((UIStackView *)parent).arrangedSubviews containsObject:avatar]){
+            UIStackView *st=(UIStackView *)parent;r.wasArranged=YES;r.arrIndex=[st.arrangedSubviews indexOfObject:avatar];
+            spacer.translatesAutoresizingMaskIntoConstraints=NO;
+            [spacer.widthAnchor constraintEqualToConstant:avatar.bounds.size.width].active=YES;
+            [spacer.heightAnchor constraintEqualToConstant:avatar.bounds.size.height].active=YES;
+            [st insertArrangedSubview:spacer atIndex:r.arrIndex];
+        } else {spacer.frame=avatar.frame;[parent insertSubview:spacer atIndex:r.subIndex];}
+        objc_setAssociatedObject(avatar,kJKAvaRec,r,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        [avatar removeFromSuperview];avatar.transform=CGAffineTransformIdentity;
+        [host addSubview:avatar];
+    }
+    if(avatar.superview!=host)return;
+    CGRect a=[author convertRect:author.bounds toView:host];
+    CGFloat k=.62,w=avatar.bounds.size.width*k,h=avatar.bounds.size.height*k;
+    avatar.transform=CGAffineTransformMakeScale(k,k);
+    avatar.center=CGPointMake(a.origin.x+w/2,a.origin.y-h/2-2);
+}
+
 static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
     NSString *n=NSStringFromClass(v.class);
     if([n isEqualToString:@"TTKTabBarBlurView"] && [v.superview isKindOfClass:UITabBar.class]==NO && [NSStringFromClass(v.superview.class) isEqualToString:@"TTKTabBar"]==NO){}
@@ -299,9 +367,16 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
             else if(ch)[ch removeFromSuperview];
         }
     } else if([n isEqualToString:@"AWEFeedPlayerBottomProgressBar"]){
-        for(UIView *s in v.subviews){
+        UIView *trk=[v viewWithTag:9160];
+        if(on && JKAlaa() && v.bounds.size.width>0){
+            if(!trk){trk=[UIView new];trk.tag=9160;trk.userInteractionEnabled=NO;[v insertSubview:trk atIndex:0];}
+            trk.backgroundColor=[UIColor colorWithWhite:1 alpha:.22];trk.frame=CGRectMake(0,0,v.bounds.size.width,MAX(v.bounds.size.height,2));
+        } else if(trk){[trk removeFromSuperview];}
+        for(UIView *s in v.subviews){ if(s.tag==9160)continue;
             if(on){JKRecSave(s);s.backgroundColor=JKAlaa()?[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1]:UIColor.whiteColor;} else JKRecRestore(s);
         }
+    } else if(JKAlaa() && [n isEqualToString:@"AWEPlayInteractionUserAvatarView"] && v.window){
+        JKAvatarApply(v,v.window,on);return;
     } else if([n isEqualToString:@"AWEUserNameLabel"]){
         for(UIView *s in v.subviews) if([s isKindOfClass:UILabel.class]){
             UILabel *l=(UILabel *)s;if(!l.text.length)continue;
