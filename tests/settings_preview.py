@@ -20,6 +20,7 @@ static void TTToolRefresh(void){}
 #include "../NoFlash.inc"
 #include "../SheetEye.inc"
 #include "../InterfaceStyle.inc"
+#include "../HierarchyDump.inc"
 @interface TT122Hub:NSObject
 +(instancetype)shared;
 -(void)refresh;
