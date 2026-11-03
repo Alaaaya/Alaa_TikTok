@@ -276,6 +276,28 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
             CGFloat w=52,h=40;ov.frame=CGRectMake((v.bounds.size.width-w)/2,(v.bounds.size.height-h)/2,w,h);[ov viewWithTag:1].frame=ov.bounds;
             [v bringSubviewToFront:ov];
         } else if(ov){[ov removeFromSuperview];}
+    } else if([n isEqualToString:@"TTKTabBar"] || [n isEqualToString:@"TTKFeedTabCornerItemView"] || [n isEqualToString:@"TikTokFeedTabControl"] || [n isEqualToString:@"AWEPlayInteractionFollowPromptView"]){
+        BOOL al=on && JKAlaa();
+        if([n isEqualToString:@"TTKTabBar"]){
+            static const void *kT=&kT;
+            if(al){if(!objc_getAssociatedObject(v,kT))objc_setAssociatedObject(v,kT,v.tintColor?:(id)NSNull.null,OBJC_ASSOCIATION_RETAIN_NONATOMIC);v.tintColor=[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1];}
+            else{id o=objc_getAssociatedObject(v,kT);if(o){v.tintColor=o==NSNull.null?nil:o;objc_setAssociatedObject(v,kT,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}
+        } else if([n isEqualToString:@"TTKFeedTabCornerItemView"]){
+            if(al){JKRecSave(v);v.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];v.layer.cornerRadius=MIN(v.bounds.size.width,v.bounds.size.height)/2;v.layer.borderWidth=1;v.layer.borderColor=[UIColor colorWithRed:.937 green:.957 blue:.945 alpha:.14].CGColor;}
+            else JKRecRestore(v);
+        } else if([n isEqualToString:@"TikTokFeedTabControl"]){
+            UIView *ul=[v viewWithTag:9158];UIView *sel=nil;
+            if(al){for(UIView *c in v.subviews)if(c.tag!=9158 && [c isKindOfClass:UIControl.class] && ((UIControl *)c).selected){sel=c;break;}}
+            if(sel){if(!ul){ul=[UIView new];ul.tag=9158;ul.userInteractionEnabled=NO;ul.backgroundColor=[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1];ul.layer.cornerRadius=1;[v addSubview:ul];}
+                ul.frame=CGRectMake(CGRectGetMidX(sel.frame)-8,CGRectGetMaxY(sel.frame)-2,16,2);}
+            else if(ul)[ul removeFromSuperview];
+        } else {
+            UIView *ch=[v viewWithTag:9159];
+            if(al){if(!ch){ch=[UIView new];ch.tag=9159;ch.userInteractionEnabled=NO;ch.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];ch.layer.borderWidth=1;ch.layer.borderColor=[UIColor colorWithWhite:1 alpha:.5].CGColor;ch.layer.cornerRadius=12;
+                    UILabel *l=[UILabel new];l.tag=1;l.text=@"متابعة";l.textColor=UIColor.whiteColor;l.font=[UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];l.textAlignment=NSTextAlignmentCenter;[ch addSubview:l];[v addSubview:ch];}
+                ch.frame=CGRectMake(0,(v.bounds.size.height-24)/2,MAX(60,v.bounds.size.width),24);[ch viewWithTag:1].frame=ch.bounds;[v bringSubviewToFront:ch];}
+            else if(ch)[ch removeFromSuperview];
+        }
     } else if([n isEqualToString:@"AWEFeedPlayerBottomProgressBar"]){
         for(UIView *s in v.subviews){
             if(on){JKRecSave(s);s.backgroundColor=JKAlaa()?[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1]:UIColor.whiteColor;} else JKRecRestore(s);

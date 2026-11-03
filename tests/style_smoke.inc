@@ -158,9 +158,29 @@
         UIView *pf=[[UIView alloc] initWithFrame:CGRectMake(0,0,300,2)];pf.backgroundColor=UIColor.redColor;[pbar addSubview:pf];[fd addSubview:pbar];
         Class pc2=NSClassFromString(@"AWETabBarPlusButton");if(!pc2){pc2=objc_allocateClassPair(UIButton.class,"AWETabBarPlusButton",0);objc_registerClassPair(pc2);}
         UIView *plusB=[[pc2 alloc] initWithFrame:CGRectMake(172,H-83+17,86,49)];[fd addSubview:plusB];
-        UIView *dock=[[NSClassFromString(@"TTKTabBarBlurView")?:UIView.class alloc] initWithFrame:CGRectMake(0,H-83,430,83)];[fd addSubview:dock];
+        Class tbc=NSClassFromString(@"TTKTabBar");if(!tbc){tbc=objc_allocateClassPair(UITabBar.class,"TTKTabBar",0);objc_registerClassPair(tbc);}
+        Class bbc=NSClassFromString(@"TTKTabBarBlurView");if(!bbc){bbc=objc_allocateClassPair(UIView.class,"TTKTabBarBlurView",0);objc_registerClassPair(bbc);}
+        UITabBar *tabbar=[[tbc alloc] initWithFrame:CGRectMake(0,H-83,430,83)];[fd addSubview:tabbar];
+        UIView *dock=[[bbc alloc] initWithFrame:tabbar.bounds];dock.backgroundColor=[UIColor colorWithWhite:0 alpha:.7];[tabbar insertSubview:dock atIndex:0];
+        NSArray *tn=@[@"الرئيسية",@"اكتشف",@"أنا",@"الإعدادات"],*ti=@[@"house",@"magnifyingglass",@"person",@"slider.horizontal.3"];NSMutableArray *tis=[NSMutableArray new];
+        for(NSUInteger i=0;i<4;i++)[tis addObject:[[UITabBarItem alloc] initWithTitle:tn[i] image:[UIImage systemImageNamed:ti[i]] tag:i]];
+        tabbar.items=tis;tabbar.selectedItem=tis[0];tabbar.backgroundImage=[UIImage new];tabbar.shadowImage=[UIImage new];tabbar.tintColor=UIColor.whiteColor;
+        UIColor *tintBefore=tabbar.tintColor;
+        Class tcc=NSClassFromString(@"TikTokFeedTabControl");if(!tcc){tcc=objc_allocateClassPair(UIView.class,"TikTokFeedTabControl",0);objc_registerClassPair(tcc);}
+        UIView *tc=[[tcc alloc] initWithFrame:CGRectMake(54,59,323,44)];[fd addSubview:tc];
+        UIButton *t1=[UIButton buttonWithType:UIButtonTypeCustom];t1.frame=CGRectMake(70,0,80,44);[t1 setTitle:@"لك" forState:UIControlStateNormal];t1.selected=YES;[tc addSubview:t1];
+        UIButton *t2=[UIButton buttonWithType:UIButtonTypeCustom];t2.frame=CGRectMake(160,0,80,44);[t2 setTitle:@"أتابعهم" forState:UIControlStateNormal];[tc addSubview:t2];
+        Class cic=NSClassFromString(@"TTKFeedTabCornerItemView");if(!cic){cic=objc_allocateClassPair(UIView.class,"TTKFeedTabCornerItemView",0);objc_registerClassPair(cic);}
+        UIView *c1=[[cic alloc] initWithFrame:CGRectMake(8,61,40,40)],*c2=[[cic alloc] initWithFrame:CGRectMake(382,61,40,40)];[fd addSubview:c1];[fd addSubview:c2];
+        Class fpc=NSClassFromString(@"AWEPlayInteractionFollowPromptView");if(!fpc){fpc=objc_allocateClassPair(UIView.class,"AWEPlayInteractionFollowPromptView",0);objc_registerClassPair(fpc);}
+        UIView *fp=[[fpc alloc] initWithFrame:CGRectMake(W-70,H-250-120-50,60,40)];[fd addSubview:fp];
         JKStyleApplyAll();
         Check([plusB viewWithTag:9157]!=nil && ![plusB viewWithTag:9157].userInteractionEnabled,@"56 amber plus overlay, inert");
+        {CGFloat r1,g1,b1,a1;[tabbar.tintColor getRed:&r1 green:&g1 blue:&b1 alpha:&a1];Check(r1>.99&&g1>.7&&g1<.72,@"56 dock tint amber");}
+        Check([tc viewWithTag:9158]!=nil && CGRectGetMidX([tc viewWithTag:9158].frame)==CGRectGetMidX(t1.frame),@"56 tab underline under selected native tab");
+        t1.selected=NO;JKStyleApplyAll();Check([tc viewWithTag:9158]==nil,@"56 no selected tab -> no underline (fail closed)");t1.selected=YES;JKStyleApplyAll();
+        Check(c1.layer.cornerRadius==20 && c2.layer.cornerRadius==20,@"56 corner items glass circles");
+        Check([fp viewWithTag:9159]!=nil && ![fp viewWithTag:9159].userInteractionEnabled,@"56 follow chip presentational");
         UIView *tgl=[fr viewWithTag:9156];
         Check(tgl!=nil && JKRailClosed,@"56 rail toggle present and closed by default");
         for(UIView *v in fr.subviews)if([v isKindOfClass:JKStyleItem.class])Check(v.alpha==0 && !v.userInteractionEnabled,@"56 collapsed items hidden and inert");
@@ -178,7 +198,7 @@
         ShotView(self.window,@"56-alaa-expanded");
         [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();JKRailClosed=YES;
         Check([fr viewWithTag:9156]==nil && JKItemOf(fn[0])==nil && fn[0].alpha==1,@"56 default restore removes toggle and overlays");
-        Check([plusB viewWithTag:9157]==nil,@"56 plus overlay removed on default");
+        Check([plusB viewWithTag:9157]==nil && [tc viewWithTag:9158]==nil && [fp viewWithTag:9159]==nil && c1.layer.cornerRadius==0 && [tabbar.tintColor isEqual:tintBefore],@"56 dock/tabs/chip/corners restored");
         UIColor *rc=[dl.attributedText attribute:NSForegroundColorAttributeName atIndex:dl.attributedText.length-3 effectiveRange:nil];
         Check(CGColorEqualToColor(rc.CGColor,UIColor.whiteColor.CGColor),@"56 hashtag color restored");
         ShotView(self.window,@"56-alaa-default");
