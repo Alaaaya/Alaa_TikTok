@@ -45,6 +45,7 @@ jobs:
       - name: UIKit category and custom-art smoke
         run: bash tests/settings_preview.sh
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: Joker-settings-preview
           path: settings-shots/

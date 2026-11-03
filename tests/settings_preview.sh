@@ -35,13 +35,22 @@ xcrun simctl install "$UDID" "$APP"
 # Actual simulator compositor recording, not a claimed device FPS benchmark.
 xcrun simctl io "$UDID" recordVideo --codec=h264 /tmp/joker62-fixture.mp4 >/tmp/joker62-video.log 2>&1 &
 VIDEO_PID=$!
-trap 'kill -INT "$VIDEO_PID" 2>/dev/null || true' EXIT
+capture_fixture() {
+  kill -INT "$VIDEO_PID" 2>/dev/null || true
+  wait "$VIDEO_PID" || true
+  mkdir -p settings-shots
+  cp /tmp/joker62-fixture.mp4 settings-shots/62-simulator-fixture.mp4 2>/dev/null || true
+  cp /tmp/joker-preview.log settings-shots/test-log.txt 2>/dev/null || true
+  local container
+  container=$(xcrun simctl get_app_container "$UDID" test.joker.preview data) || return 0
+  cp "$container/Documents/shots/"*.png settings-shots/ 2>/dev/null || true
+}
+trap capture_fixture EXIT
 set +e
 xcrun simctl launch --console "$UDID" test.joker.preview 2>&1 | tee /tmp/joker-preview.log
 LAUNCH_STATUS=${PIPESTATUS[0]}
 set -e
-kill -INT "$VIDEO_PID" 2>/dev/null || true
-wait "$VIDEO_PID" || true
+capture_fixture
 trap - EXIT
 if [ "$LAUNCH_STATUS" -ne 0 ]; then
   find "$HOME/Library/Logs/DiagnosticReports" -name '*Joker*' -type f -exec tail -c 16000 {} \; || true
