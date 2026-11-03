@@ -13,10 +13,10 @@
 static NSMapTable<UIView *,JK61GlassRecord *> *JK61Glasses(void){static NSMapTable *m;static dispatch_once_t once;dispatch_once(&once,^{m=[NSMapTable weakToStrongObjectsMapTable];});return m;}
 static NSDictionary *JK61Values;
 static NSArray *JK61Keys(void){return @[@"tint",@"blur",@"edge"];}
-static NSDictionary *JK61Defaults(void){return @{@"tint":@0,@"blur":@1,@"edge":@0};}
+static NSDictionary *JK61Defaults(void){return @{@"tint":@0.5,@"blur":@1,@"edge":@0};}
 static NSDictionary *JK61Read(void){if(!JK61Values){id v=[NSUserDefaults.standardUserDefaults dictionaryForKey:@"tt61.glass"];JK61Values=v?:JK61Defaults();}return JK61Values;}
 static CGFloat JK61Value(NSString *key){id v=JK61Read()[key];double d=[v isKindOfClass:NSNumber.class]?[v doubleValue]:[JK61Defaults()[key] doubleValue];return isfinite(d)?MAX(0,MIN(1,d)):[JK61Defaults()[key] doubleValue];}
-static BOOL JK61Customized(void){return JK61Value(@"tint")>0||JK61Value(@"blur")<.999||JK61Value(@"edge")>0;}
+static BOOL JK61Customized(void){return fabs(JK61Value(@"tint")-.5)>.001||JK61Value(@"blur")<.999||JK61Value(@"edge")>0;}
 static void JK61Apply(JK61GlassRecord *r){
     UIView *v=r.view;if(!v)return;
     BOOL custom=JK61Customized(),reduce=UIAccessibilityIsReduceTransparencyEnabled();
@@ -34,11 +34,13 @@ static void JK61Apply(JK61GlassRecord *r){
         if(r.animator)r.animator.fractionComplete=MAX(.02,MIN(.999,JK61Value(@"blur")));
     }
     if(custom||reduce){
-        CGFloat tint=reduce?1:JK61Value(@"tint")*.55;
+        CGFloat tint=reduce?1:MAX(0,(JK61Value(@"tint")-.5)*.7);
         UIView *target=r.tint?:([v isKindOfClass:UIVisualEffectView.class]?((UIVisualEffectView *)v).contentView:v);
         // Bounded dimming affects the owned material only, never child text alpha.
         UIColor *base=r.tint?r.tintColor:r.background;CGFloat a=base?CGColorGetAlpha(base.CGColor):0;
-        target.backgroundColor=[UIColor colorWithWhite:0 alpha:MAX(a,tint)];
+        CGFloat adjusted=MAX(tint,a*(.25+1.5*JK61Value(@"tint")));
+        if([r.role isEqual:@"panel"])adjusted=MAX(.16,adjusted);
+        target.backgroundColor=reduce?UIColor.blackColor:[(base?:UIColor.blackColor) colorWithAlphaComponent:adjusted];
         v.layer.borderWidth=r.width+JK61Value(@"edge")*1.5;
         v.layer.borderColor=[UIColor colorWithWhite:1 alpha:MAX(r.border?CGColorGetAlpha(r.border.CGColor):0,JK61Value(@"edge")*.8)].CGColor;
     }

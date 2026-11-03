@@ -7,8 +7,8 @@ for term in ['joker_debug.txt','256*1024','scanWindows:','TT48Births','TT48LastP
     assert term in s,term
 for term in ['%hook UIView','%hook UIWindow','didAddSubview:','didMoveToWindow','addGestureRecognizer:','sendEvent:','TT48Pending','UIGestureRecognizerStateBegan','TT48Debug(@"comment-long-press +0.6s")']:
     assert term in h,term
-assert 'self.downloadButton.hidden = PB(@"tt46.emojiBar",NO)' in p
-assert 'self.eyeButton.hidden = PB(@"tt46.emojiBar",NO)' in p
+assert 'self.downloadButton.hidden = TT61FloatingHidden(@"tt122.download")' in p
+assert 'self.eyeButton.hidden = TT61FloatingHidden(@"tt122.eye")' in p
 assert 'enabled:!self.overlay.hidden' not in p
 assert 'window.bounds.size.width*.65' not in s
 assert 'text]' not in s[s.index('static void TT48Debug'):s.index('// Runtime hierarchy')]

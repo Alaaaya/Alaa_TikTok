@@ -12,6 +12,7 @@ static BOOL PB(NSString *key,BOOL fallback){id v=[D() objectForKey:key];return v
 static NSInteger TTGStyle(void){return [D() integerForKey:kPrefStyle];}
 static void TTGRefreshAll(void){}
 static void TTToolRefresh(void){}
+#include "../Glass61.inc"
 #include "../Mascot.inc"
 #include "../EmojiBar.inc"
 #include "../TopFeed.inc"
@@ -29,13 +30,116 @@ static void TTToolRefresh(void){}
 static void TTGRestoreGlyph(UIView *native){} // production renderer is outside the UIKit fixture
 #include "../InterfaceStyle.inc"
 #include "../HierarchyDump.inc"
+static UIVisualEffect *TTGEffect(void){return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];}
+static BOOL TT122Enabled(NSString *key){return PB(key,YES);}
+@interface TT122Passthrough : UIView
+@end
+@implementation TT122Passthrough
+- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
+    UIView *hit = [super hitTest:point withEvent:event]; return hit == self ? nil : hit;
+}
+@end
+// Public UIKit glass API when available; checked light clear material fallback.
+static UIVisualEffect *TT61ClearEffect(void){
+    Class cls=NSClassFromString(@"UIGlassEffect");SEL make=NSSelectorFromString(@"effectWithStyle:");
+    if(cls&&[cls respondsToSelector:make])return ((id(*)(id,SEL,NSInteger))objc_msgSend)(cls,make,1);
+    return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialLight];
+}
+// Main-feed UIButton identities only. Emoji bar and sheet never call this.
+static void TT61ButtonArt(UIButton *b,NSString *symbol){
+    if(b.tag!=1221&&b.tag!=1222)return;
+    UIImage *custom=TTToolImage(b.tag);UIView *glass=[b viewWithTag:1261];
+    glass.hidden=custom!=nil;
+    b.backgroundColor=UIColor.clearColor;b.layer.borderWidth=0;b.layer.shadowOpacity=0;
+    b.layer.cornerRadius=0;b.clipsToBounds=NO;b.layer.masksToBounds=NO;
+    b.imageView.clipsToBounds=NO;b.imageView.layer.cornerRadius=0;
+    b.imageView.contentMode=UIViewContentModeScaleAspectFit;
+    b.adjustsImageWhenHighlighted=custom?NO:YES;
+    b.contentEdgeInsets=UIEdgeInsetsZero;b.imageEdgeInsets=UIEdgeInsetsZero;
+    [b setImage:custom?:[UIImage systemImageNamed:symbol] forState:UIControlStateNormal];
+    [b setImage:nil forState:UIControlStateHighlighted];[b setBackgroundImage:nil forState:UIControlStateNormal];
+}
+static BOOL TT61FloatingHidden(NSString *key){return (!PB(@"tt61.feedFloating",NO)&&PB(@"tt46.emojiBar",NO))||!TT122Enabled(key);}
+static void TT61RefreshMaterial(UIButton *button,BOOL floating){
+        UIVisualEffectView *glass=(id)[button viewWithTag:1261];
+        if(glass){
+            JK61GlassRecord *record=[JK61Glasses() objectForKey:glass];
+            NSString *role=floating?@"floating-clear":@"floating-legacy";
+            if(![record.role isEqual:role]){
+                [record.animator stopAnimation:YES];[JK61Glasses() removeObjectForKey:glass];glass.effect=floating?TT61ClearEffect():TTGEffect();
+                UIView *tint=glass.contentView.subviews.firstObject;tint.backgroundColor=floating?UIColor.clearColor:[UIColor colorWithWhite:0 alpha:.38];
+                JK61Register(glass,tint,role);
+            }
+        }
+}
+static UIView *TT122Material(CGRect frame) {
+    UIVisualEffectView *v = [[UIVisualEffectView alloc] initWithEffect:TTGEffect()];
+    v.frame = frame; v.layer.cornerRadius = MIN(22, frame.size.height/2); v.clipsToBounds = YES;
+    UIView *tint = [[UIView alloc] initWithFrame:v.bounds];
+    tint.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+    tint.backgroundColor = [UIColor colorWithWhite:0 alpha:.38]; tint.userInteractionEnabled = NO;
+    [v.contentView addSubview:tint];
+    v.layer.borderColor = [UIColor colorWithWhite:1 alpha:.3].CGColor; v.layer.borderWidth = .65;
+    JK61Register(v,tint,@"sheet-card");
+    return v;
+}
+
 @interface TT122Hub:NSObject
+@property(nonatomic,strong) UIView *overlay;
+@property(nonatomic) BOOL dragging,dragExceeded;
+@property(nonatomic) CGPoint dragOrigin;
+@property(nonatomic) NSInteger tapCount;
 +(instancetype)shared;
 -(void)refresh;
+-(void)tapped:(UIButton *)button;
 @end
 @implementation TT122Hub
-+(instancetype)shared {static TT122Hub *s;if(!s)s=[self new];return s;}
--(void)refresh {}
++(instancetype)shared{static TT122Hub *s;if(!s)s=[self new];return s;}
+-(void)refresh{}
+-(void)tapped:(UIButton *)button{self.tapCount++;}
+- (UIButton *)floating:(NSString *)symbol tag:(NSInteger)tag {
+    UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom]; b.bounds = CGRectMake(0,0,48,48); b.tag = tag;
+    UIView *glass = TT122Material(b.bounds); glass.tag=1261; glass.userInteractionEnabled = NO; glass.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+    [b addSubview:glass]; [b setImage:TTToolGlyph(tag,symbol) forState:UIControlStateNormal];
+    b.tintColor = [UIColor colorWithRed:1 green:.92 blue:.72 alpha:1];
+    b.accessibilityLabel = tag == 1221 ? @"Download menu" : tag == 1222 ? @"Hide or show feed controls" : @"Download progress";
+    [b addTarget:self action:@selector(dispatchFloatingTap:) forControlEvents:UIControlEventTouchUpInside];
+    UIPanGestureRecognizer *pan=[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(pan:)];pan.cancelsTouchesInView=YES;[b addGestureRecognizer:pan];
+    [b addTarget:self action:@selector(beginFloatingTap:) forControlEvents:UIControlEventTouchDown];
+    TT61ButtonArt(b,symbol);
+    return b;
+}
+- (void)dispatchFloatingTap:(UIButton *)sender {if(!self.dragExceeded)[self tapped:sender];}
+- (void)beginFloatingTap:(UIButton *)sender {self.dragExceeded=NO;}
+- (NSString *)positionKey:(UIView *)view { return [NSString stringWithFormat:@"tt122.position.%ld",(long)view.tag]; }
+- (CGPoint)clamp:(CGPoint)p view:(UIView *)v {
+    UIWindow *w = self.overlay.window;
+    CGFloat left = w.safeAreaInsets.left+28, right = w.bounds.size.width-w.safeAreaInsets.right-28;
+    CGFloat top = w.safeAreaInsets.top+32, bottom = w.bounds.size.height-w.safeAreaInsets.bottom-100;
+    return CGPointMake(MAX(left,MIN(right,p.x)),MAX(top,MIN(bottom,p.y)));
+}
+- (void)place:(UIView *)v y:(CGFloat)y {
+    CGSize s = self.overlay.bounds.size;
+    NSDictionary *saved = [NSUserDefaults.standardUserDefaults dictionaryForKey:[self positionKey:v]];
+    BOOL valid=[saved[@"x"] isKindOfClass:NSNumber.class]&&[saved[@"y"] isKindOfClass:NSNumber.class]&&isfinite([saved[@"x"] doubleValue])&&isfinite([saved[@"y"] doubleValue]);
+    CGPoint p = valid ? CGPointMake([saved[@"x"] doubleValue]*s.width,[saved[@"y"] doubleValue]*s.height) : CGPointMake(40,y);
+    v.center = [self clamp:p view:v];
+}
+- (void)pan:(UIPanGestureRecognizer *)g {
+    UIControl *v=(id)g.view;CGPoint delta=[g translationInView:self.overlay];
+    if(g.state==UIGestureRecognizerStateBegan){self.dragOrigin=v.center;self.dragExceeded=NO;}
+    if((g.state==UIGestureRecognizerStateBegan||g.state==UIGestureRecognizerStateChanged||g.state==UIGestureRecognizerStateEnded) && (self.dragExceeded||hypot(delta.x,delta.y)>=8)){
+        self.dragExceeded=YES;self.dragging=YES;[v cancelTrackingWithEvent:nil];
+        v.center=[self clamp:CGPointMake(self.dragOrigin.x+delta.x,self.dragOrigin.y+delta.y) view:v];
+    }
+    if(g.state==UIGestureRecognizerStateEnded||g.state==UIGestureRecognizerStateCancelled){
+        if(self.dragExceeded){CGSize z=self.overlay.bounds.size;if(z.width&&z.height)[NSUserDefaults.standardUserDefaults setObject:@{@"x":@(v.center.x/z.width),@"y":@(v.center.y/z.height)} forKey:[self positionKey:v]];}
+        self.dragging=NO;
+    }
+    // Keep cumulative translation so sub-threshold motion never starts a drag.
+    if(g.state==UIGestureRecognizerStateCancelled)[g setTranslation:CGPointZero inView:self.overlay];
+}
+
 @end
 // Physical LTR containers also resist inherited RTL appearance overrides.
 // Scoped to Joker only. Never change TikTok's global language or appearance.
@@ -285,8 +389,8 @@ static UIVisualEffect *TTJokerGlass(void) {
     [[TTToolPicker shared] choose:sender.tag presenter:self source:sender];
 }
 - (UIButton *)categoryTile:(NSInteger)index {
-    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima",@"شخصية Joker"];
-    NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3",@"pawprint",@"cat"];
+    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima",@"شخصية Joker",@"الزجاج"];
+    NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3",@"pawprint",@"cat",@"square.on.square"];
     TTJokerTile *tile=[TTJokerTile buttonWithType:UIButtonTypeCustom];tile.tag=index;
     tile.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
     tile.backgroundColor=[UIColor colorWithWhite:1 alpha:.10];tile.layer.cornerRadius=18;
@@ -324,7 +428,7 @@ static UIVisualEffect *TTJokerGlass(void) {
 - (void)openCategory:(UIButton *)tile { [self showCategory:tile.tag animated:YES]; }
 - (void)goBack { [self showCategory:-1 animated:YES]; }
 - (void)showCategory:(NSInteger)category animated:(BOOL)animated {
-    if(self.pageAnimating || category < -1 || category > 6)return;
+    if(self.pageAnimating || category < -1 || category > 7)return;
     BOOL back=category==-1;
     UIView *snapshot=animated?[self.pageScroll snapshotViewAfterScreenUpdates:NO]:nil;
     if(snapshot){snapshot.frame=[self.pageScroll convertRect:self.pageScroll.bounds toView:self.panel.contentView];[self.panel.contentView addSubview:snapshot];}
@@ -333,13 +437,13 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack removeArrangedSubview:view];[view removeFromSuperview];
     }
     self.category=category;self.backButton.hidden=back;
-    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima",@"شخصية Joker"];
+    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima",@"شخصية Joker",@"الزجاج"];
     self.pageTitle.text=back?@"Joker":names[category];
     if(back) {
         TTJokerGrid *grid=[TTJokerGrid new];
         grid.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
-        [grid.heightAnchor constraintEqualToConstant:([self shijimaInstalled]?274:180)].active=YES;
-        for(NSInteger i=0;i<7;i++){if(i==5 && ![self shijimaInstalled])continue;[grid addSubview:[self categoryTile:i]];}
+        [grid.heightAnchor constraintEqualToConstant:274].active=YES;
+        for(NSInteger i=0;i<8;i++){if(i==5 && ![self shijimaInstalled])continue;[grid addSubview:[self categoryTile:i]];}
         [self.stack addArrangedSubview:grid];
         [self.stack addArrangedSubview:[self diagnosticsRow]];
     } else {
@@ -350,7 +454,17 @@ static UIVisualEffect *TTJokerGlass(void) {
         if ((category==0 && i!=1) || (category==1 && i==1))
         [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
 
+    if(category==7){
+        NSArray *labels=@[@"درجة التعتيم / الشفافية",@"قوة الضبابية",@"لمعة الحواف"];
+        for(NSInteger i=0;i<3;i++){
+            [self.stack addArrangedSubview:[self label:labels[i] size:15 weight:UIFontWeightMedium]];
+            UISlider *slider=[UISlider new];slider.tag=610+i;slider.minimumValue=0;slider.maximumValue=1;slider.value=JK61Value(JK61Keys()[i]);slider.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+            [slider addTarget:self action:@selector(glassChanged:) forControlEvents:UIControlEventValueChanged];[self.stack addArrangedSubview:slider];
+        }
+        UIButton *reset=[UIButton buttonWithType:UIButtonTypeSystem];[reset setTitle:@"إعادة الزجاج للوضع الافتراضي" forState:UIControlStateNormal];[reset addTarget:self action:@selector(glassReset:) forControlEvents:UIControlEventTouchUpInside];[self.stack addArrangedSubview:reset];
+    }
     if(category==0) {
+    [self.stack addArrangedSubview:[self row:@"العين والتنزيل العائمان بالشاشة الرئيسية" symbol:@"eye.circle" key:@"tt61.feedFloating" defaultValue:NO tag:261]];
     [self.stack addArrangedSubview:[self row:@"إظهار بشريط الإيموجي" symbol:@"face.smiling" key:@"tt46.emojiBar" defaultValue:NO tag:246]];
     [self.stack addArrangedSubview:[self row:@"استخدام رابط التشغيل (قد يكون بلا علامة)" symbol:@"play.rectangle" key:@"tt.extra.playbackAsset" defaultValue:NO tag:201]];
     [self.stack addArrangedSubview:[self row:@"حفظ القصة بالضغط المطوّل" symbol:@"arrow.down.circle" key:@"tt.extra.storySave" defaultValue:NO tag:202]];
@@ -513,6 +627,7 @@ static UIVisualEffect *TTJokerGlass(void) {
     self.panel.contentView.backgroundColor = [UIColor colorWithWhite:0 alpha:0.40];
     self.panel.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     [self.view addSubview:self.panel];
+    JK61Register(self.panel,self.panel.contentView,@"panel");
     self.sheen=[CAGradientLayer layer];
     self.sheen.colors=@[(id)[UIColor colorWithWhite:1 alpha:.20].CGColor,
                         (id)[UIColor colorWithWhite:1 alpha:0].CGColor,
@@ -658,9 +773,12 @@ static UIVisualEffect *TTJokerGlass(void) {
     menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
     [self presentViewController:menu animated:YES completion:nil];
 }
+- (void)glassChanged:(UISlider *)sender {if(sender.tag>=610&&sender.tag<=612)JK61Set(JK61Keys()[sender.tag-610],sender.value);}
+- (void)glassReset:(UIButton *)sender {JK61Reset();for(UIView *v in self.stack.arrangedSubviews)if([v isKindOfClass:UISlider.class]&&v.tag>=610&&v.tag<=612)((UISlider *)v).value=JK61Value(JK61Keys()[v.tag-610]);}
 - (void)petSize:(UISlider *)sender {[D() setDouble:sender.value forKey:@"tt.pet.size"];[[TTJokerPet shared] refresh];}
 - (void)petKind:(UISegmentedControl *)sender {[D() setInteger:sender.selectedSegmentIndex forKey:@"tt.pet.kind"];[[TTJokerPet shared] refresh];}
 - (void)changed:(UISwitch *)sender {
+    if(sender.tag==261){[D() setBool:sender.on forKey:@"tt61.feedFloating"];[[TT122Hub shared] refresh];return;}
     if(sender.tag==246){[D() setBool:sender.on forKey:@"tt46.emojiBar"];[[TT122Hub shared] refresh];return;}
     if(sender.tag==360){[D() setBool:sender.on forKey:@"tt.pet.enabled"];[[TTJokerPet shared] refresh];return;}
 
@@ -755,7 +873,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         Check(vc.stack.arrangedSubviews.count==2,@"one physical grid");
         NSInteger tiles=0;
         for(UIView *row in vc.stack.arrangedSubviews)for(UIView *v in row.subviews)if([v isKindOfClass:UIButton.class])tiles++;
-        Check(tiles==6,@"six tiles when Shijima absent");
+        Check(tiles==7,@"six tiles when Shijima absent");
         for(UIView *tile in vc.stack.arrangedSubviews.firstObject.subviews)Check(tile.tag!=5,@"no absent Shijima tile");
         Check(vc.pageHeader.superview==vc.panel.contentView,@"pinned header");
         [vc.view setNeedsLayout];[vc.view layoutIfNeeded];
@@ -818,8 +936,9 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         NSLog(@"PASS 50 exact top classes, lifecycle reapply, reuse, original-state restore and fresh all-window capture");
         #include "style_smoke.inc"
         #include "sheet_smoke.inc"
+        #include "glass61_smoke.inc"
         Shot(vc,@"home");
-        for(NSInteger page=0;page<7;page++){
+        for(NSInteger page=0;page<8;page++){
             [vc showCategory:page animated:NO];
             Check(!vc.backButton.hidden,@"back on category");
             Check(vc.category==page && vc.stack.arrangedSubviews.count>0,@"category populated");
@@ -858,7 +977,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         Check(!((UISwitch *)[vc.stack viewWithTag:246]).on,@"47 OFF survives reopen");
         InstalledSettings *installed=[InstalledSettings new];[installed loadViewIfNeeded];
         [installed showCategory:-1 animated:NO];
-        Check(installed.stack.arrangedSubviews.firstObject.subviews.count==7,@"installed Shijima tile retained");
+        Check(installed.stack.arrangedSubviews.firstObject.subviews.count==8,@"installed Shijima tile retained");
         // Original mascot rendering, physics, settings, and pause-state smoke.
         [D() setBool:YES forKey:@"tt.pet.enabled"];
         TTJokerPet *pet=[TTJokerPet shared];[pet attach:vc];[pet refresh];

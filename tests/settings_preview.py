@@ -33,15 +33,28 @@ static void TTToolRefresh(void){}
 static void TTGRestoreGlyph(UIView *native){} // production renderer is outside the UIKit fixture
 #include "../InterfaceStyle.inc"
 #include "../HierarchyDump.inc"
+static UIVisualEffect *TTGEffect(void){return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];}
+static BOOL TT122Enabled(NSString *key){return PB(key,YES);}
+"""
+phase=Path('PhaseOne.inc').read_text()
+helpers=phase[phase.index('// Public UIKit glass API'):phase.index('@implementation TT122Hub')]
+methods=phase[phase.index('- (UIButton *)floating:'):phase.index('- (void)refresh {',phase.index('- (UIButton *)floating:'))]
+overlay=phase[phase.index('@interface TT122Passthrough'):phase.index('@interface TT122Hub')]
+prefix+=overlay+helpers+r"""
 @interface TT122Hub:NSObject
+@property(nonatomic,strong) UIView *overlay;
+@property(nonatomic) BOOL dragging,dragExceeded;
+@property(nonatomic) CGPoint dragOrigin;
+@property(nonatomic) NSInteger tapCount;
 +(instancetype)shared;
 -(void)refresh;
+-(void)tapped:(UIButton *)button;
 @end
 @implementation TT122Hub
-+(instancetype)shared {static TT122Hub *s;if(!s)s=[self new];return s;}
--(void)refresh {}
-@end
-"""
++(instancetype)shared{static TT122Hub *s;if(!s)s=[self new];return s;}
+-(void)refresh{}
+-(void)tapped:(UIButton *)button{self.tapCount++;}
+"""+methods+'\n@end\n'
 suffix=r"""
 static void Check(BOOL ok,NSString *message) {if(!ok){NSLog(@"FAIL %@",message);exit(1);}}
 static void ShotView(UIView *view,NSString *name) {
@@ -162,6 +175,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         NSLog(@"PASS 50 exact top classes, lifecycle reapply, reuse, original-state restore and fresh all-window capture");
         #include "style_smoke.inc"
         #include "sheet_smoke.inc"
+        #include "glass61_smoke.inc"
         Shot(vc,@"home");
         for(NSInteger page=0;page<8;page++){
             [vc showCategory:page animated:NO];

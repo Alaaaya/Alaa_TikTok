@@ -152,11 +152,23 @@ static void TT61ButtonArt(UIButton *b,NSString *symbol){
     b.imageView.clipsToBounds=NO;b.imageView.layer.cornerRadius=0;
     b.imageView.contentMode=UIViewContentModeScaleAspectFit;
     b.adjustsImageWhenHighlighted=custom?NO:YES;
-    b.contentEdgeInsets=UIEdgeInsetsZero;b.imageEdgeInsets=custom?UIEdgeInsetsZero:UIEdgeInsetsMake(14,14,14,14);
+    b.contentEdgeInsets=UIEdgeInsetsZero;b.imageEdgeInsets=UIEdgeInsetsZero;
     [b setImage:custom?:[UIImage systemImageNamed:symbol] forState:UIControlStateNormal];
     [b setImage:nil forState:UIControlStateHighlighted];[b setBackgroundImage:nil forState:UIControlStateNormal];
 }
 static BOOL TT61FloatingHidden(NSString *key){return (!PB(@"tt61.feedFloating",NO)&&PB(@"tt46.emojiBar",NO))||!TT122Enabled(key);}
+static void TT61RefreshMaterial(UIButton *button,BOOL floating){
+        UIVisualEffectView *glass=(id)[button viewWithTag:1261];
+        if(glass){
+            JK61GlassRecord *record=[JK61Glasses() objectForKey:glass];
+            NSString *role=floating?@"floating-clear":@"floating-legacy";
+            if(![record.role isEqual:role]){
+                [record.animator stopAnimation:YES];[JK61Glasses() removeObjectForKey:glass];glass.effect=floating?TT61ClearEffect():TTGEffect();
+                UIView *tint=glass.contentView.subviews.firstObject;tint.backgroundColor=floating?UIColor.clearColor:[UIColor colorWithWhite:0 alpha:.38];
+                JK61Register(glass,tint,role);
+            }
+        }
+}
 static UIView *TT122Material(CGRect frame) {
     UIVisualEffectView *v = [[UIVisualEffectView alloc] initWithEffect:TTGEffect()];
     v.frame = frame; v.layer.cornerRadius = MIN(22, frame.size.height/2); v.clipsToBounds = YES;
@@ -269,12 +281,13 @@ static UIView *TT122Material(CGRect frame) {
     [b addSubview:glass]; [b setImage:TTToolGlyph(tag,symbol) forState:UIControlStateNormal];
     b.tintColor = [UIColor colorWithRed:1 green:.92 blue:.72 alpha:1];
     b.accessibilityLabel = tag == 1221 ? @"Download menu" : tag == 1222 ? @"Hide or show feed controls" : @"Download progress";
-    [b addTarget:self action:@selector(tapped:) forControlEvents:UIControlEventTouchUpInside];
+    [b addTarget:self action:@selector(dispatchFloatingTap:) forControlEvents:UIControlEventTouchUpInside];
     UIPanGestureRecognizer *pan=[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(pan:)];pan.cancelsTouchesInView=YES;[b addGestureRecognizer:pan];
     [b addTarget:self action:@selector(beginFloatingTap:) forControlEvents:UIControlEventTouchDown];
     TT61ButtonArt(b,symbol);
     return b;
 }
+- (void)dispatchFloatingTap:(UIButton *)sender {if(!self.dragExceeded)[self tapped:sender];}
 - (void)beginFloatingTap:(UIButton *)sender {self.dragExceeded=NO;}
 - (NSString *)positionKey:(UIView *)view { return [NSString stringWithFormat:@"tt122.position.%ld",(long)view.tag]; }
 - (CGPoint)clamp:(CGPoint)p view:(UIView *)v {
@@ -346,18 +359,7 @@ static UIView *TT122Material(CGRect frame) {
     BOOL floating=PB(@"tt61.feedFloating",NO);
     self.downloadButton.hidden = TT61FloatingHidden(@"tt122.download");
     self.eyeButton.hidden = TT61FloatingHidden(@"tt122.eye");
-    for(UIButton *button in @[self.downloadButton,self.eyeButton]){
-        UIVisualEffectView *glass=(id)[button viewWithTag:1261];
-        if(glass){
-            JK61GlassRecord *record=[JK61Glasses() objectForKey:glass];
-            NSString *role=floating?@"floating-clear":@"floating-legacy";
-            if(![record.role isEqual:role]){
-                [record.animator stopAnimation:YES];[JK61Glasses() removeObjectForKey:glass];glass.effect=floating?TT61ClearEffect():TTGEffect();
-                UIView *tint=glass.contentView.subviews.firstObject;tint.backgroundColor=floating?UIColor.clearColor:[UIColor colorWithWhite:0 alpha:.38];
-                JK61Register(glass,tint,role);
-            }
-        }
-    }
+    TT61RefreshMaterial(self.downloadButton,floating);TT61RefreshMaterial(self.eyeButton,floating);
     self.progressButton.hidden = !self.busy || !TT122Enabled(@"tt122.progress");
     if (!TT122Enabled(@"tt122.eye") && self.uiHidden) [self restoreUI];
     TT61ButtonArt(self.downloadButton,@"arrow.down");
@@ -450,7 +452,7 @@ static UIView *TT122Material(CGRect frame) {
     // This is a window subview, not a presented controller: playback lifecycle is untouched.
 }
 - (void)tapped:(UIButton *)sender {
-    if (self.dragging || self.dragExceeded) return;
+    if (self.dragging) return;
     if (sender == self.downloadButton) { if (self.busy) [self toast:@"التنزيل الحالي قيد التنفيذ"]; else [self showMenu:NO]; }
     else if (sender == self.eyeButton) {
         if (self.uiHidden) { [self restoreUI]; return; }
