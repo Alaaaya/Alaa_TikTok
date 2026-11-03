@@ -154,6 +154,7 @@ static BOOL TT51SheetPeers(UIView *root) {
             branch=p;
         }
         if(stack) {
+            NSLog(@"51 adapter stack=%@ translate=%d constraints=%@ parent=%@",stack,stack.translatesAutoresizingMaskIntoConstraints,stack.constraints,stack.superview.constraints);
             NSUInteger index=[stack.arrangedSubviews indexOfObject:branch];
             if(index==NSNotFound)continue;
             row.translatesAutoresizingMaskIntoConstraints=NO;
@@ -181,6 +182,7 @@ static BOOL TT51SheetPeers(UIView *root) {
                 }
             }
             [stack insertArrangedSubview:row atIndex:index];self.stack=stack;
+            NSLog(@"51 adapted frame=%@ height=%@ resized=%d created=%d",NSStringFromCGRect(stack.frame),self.stackHeight,self.resizedStack,self.createdStackHeight);
         } else {
             // Table/collection/custom-scroll sheets: reserve a new first row without altering data sources,
             // native cell frames, gesture targets or item indices. Existing content remains scrollable.
