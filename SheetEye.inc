@@ -46,12 +46,13 @@ static BOOL TT51SheetPeers(UIView *root) {
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGFloat h=self.bounds.size.height;
-    self.glyph.frame=CGRectMake(self.iconX,(h-24)/2,24,24);
+    CGFloat ix=self.iconX<self.bounds.size.width/2?self.bounds.size.width-16-24:self.iconX;
+    self.glyph.frame=CGRectMake(ix,(h-24)/2,24,24);
     // Physical layout like the native auto-scroll row: switch at the left edge, full-width caption, icon at the icon column.
     CGFloat left=16;
     if(self.toggleSwitch){CGSize ss=self.toggleSwitch.bounds.size;self.toggleSwitch.frame=CGRectMake(left,(h-ss.height)/2,ss.width,ss.height);left+=ss.width+12;}
     else left=MAX(self.textX,16);
-    CGFloat right=self.iconX-12;
+    CGFloat right=ix-12;
     self.caption.frame=CGRectMake(left,0,MAX(40,right-left),h);
 }
 @end
