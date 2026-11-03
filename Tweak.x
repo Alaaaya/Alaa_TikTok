@@ -1199,15 +1199,6 @@ static void TTGPrepareFeedActions(UIView *root) {
 }
 
 // Weak roots only; no retained cells, global-window traversal or display-rate work.
-%hook AWENewFeedTableView
-- (void)layoutSubviews {
-    JK65Install();
-    JK65Before((UIScrollView *)self);
-    %orig;
-    JK65After((UIScrollView *)self);
-}
-- (void)willMoveToWindow:(UIWindow *)w {if(!w)JK65RestoreTable((UIView *)self);%orig;}
-%end
 static void TTJokerPetSync(void);
 @interface TTGFeedWatchdog : NSObject
 @property(nonatomic, strong) NSHashTable<UIView *> *roots;
@@ -1321,8 +1312,17 @@ static void TT122Recover(void);
 #include "StoryTools.inc"
 #include "ProfileTools.inc"
 #include "Mascot.inc"
-#include "FeedTransitions65.inc"
 static void TTJokerPetSync(void) {[TTJokerPet shared].uiHidden=[TT122Hub shared].uiHidden;[[TTJokerPet shared] refresh];}
+#include "FeedTransitions65.inc"
+%hook AWENewFeedTableView
+- (void)layoutSubviews {
+    JK65Install();
+    JK65Before((UIScrollView *)self);
+    %orig;
+    JK65After((UIScrollView *)self);
+}
+- (void)willMoveToWindow:(UIWindow *)w {if(!w)JK65RestoreTable((UIView *)self);%orig;}
+%end
 %hook AWEAwemeModel
 - (id)initWithDictionary:(id)dictionary error:(id *)error {
     id result = %orig;
