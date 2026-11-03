@@ -157,14 +157,14 @@
         UIView *pbar=[[NSClassFromString(@"AWEFeedPlayerBottomProgressBar") alloc] initWithFrame:CGRectMake(12,H-86,406,2)];
         UIView *pf=[[UIView alloc] initWithFrame:CGRectMake(0,0,300,2)];pf.backgroundColor=UIColor.redColor;[pbar addSubview:pf];[fd addSubview:pbar];
         Class pc2=NSClassFromString(@"AWETabBarPlusButton");if(!pc2){pc2=objc_allocateClassPair(UIButton.class,"AWETabBarPlusButton",0);objc_registerClassPair(pc2);}
-        UIView *plusB=[[pc2 alloc] initWithFrame:CGRectMake(172,H-83+17,86,49)];[fd addSubview:plusB];
-        Class tbc=NSClassFromString(@"TTKTabBar");if(!tbc){tbc=objc_allocateClassPair(UITabBar.class,"TTKTabBar",0);objc_registerClassPair(tbc);}
+                Class tbc=NSClassFromString(@"TTKTabBar");if(!tbc){tbc=objc_allocateClassPair(UITabBar.class,"TTKTabBar",0);objc_registerClassPair(tbc);}
         Class bbc=NSClassFromString(@"TTKTabBarBlurView");if(!bbc){bbc=objc_allocateClassPair(UIView.class,"TTKTabBarBlurView",0);objc_registerClassPair(bbc);}
         UITabBar *tabbar=[[tbc alloc] initWithFrame:CGRectMake(0,H-83,430,83)];[fd addSubview:tabbar];
         UIView *dock=[[bbc alloc] initWithFrame:tabbar.bounds];dock.backgroundColor=[UIColor colorWithWhite:0 alpha:.7];[tabbar insertSubview:dock atIndex:0];
         NSArray *tn=@[@"الرئيسية",@"اكتشف",@"أنا",@"الإعدادات"],*ti=@[@"house",@"magnifyingglass",@"person",@"slider.horizontal.3"];NSMutableArray *tis=[NSMutableArray new];
         for(NSUInteger i=0;i<4;i++)[tis addObject:[[UITabBarItem alloc] initWithTitle:tn[i] image:[UIImage systemImageNamed:ti[i]] tag:i]];
-        tabbar.items=tis;tabbar.selectedItem=tis[0];tabbar.backgroundImage=[UIImage new];tabbar.shadowImage=[UIImage new];tabbar.tintColor=UIColor.whiteColor;
+        tabbar.items=tis;tabbar.selectedItem=tis[0];tabbar.backgroundImage=[UIImage new];tabbar.shadowImage=[UIImage new];tabbar.tintColor=UIColor.whiteColor;tabbar.unselectedItemTintColor=[UIColor colorWithWhite:1 alpha:.75];
+        UIView *plusB=[[pc2 alloc] initWithFrame:CGRectMake((W-86)/2,H-83+17,86,49)];[fd addSubview:plusB];
         UIColor *tintBefore=tabbar.tintColor;
         Class tcc=NSClassFromString(@"TikTokFeedTabControl");if(!tcc){tcc=objc_allocateClassPair(UIView.class,"TikTokFeedTabControl",0);objc_registerClassPair(tcc);}
         UIView *tc=[[tcc alloc] initWithFrame:CGRectMake(54,59,323,44)];[fd addSubview:tc];
@@ -173,7 +173,7 @@
         Class cic=NSClassFromString(@"TTKFeedTabCornerItemView");if(!cic){cic=objc_allocateClassPair(UIView.class,"TTKFeedTabCornerItemView",0);objc_registerClassPair(cic);}
         UIView *c1=[[cic alloc] initWithFrame:CGRectMake(8,61,40,40)],*c2=[[cic alloc] initWithFrame:CGRectMake(382,61,40,40)];[fd addSubview:c1];[fd addSubview:c2];
         Class fpc=NSClassFromString(@"AWEPlayInteractionFollowPromptView");if(!fpc){fpc=objc_allocateClassPair(UIView.class,"AWEPlayInteractionFollowPromptView",0);objc_registerClassPair(fpc);}
-        UIView *fp=[[fpc alloc] initWithFrame:CGRectMake(W-70,H-250-120-50,60,40)];[fd addSubview:fp];
+        UIView *fp=[[fpc alloc] initWithFrame:CGRectMake(W-70,H-122-330-70,60,40)];[fd addSubview:fp];
         JKStyleApplyAll();
         Check([plusB viewWithTag:9157]!=nil && ![plusB viewWithTag:9157].userInteractionEnabled,@"56 amber plus overlay, inert");
         {CGFloat r1,g1,b1,a1;[tabbar.tintColor getRed:&r1 green:&g1 blue:&b1 alpha:&a1];Check(r1>.99&&g1>.7&&g1<.72,@"56 dock tint amber");}
