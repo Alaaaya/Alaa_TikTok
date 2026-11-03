@@ -38,12 +38,15 @@
 @property(nonatomic,copy) NSString *behavior;
 @property(nonatomic) CGFloat remaining,actionAge,dragVelocity,swing,bounceBase,nextScan;
 @property(nonatomic) uint32_t randomSeed;
+@property(nonatomic) CGFloat stateAge,attachmentAge,edgeCooldown;
+@property(nonatomic) BOOL returningToFloor;
 @property(nonatomic) NSInteger wallSide;
 @property(nonatomic) CGRect attachedRect;
 @property(nonatomic,strong) NSHashTable<UIView *> *weakSurfaces;
 - (void)advance:(CGFloat)dt;
 - (void)begin:(NSString *)action duration:(CGFloat)duration;
 - (void)scanSurfaces;
+- (void)dropToFloor;
 - (NSArray<NSValue *> *)surfaces;
 - (void)chooseFloor;
 
@@ -137,8 +140,21 @@
     return upper?self.randomSeed%upper:0;
 }
 - (void)begin:(NSString *)action duration:(CGFloat)duration {
+    // Animation restarts do not reset the independent same-state watchdog.
+    if(![self.behavior isEqual:action])self.stateAge=0;
     self.behavior=action;self.remaining=duration;self.actionAge=0;self.velocity=CGPointZero;
     if([action isEqual:@"jump"])self.velocity=CGPointMake(self.direction*95,-520);
+}
+- (void)dropToFloor {
+    self.attachedRect=CGRectZero;self.attachmentAge=0;self.returningToFloor=YES;
+    self.edgeCooldown=2;
+    CGPoint p=self.sprite.center;CGFloat half=self.sprite.bounds.size.width/2;
+    // Move clear of both the ceiling and screen sides before applying gravity.
+    p.x=MAX(half+8,MIN(self.host.bounds.size.width-half-8,p.x));
+    p.y=MAX([self topY]+3,MIN([self floorY]-1,p.y));
+    self.sprite.center=p;
+    [self begin:@"fall" duration:3];self.stateAge=0;
+    self.velocity=CGPointMake(0,90);
 }
 - (CGFloat)topY {return self.host.safeAreaInsets.top+self.sprite.bounds.size.height/2;}
 - (void)scanSurfaces {
@@ -218,10 +234,17 @@
 }
 - (void)advance:(CGFloat)dt {
     dt=MAX(0,MIN(.04,dt));self.time+=dt;self.actionAge+=dt;
+    self.stateAge+=dt;self.edgeCooldown=MAX(0,self.edgeCooldown-dt);
     if(self.time>=self.nextScan)[self scanSurfaces];
     if(self.dragging){self.dragVelocity*=pow(.16,dt);self.swing+=(MAX(-.65,MIN(.65,-self.dragVelocity/1900))-self.swing)*MIN(1,dt*9);[self updateSprite:@"drag"];return;}
+    BOOL attachedState=[@[@"climb",@"grab",@"wallsit",@"ceiling",@"hang"] containsObject:self.behavior];
+    self.attachmentAge=attachedState?self.attachmentAge+dt:0;
+    // Top contact is a touch-and-drop, never a ceiling crawl. Wall visits also end.
+    if([@[@"ceiling",@"hang"] containsObject:self.behavior] ||
+       (attachedState && (self.attachmentAge>=3 || self.remaining<=dt)) ||
+       self.stateAge>=8)[self dropToFloor];
     CGPoint p=self.sprite.center,old=p;CGFloat half=self.sprite.bounds.size.width/2,floor=[self floorY],top=[self topY],width=self.host.bounds.size.width;
-    NSArray *rects=[self surfaces];
+    NSArray *rects=self.returningToFloor?@[]:[self surfaces];
     if(!self.behavior.length)[self begin:@"fall" duration:10];
     self.remaining-=dt;
     if([self.behavior isEqual:@"bounce"]){
@@ -244,30 +267,13 @@
         if([self.behavior isEqual:@"climb"])p.y-=52*dt;
         if(p.y<=wallTop){
             p.y=wallTop;
-            if(CGRectIsEmpty(self.attachedRect)){[self begin:@"ceiling" duration:4+[self random:400]/100.];self.direction=self.wallSide<0?1:-1;}
+            if(CGRectIsEmpty(self.attachedRect)){self.sprite.center=p;[self dropToFloor];[self updateSprite:@"fall"];return;}
             else {p.x+=self.wallSide<0?half:-half;[self begin:@"dangle" duration:2];self.attachedRect=CGRectZero;}
         }else if(p.y>wallBottom+2){[self begin:@"fall" duration:10];}
         else if(self.remaining<=0){
-            NSUInteger choice=[self random:5];
-            if(choice==0){[self begin:@"fall" duration:10];self.velocity=CGPointMake(-self.wallSide*85,30);p.x-=self.wallSide*3;}
-            else [self begin:choice==1?@"wallsit":choice==2?@"grab":@"climb" duration:choice>2?12:2];
+            self.sprite.center=p;[self dropToFloor];[self updateSprite:@"fall"];return;
         }
         p.x=MAX(half,MIN(width-half,p.x));p.y=MAX(top,MIN(floor,p.y));self.sprite.center=p;[self updateSprite:self.behavior];return;
-    }
-    if(ceiling){
-        CGFloat underside=CGRectIsEmpty(self.attachedRect)?top:CGRectGetMaxY(self.attachedRect)+half;
-        p.y=underside;
-        if([self.behavior isEqual:@"ceiling"])p.x+=self.direction*35*dt;
-        CGFloat left=CGRectIsEmpty(self.attachedRect)?half:CGRectGetMinX(self.attachedRect);
-        CGFloat right=CGRectIsEmpty(self.attachedRect)?width-half:CGRectGetMaxX(self.attachedRect);
-        if(p.x<=left || p.x>=right){
-            p.x=MAX(left,MIN(right,p.x));self.wallSide=p.x<=left?-1:1;
-            if(CGRectIsEmpty(self.attachedRect)){self.direction=-self.direction;[self begin:@"hang" duration:1];}
-            else [self begin:@"climb" duration:8];
-        }else if(self.remaining<=0){
-            if([self random:4]==0){[self begin:@"fall" duration:10];p.y+=3;}
-            else [self begin:[self random:3]==0?@"hang":@"ceiling" duration:2+[self random:400]/100.];
-        }p.x=MAX(half,MIN(width-half,p.x));p.y=MAX(top,MIN(floor,p.y));self.sprite.center=p;[self updateSprite:self.behavior];return;
     }
     CGFloat support=floor;
     for(NSValue *value in rects){
@@ -298,7 +304,7 @@
             if(self.velocity.y>=0 && old.y<=y+.5 && p.y>=y && p.x>=r.origin.x && p.x<=CGRectGetMaxX(r) && y<landing){landing=y;hit=YES;}
             // Swept underside collision when jumping into an action surface.
             if(self.velocity.y<0 && old.y-half>=CGRectGetMaxY(r) && p.y-half<=CGRectGetMaxY(r) && p.x>=r.origin.x && p.x<=CGRectGetMaxX(r)){
-                self.attachedRect=r;p.y=CGRectGetMaxY(r)+half;[self begin:@"hang" duration:1.5];hit=NO;break;
+                self.sprite.center=CGPointMake(p.x,CGRectGetMaxY(r)+half);[self dropToFloor];[self updateSprite:@"fall"];return;
             }
             if(p.y+half>r.origin.y && p.y-half<CGRectGetMaxY(r) && fabs(self.velocity.x)>40){
                 CGFloat left=r.origin.x-half,right=CGRectGetMaxX(r)+half;
@@ -310,14 +316,14 @@
         if(hit && self.velocity.y>=0){
             p.y=landing;[self begin:@"bounce" duration:.24];
             // Bouncing uses the standard compressed/recovery poses and a small native hop.
-            self.bounceBase=landing;
+            self.bounceBase=landing;self.returningToFloor=NO;self.edgeCooldown=2;
         }
-        if(p.y<=top){p.y=top;self.attachedRect=CGRectZero;[self begin:@"hang" duration:1.5];}
+        if(p.y<=top){self.sprite.center=CGPointMake(p.x,top);[self dropToFloor];[self updateSprite:@"fall"];return;}
     }
-    if(p.x<=half || p.x>=width-half){
+    if((p.x<=half || p.x>=width-half) && !self.returningToFloor && self.edgeCooldown<=0){
         self.wallSide=p.x<=half?-1:1;p.x=MAX(half,MIN(width-half,p.x));self.attachedRect=CGRectZero;
         self.direction=self.wallSide<0?1:-1;
-        [self begin:[self random:4]==0?@"wallsit":@"climb" duration:18];
+        [self begin:[self random:4]==0?@"wallsit":@"climb" duration:2.5];
     }
     p.x=MAX(half,MIN(width-half,p.x));p.y=MAX(top,MIN(floor,p.y));
     self.sprite.center=p;[self updateSprite:self.behavior];
@@ -325,7 +331,7 @@
 - (void)drag:(UIPanGestureRecognizer *)pan {
     CGPoint t=[pan translationInView:self.host];
     if(pan.state==UIGestureRecognizerStateBegan){
-        self.dragging=YES;self.velocity=CGPointZero;self.climbUntil=0;self.attachedRect=CGRectZero;self.swing=0;self.actionAge=0;self.dragVelocity=0;
+        self.dragging=YES;self.returningToFloor=NO;self.stateAge=0;self.attachmentAge=0;self.velocity=CGPointZero;self.climbUntil=0;self.attachedRect=CGRectZero;self.swing=0;self.actionAge=0;self.dragVelocity=0;
     }
     if(pan.state==UIGestureRecognizerStateChanged){
         self.dragVelocity=[pan velocityInView:self.host].x;
