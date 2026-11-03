@@ -1260,7 +1260,8 @@ static void TT122Recover(void);
 #include "PhaseOne.inc"
 #include "ReactionObserver.inc"
 %hook UIView
-- (void)didMoveToWindow {%orig;if(self.window)TT48Added((UIView *)self);else TT48Schedule();}
+- (void)layoutSubviews {%orig;TT50EnforceTop((UIView *)self);}
+- (void)didMoveToWindow {%orig;TT50EnforceTop((UIView *)self);if(self.window)TT48Added((UIView *)self);else TT48Schedule();}
 - (void)addGestureRecognizer:(UIGestureRecognizer *)gesture {%orig;TT48ObserveGesture(gesture);}
 %end
 %hook UIWindow
@@ -1268,7 +1269,7 @@ static void TT122Recover(void);
     %orig;
     if(!PB(@"tt46.emojiBar",NO) || event.type!=UIEventTypeTouches)return;
     for(UITouch *touch in event.allTouches) {
-        if(touch.phase!=UITouchPhaseBegan)continue;
+        if(touch.phase!=UITouchPhaseBegan || !TT50CommentTarget(touch.view))continue;
         // Fallback for custom recognizers, with no cancellation/swallowing of native touches.
         __weak UITouch *weakTouch=touch;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.52*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
@@ -1486,7 +1487,7 @@ static UIVisualEffect *TTJokerGlass(void) {
     NSString *path=[folder stringByAppendingPathComponent:@"joker_debug.txt"];
     @synchronized(NSFileManager.defaultManager) {
         if(![NSFileManager.defaultManager fileExistsAtPath:path]) {
-            NSString *notice=@"Joker 49\nNo diagnostics recorded yet. Enable the emoji-bar option and long-press comments, then share again.\n";
+            NSString *notice=@"Joker 50\nNo diagnostics recorded yet. Enable the emoji-bar option and long-press comments, then share again.\n";
             if(![notice writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil])return nil;
         }
     }

@@ -14,15 +14,23 @@ static NSArray<UIWindow *> *TT48Windows(void) {
     }
     return windows;
 }
+static NSArray<UIWindow *> *TT50DiagnosticWindows(void) {
+    NSMutableOrderedSet *windows=[NSMutableOrderedSet new];
+    // Enumerate at capture time, not at touch time: popups may create new windows.
+    for(UIScene *scene in UIApplication.sharedApplication.connectedScenes)
+        if([scene isKindOfClass:UIWindowScene.class])[windows addObjectsFromArray:((UIWindowScene *)scene).windows];
+    [windows addObjectsFromArray:UIApplication.sharedApplication.windows];
+    return windows.array;
+}
 static void TT48Debug(NSString *event) {
     if(!PB(@"tt46.emojiBar",NO))return;
-    NSMutableString *log=[NSMutableString stringWithFormat:@"Joker48 %@ %.3f\n",event,CACurrentMediaTime()];
-    NSUInteger total=0;
-    for(UIWindow *window in TT48Windows()) {
-        [log appendFormat:@"window %@ level %.1f\n",NSStringFromClass(window.class),window.windowLevel];
+    NSMutableString *log=[NSMutableString stringWithFormat:@"Joker50 %@ %.3f\n",event,CACurrentMediaTime()];
+    for(UIWindow *window in TT50DiagnosticWindows()) {
+        NSUInteger total=0;
+        [log appendFormat:@"window %@ level %.1f hidden %d alpha %.2f\n",NSStringFromClass(window.class),window.windowLevel,window.hidden,window.alpha];
         NSMutableArray *queue=[NSMutableArray arrayWithObject:window];NSUInteger i=0;
         while(i<queue.count && total<900) {
-            UIView *v=queue[i++];if(v.hidden || v.alpha<.05)continue;total++;
+            UIView *v=queue[i++];total++;
             CGRect r=[v convertRect:v.bounds toView:window];
             [log appendFormat:@"%@ x%.0f y%.0f w%.0f h%.0f sub%lu radius%.0f\n",NSStringFromClass(v.class),r.origin.x,r.origin.y,r.size.width,r.size.height,(unsigned long)v.subviews.count,v.layer.cornerRadius];
             if(queue.count<1200)[queue addObjectsFromArray:v.subviews];
@@ -201,7 +209,7 @@ static void TT48Frame(UIView *v,CGRect r) {
     // The overlap bridge is passthrough; only the two new circles accept touches.
     [window bringSubviewToFront:self.extension];
     NSString *cls=NSStringFromClass(bar.class);
-    if(![self.detectedClass isEqual:cls]){self.detectedClass=cls;NSLog(@"[Joker48] reaction bar hierarchy class %@",cls);TT48Debug([@"detected " stringByAppendingString:cls]);}
+    if(![self.detectedClass isEqual:cls]){self.detectedClass=cls;NSLog(@"[Joker48] reaction bar hierarchy class %@",cls);}
 }
 - (void)scanWindows:(NSArray<UIWindow *> *)windows enabled:(BOOL)enabled {
     if(!enabled){[self detach];return;}

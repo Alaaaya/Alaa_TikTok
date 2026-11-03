@@ -222,7 +222,7 @@ static UIView *TT122Material(CGRect frame) {
 }
 - (void)applyHiddenUI {
     if(!self.uiHidden || !TT122Enabled(@"tt122.eye"))return;
-    TT49HideTop(self.feed.view.window);
+    for(UIWindow *window in TT48Windows())TT49HideTop(window);
     id interaction=TTGActionObject(self.feed,@"interactionController");
     SEL selector=NSSelectorFromString(@"hideAllElements:exceptArray:");
     NSMethodSignature *sig=[interaction methodSignatureForSelector:selector];

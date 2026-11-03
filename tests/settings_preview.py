@@ -90,6 +90,31 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         TT49HideTop(self.window);Check(headerFixture.hidden,@"49 hides entire top tabs plus icons");
         TT49HideTop(self.window);TT49RestoreTop();Check(!headerFixture.hidden,@"49 repeated hide restores original visibility");
         [headerFixture removeFromSuperview];
+        NSMutableArray<UIView *> *exactTop=[NSMutableArray new];
+        for(NSString *name in @[@"TikTokFeedTabControl",@"TikTokFeedFadeScrollView",@"TTKFeedTabCornerItemView",
+            @"AWELiveFeedEntranceView",@"TTKSearchEntranceButton",@"TikTokFeedTabItemNearbyControl",
+            @"TikTokFeedTabItemFollowControl",@"TikTokFeedTabItemMallControl"]) {
+            Class cls=NSClassFromString(name);
+            if(!cls){cls=objc_allocateClassPair(UIView.class,name.UTF8String,0);objc_registerClassPair(cls);}
+            UIView *item=[[cls alloc] initWithFrame:CGRectMake(10,60,44,44)];
+            item.alpha=.73;item.userInteractionEnabled=YES;[self.window addSubview:item];[exactTop addObject:item];
+        }
+        TT49HideTop(self.window);
+        for(UIView *item in exactTop)Check(item.alpha==0 && !item.userInteractionEnabled,@"50 exact class hidden without tab labels");
+        for(UIView *item in exactTop){item.alpha=1;item.userInteractionEnabled=YES;TT50EnforceTop(item);}
+        for(UIView *item in exactTop)Check(item.alpha==0 && !item.userInteractionEnabled,@"50 lifecycle reapply");
+        Class newClass=NSClassFromString(@"TikTokFeedTabItemControl");
+        if(!newClass){newClass=objc_allocateClassPair(UIView.class,"TikTokFeedTabItemControl",0);objc_registerClassPair(newClass);}
+        UIView *reused=[[newClass alloc] initWithFrame:CGRectMake(50,60,30,44)];
+        reused.alpha=.4;reused.userInteractionEnabled=NO;[self.window addSubview:reused];
+        TT50EnforceTop(reused);Check(reused.alpha==0,@"50 newly reused tab stays hidden");
+        TT49RestoreTop();
+        for(UIView *item in exactTop){Check(fabs(item.alpha-.73)<.001 && item.userInteractionEnabled,@"50 original state restored");[item removeFromSuperview];}
+        Check(fabs(reused.alpha-.4)<.001 && !reused.userInteractionEnabled,@"50 disabled state preserved");[reused removeFromSuperview];
+        UIWindow *lateWindow=[[UIWindow alloc] initWithWindowScene:self.window.windowScene];
+        lateWindow.hidden=YES;
+        Check([TT50DiagnosticWindows() containsObject:lateWindow],@"50 capture includes newly created hidden windows");
+        NSLog(@"PASS 50 exact top classes, lifecycle reapply, reuse, original-state restore and fresh all-window capture");
         Shot(vc,@"home");
         for(NSInteger page=0;page<7;page++){
             [vc showCategory:page animated:NO];
