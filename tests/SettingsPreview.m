@@ -715,6 +715,12 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
 - (BOOL)shijimaInstalled {return YES;}
 @end
 // Deterministic UIKit drag input fixture, never compiled into the tweak.
+@interface JK60TestModalRoot:UIViewController
+@property(nonatomic,strong) UIViewController *fixturePresented;
+@end
+@implementation JK60TestModalRoot
+- (UIViewController *)presentedViewController{return self.fixturePresented;}
+@end
 @interface JK60TestPan:UIPanGestureRecognizer
 @property(nonatomic) UIGestureRecognizerState fixtureState;
 @property(nonatomic) CGPoint fixtureDelta;

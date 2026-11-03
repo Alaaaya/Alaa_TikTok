@@ -7,6 +7,8 @@
         for(UIView *a=dock.superview;a;a=a.superview)Check(!a.hidden&&a.alpha>.01,@"60 dock ancestors are not collapse-hidden");
         for(UIView *b in tabs)Check(!b.hidden&&b.alpha>.99&&b.userInteractionEnabled,@"60 all native dock controls remain visible and live");
     };
+    JK60TestModalRoot *modalFixture=[JK60TestModalRoot new];Check(!JK60ModalCovered(modalFixture),@"60 no modal leaves floating input available");
+    modalFixture.fixturePresented=[UIViewController new];Check(JK60ModalCovered(modalFixture),@"60 native settings/modal sheet covers floating input independently");
     checkDock();
     [dots sendActionsForControlEvents:UIControlEventTouchUpInside];JKRailApply(self.window,NO);checkDock();
     Check(JKRailClosed,@"60 tap collapses without hiding dock");

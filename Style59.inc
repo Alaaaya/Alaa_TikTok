@@ -231,6 +231,9 @@ static void JKRailApply(UIWindow *w,BOOL animated){
     }
     [toggle paint];JKResult(YES,JKRailClosed?@"rail-all-native-children-collapsed":@"rail-all-native-children-expanded");
 }
+// Window-level floating trigger must never sit above a native presented sheet,
+// settings page or system prompt. This changes neither eye nor collapse state.
+static BOOL JK60ModalCovered(UIViewController *root){return root.presentedViewController!=nil;}
 static void JK59Window(UIWindow *w,BOOL on){
     UIView *rail=JKRailStack(w);JKAlaaToggle *toggle=(JKAlaaToggle *)[w viewWithTag:9156];
     if(!on){
@@ -249,7 +252,8 @@ static void JK59Window(UIWindow *w,BOOL on){
         if(!toggle)toggle=[[JKAlaaToggle alloc] initWithFrame:CGRectMake(0,0,48,48)];
         if(toggle.superview!=w){[toggle removeFromSuperview];[w addSubview:toggle];}
         [toggle placeFloating];
-        toggle.hidden=TT50EyeActive;toggle.userInteractionEnabled=!TT50EyeActive;JKRailApply(w,NO);
+        BOOL covered=TT50EyeActive||JK60ModalCovered(w.rootViewController);
+        toggle.hidden=covered;toggle.userInteractionEnabled=!covered;JKRailApply(w,NO);
     } else if(toggle){toggle.hidden=YES;}
     AVPlayer *player=JK59ActivePlayer(w);
     for(NSInteger i=0;i<2;i++){
