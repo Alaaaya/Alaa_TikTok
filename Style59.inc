@@ -184,7 +184,7 @@ static BOOL JK59Mute(UIWindow *w){
 }
 - (void)refresh{
     AVPlayer *p=JK59ActivePlayer(self.window);self.boundPlayer=p;self.enabled=p && (!self.speed||p.rate>0);
-    if(self.speed){[self setTitle:p?[NSString stringWithFormat:@"%gx",p.rate]:@"" forState:UIControlStateNormal];}
+    if(self.speed){[self setTitle:p?[NSString stringWithFormat:@"%g×",p.rate]:@"" forState:UIControlStateNormal];}
     else{[self setImage:[UIImage systemImageNamed:p.muted?@"speaker.slash":@"speaker.wave.2" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:20 weight:UIImageSymbolWeightRegular]] forState:UIControlStateNormal];}
     self.accessibilityLabel=self.speed?@"سرعة التشغيل":@"كتم الصوت";
     self.accessibilityValue=p?(self.speed?[NSString stringWithFormat:@"%g",p.rate]:(p.muted?@"Muted":@"Sound on")):nil;
@@ -227,7 +227,7 @@ static void JKRailApply(UIWindow *w,BOOL animated){
             v.alpha=closed?0:[r[@"alpha"] doubleValue];
             v.transform=closed?CGAffineTransformConcat([r[@"transform"] CGAffineTransformValue],CGAffineTransformConcat(CGAffineTransformMakeTranslation(0,k*60),CGAffineTransformMakeScale(.25,.25))):[r[@"transform"] CGAffineTransformValue];
         };
-        if(animated)[UIView animateWithDuration:.5 delay:closed?(total-k)*.025:(k-1)*.045 usingSpringWithDamping:.62 initialSpringVelocity:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowUserInteraction animations:state completion:nil];else state();
+        if(animated && !UIAccessibilityIsReduceMotionEnabled())[UIView animateWithDuration:.5 delay:closed?(total-k)*.025:(k-1)*.045 usingSpringWithDamping:.62 initialSpringVelocity:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowUserInteraction animations:state completion:nil];else state();
     }
     [toggle paint];JKResult(YES,JKRailClosed?@"rail-all-native-children-collapsed":@"rail-all-native-children-expanded");
 }
