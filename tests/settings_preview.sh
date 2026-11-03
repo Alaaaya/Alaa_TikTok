@@ -32,10 +32,17 @@ xcrun simctl bootstatus "$UDID" -b
 xcrun simctl spawn "$UDID" defaults write NSGlobalDomain AppleLanguages -array ar
 xcrun simctl spawn "$UDID" defaults write NSGlobalDomain AppleLocale ar_SA
 xcrun simctl install "$UDID" "$APP"
+# Actual simulator compositor recording, not a claimed device FPS benchmark.
+xcrun simctl io "$UDID" recordVideo --codec=h264 /tmp/joker62-fixture.mp4 >/tmp/joker62-video.log 2>&1 &
+VIDEO_PID=$!
+trap 'kill -INT "$VIDEO_PID" 2>/dev/null || true' EXIT
 set +e
 xcrun simctl launch --console "$UDID" test.joker.preview 2>&1 | tee /tmp/joker-preview.log
 LAUNCH_STATUS=${PIPESTATUS[0]}
 set -e
+kill -INT "$VIDEO_PID" 2>/dev/null || true
+wait "$VIDEO_PID" || true
+trap - EXIT
 if [ "$LAUNCH_STATUS" -ne 0 ]; then
   find "$HOME/Library/Logs/DiagnosticReports" -name '*Joker*' -type f -exec tail -c 16000 {} \; || true
   exit "$LAUNCH_STATUS"
@@ -45,3 +52,5 @@ grep -q 'PASS UIKit grid/category/back/layout/art persistence smoke' /tmp/joker-
 CONTAINER=$(xcrun simctl get_app_container "$UDID" test.joker.preview data)
 mkdir -p settings-shots
 cp "$CONTAINER/Documents/shots/"*.png settings-shots/
+
+cp /tmp/joker62-fixture.mp4 settings-shots/62-simulator-fixture.mp4 2>/dev/null || true

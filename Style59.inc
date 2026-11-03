@@ -202,6 +202,7 @@ static void JKRailRestore(UIView *rail){
     objc_setAssociatedObject(rail,kJK59RailState,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     NSValue *t=objc_getAssociatedObject(rail,kJK59RailGeometry);if(t){rail.transform=t.CGAffineTransformValue;objc_setAssociatedObject(rail,kJK59RailGeometry,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
 }
+#include "Motion62.inc"
 // 60 owner change: collapse ALL exact feed chrome, not just rail children.
 // Snapshot each native view independently. Never touch shared ancestors/video.
 static void JKRailApply(UIWindow *w,BOOL animated){
@@ -218,7 +219,8 @@ static void JKRailApply(UIWindow *w,BOOL animated){
         rail.transform=g.CGAffineTransformValue;CGRect rr=[rail convertRect:rail.bounds toView:w];
         rail.transform=CGAffineTransformConcat(g.CGAffineTransformValue,CGAffineTransformMakeTranslation(0,-MAX(0,CGRectGetMaxY(rr)-(w.bounds.size.height-186))));
     }
-    if(JK60Active())JK60Tree(w);else JK60Restore();
+    if(animated)JK62Animate(w);
+    else if(!JK62Running){if(JK60Active())JK60Tree(w);else JK60Restore();}
     JKAlaaToggle *toggle=(id)[w viewWithTag:9156];[toggle paint];
     JKResult(YES,JKRailClosed?@"all-feed-chrome-collapsed":@"all-feed-chrome-restored");
 }
@@ -228,7 +230,7 @@ static BOOL JK60ModalCovered(UIViewController *root){return root.presentedViewCo
 static void JK59Window(UIWindow *w,BOOL on){
     UIView *rail=JKRailStack(w);JKAlaaToggle *toggle=(JKAlaaToggle *)[w viewWithTag:9156];
     if(!on){
-        JK60Restore();
+        JK62Finish();JK60Restore();
         // Find rails even if hidden by eye. Restore is independent of style selection.
         NSMutableArray *q=[NSMutableArray arrayWithObject:w];
         for(NSUInteger i=0;i<q.count&&i<8000;i++){UIView *v=q[i];if(objc_getAssociatedObject(v,kJK59RailState)||objc_getAssociatedObject(v,kJK59RailGeometry))JKRailRestore(v);[q addObjectsFromArray:[v.subviews copy]];}

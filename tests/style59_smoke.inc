@@ -93,6 +93,7 @@
     #include "style60_smoke.inc"
     #include "floating61_smoke.inc"
     #include "bar61_smoke.inc"
+    #include "motion62_smoke.inc"
     // A tap on a stale visible control cannot mutate an offscreen player.
     JK59PlayerButton *stale=(id)[self.window viewWithTag:9361];[active pause];pv.frame=CGRectOffset(fd.bounds,0,-h);off.frame=fd.bounds;
     BOOL beforeInactive=inactive.muted;[stale sendActionsForControlEvents:UIControlEventTouchUpInside];Check(inactive.muted==beforeInactive && !active.muted,@"59 stale control cannot target newly recycled feed");

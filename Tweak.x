@@ -1676,6 +1676,11 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
 
     if(category==4){
+        UIButton *motion=[UIButton buttonWithType:UIButtonTypeSystem];motion.tag=628;
+        [motion setTitle:[@"حركة إظهار الواجهة · " stringByAppendingString:JK62Names()[JK62Style()]] forState:UIControlStateNormal];
+        motion.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+        [motion.heightAnchor constraintGreaterThanOrEqualToConstant:44].active=YES;
+        [motion addTarget:self action:@selector(motionPicker:) forControlEvents:UIControlEventTouchUpInside];[self.stack addArrangedSubview:motion];
         UILabel *title=[self label:@"لون شريط التنقل السفلي" size:15 weight:UIFontWeightSemibold];[self.stack addArrangedSubview:title];
         UIStackView *swatches=[UIStackView new];swatches.axis=UILayoutConstraintAxisHorizontal;swatches.spacing=10;swatches.distribution=UIStackViewDistributionFillEqually;swatches.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
         NSArray *colors=@[UIColor.blackColor,[UIColor colorWithRed:.12 green:.22 blue:.4 alpha:1],[UIColor colorWithRed:.32 green:.12 blue:.3 alpha:1],[UIColor colorWithRed:.08 green:.32 blue:.26 alpha:1],[UIColor colorWithRed:.95 green:.77 blue:.4 alpha:1],UIColor.whiteColor];
@@ -1997,6 +2002,19 @@ static UIVisualEffect *TTJokerGlass(void) {
     for(NSString *pack in packs)[menu addAction:[UIAlertAction actionWithTitle:pack.length?pack:@"Joker الأصلية" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a){
         [D() setObject:pack forKey:@"tt.pet.pack"];[[TTJokerPet shared] refresh];[weakSelf showCategory:6 animated:NO];
     }]];
+    [menu addAction:[UIAlertAction actionWithTitle:@"إلغاء" style:UIAlertActionStyleCancel handler:nil]];
+    menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
+    [self presentViewController:menu animated:YES completion:nil];
+}
+- (void)motionPicker:(UIButton *)sender {
+    UIAlertController *menu=[UIAlertController alertControllerWithTitle:@"حركة إظهار الواجهة" message:@"لستايل علاء · تقليل الحركة يستخدم تلاشيًا خفيفًا" preferredStyle:UIAlertControllerStyleActionSheet];
+    menu.view.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    for(NSInteger i=0;i<5;i++){
+        NSString *title=[NSString stringWithFormat:@"%@%@",i==JK62Style()?@"✓ ":@"",JK62Names()[i]];
+        [menu addAction:[UIAlertAction actionWithTitle:title style:UIAlertActionStyleDefault handler:^(UIAlertAction *a){
+            JK62SetStyle(i);[sender setTitle:[@"حركة إظهار الواجهة · " stringByAppendingString:JK62Names()[JK62Style()]] forState:UIControlStateNormal];
+        }]];
+    }
     [menu addAction:[UIAlertAction actionWithTitle:@"إلغاء" style:UIAlertActionStyleCancel handler:nil]];
     menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
     [self presentViewController:menu animated:YES completion:nil];

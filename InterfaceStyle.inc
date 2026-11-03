@@ -158,7 +158,7 @@ static void JKRailApply(UIWindow *window,BOOL animated);
     self.dots.transform=JKRailClosed?CGAffineTransformIdentity:CGAffineTransformMakeRotation(M_PI_2);
     self.xmark.transform=JKRailClosed?CGAffineTransformMakeRotation(-M_PI_2):CGAffineTransformIdentity;
 }
-- (void)flip {if(self.dragged)return;JKRailClosed=!JKRailClosed;[UIView animateWithDuration:.35 animations:^{[self paint];}];[self applyAnimated:YES];}
+- (void)flip {if(self.dragged)return;JKRailClosed=!JKRailClosed;[self paint];[self applyAnimated:YES];}
 - (void)applyAnimated:(BOOL)anim {
     JKRailApply(self.window,anim);
 }
