@@ -154,14 +154,13 @@ static BOOL TT51SheetPeers(UIView *root) {
             branch=p;
         }
         if(stack) {
-            NSLog(@"51 adapter stack=%@ translate=%d constraints=%@ parent=%@",stack,stack.translatesAutoresizingMaskIntoConstraints,stack.constraints,stack.superview.constraints);
             NSUInteger index=[stack.arrangedSubviews indexOfObject:branch];
             if(index==NSNotFound)continue;
             row.translatesAutoresizingMaskIntoConstraints=NO;
             [row.heightAnchor constraintEqualToConstant:screen.size.height].active=YES;
             // Grow an explicit stack height if present; otherwise intrinsic stack sizing propagates normally.
             for(NSLayoutConstraint *c in stack.constraints)
-                if(c.active && ![NSStringFromClass(c.class) containsString:@"AutoresizingMask"] && c.firstItem==stack && c.firstAttribute==NSLayoutAttributeHeight && !c.secondItem && c.relation==NSLayoutRelationEqual){
+                if(c.active && ![NSStringFromClass(c.class) containsString:@"AutoresizingMask"] && ![c.identifier hasPrefix:@"UIView-Encapsulated-Layout"] && c.firstItem==stack && c.firstAttribute==NSLayoutAttributeHeight && !c.secondItem && c.relation==NSLayoutRelationEqual){
                     self.stackHeight=c;self.originalHeight=c.constant;c.constant+=screen.size.height;break;
                 }
             if(!self.stackHeight){
@@ -170,7 +169,7 @@ static BOOL TT51SheetPeers(UIView *root) {
                 BOOL externallySized=NO;
                 for(UIView *p=stack.superview;p;p=p.superview)
                     for(NSLayoutConstraint *c in p.constraints)
-                        if(c.active && ![NSStringFromClass(c.class) containsString:@"AutoresizingMask"] && ((c.firstItem==stack && (c.firstAttribute==NSLayoutAttributeHeight || c.firstAttribute==NSLayoutAttributeTop || c.firstAttribute==NSLayoutAttributeBottom)) ||
+                        if(c.active && ![NSStringFromClass(c.class) containsString:@"AutoresizingMask"] && ![c.identifier hasPrefix:@"UIView-Encapsulated-Layout"] && ((c.firstItem==stack && (c.firstAttribute==NSLayoutAttributeHeight || c.firstAttribute==NSLayoutAttributeTop || c.firstAttribute==NSLayoutAttributeBottom)) ||
                            (c.secondItem==stack && (c.secondAttribute==NSLayoutAttributeHeight || c.secondAttribute==NSLayoutAttributeTop || c.secondAttribute==NSLayoutAttributeBottom))))externallySized=YES;
                 if(!externallySized){
                     self.resizedStack=YES;self.originalStackFrame=stack.frame;
@@ -182,7 +181,6 @@ static BOOL TT51SheetPeers(UIView *root) {
                 }
             }
             [stack insertArrangedSubview:row atIndex:index];self.stack=stack;
-            NSLog(@"51 adapted frame=%@ height=%@ resized=%d created=%d",NSStringFromCGRect(stack.frame),self.stackHeight,self.resizedStack,self.createdStackHeight);
         } else {
             // Table/collection/custom-scroll sheets: reserve a new first row without altering data sources,
             // native cell frames, gesture targets or item indices. Existing content remains scrollable.
