@@ -7,8 +7,8 @@
     UITableViewCell *c=[t dequeueReusableCellWithIdentifier:@"c"]?:[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"c"];
     NSArray *cols=@[[UIColor colorWithRed:.85 green:.2 blue:.35 alpha:1],[UIColor colorWithRed:.15 green:.5 blue:.85 alpha:1],[UIColor colorWithRed:.2 green:.7 blue:.4 alpha:1]];
     c.contentView.backgroundColor=cols[i.row%3];c.backgroundColor=cols[i.row%3];
-    c.textLabel.text=[NSString stringWithFormat:@"Video %ld · FIXTURE test data, not device",(long)i.row+1];
-    c.textLabel.textColor=UIColor.whiteColor;c.textLabel.font=[UIFont boldSystemFontOfSize:20];
+    c.textLabel.text=[NSString stringWithFormat:@"PAGE %ld · FIXTURE",(long)i.row+1];c.textLabel.textAlignment=NSTextAlignmentCenter;
+    c.textLabel.textColor=UIColor.whiteColor;c.textLabel.font=[UIFont boldSystemFontOfSize:48];
     return c;
 }
 @end

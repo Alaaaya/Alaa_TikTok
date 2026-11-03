@@ -45,6 +45,8 @@ static CATransform3D JK65Matrix(NSInteger style,JK65Out o,double p,double H,CATr
     return CATransform3DConcat(base,m);
 }
 static NSMapTable *JK65Records(void){static NSMapTable *t;static dispatch_once_t o;dispatch_once(&o,^{t=[NSMapTable weakToStrongObjectsMapTable];});return t;}
+// Owner table per cell (weak both sides): restore never relies on the cell's direct superview.
+static NSMapTable *JK65Owners(void){static NSMapTable *t;static dispatch_once_t o;dispatch_once(&o,^{t=[NSMapTable weakToWeakObjectsMapTable];});return t;}
 // record = @[base transform, applied transform, base opacity, applied opacity, base zPosition, applied z]
 static void JK65RestoreCell(UIView *cell,BOOL force){
     NSArray *r=[JK65Records() objectForKey:cell];if(!r)return;
@@ -53,10 +55,10 @@ static void JK65RestoreCell(UIView *cell,BOOL force){
     if(CATransform3DEqualToTransform(cell.layer.transform,applied))cell.layer.transform=[r[0] CATransform3DValue];
     if(fabs(cell.layer.opacity-[r[3] floatValue])<1e-4)cell.layer.opacity=[r[2] floatValue];
     if(cell.layer.zPosition==[r[5] doubleValue])cell.layer.zPosition=[r[4] doubleValue];
-    [JK65Records() removeObjectForKey:cell];
+    [JK65Records() removeObjectForKey:cell];[JK65Owners() removeObjectForKey:cell];
 }
 static void JK65RestoreTable(UIView *table){
-    for(UIView *c in [JK65Records().keyEnumerator.allObjects copy])if(c.superview==table||!c.superview)JK65RestoreCell(c,NO);
+    for(UIView *c in [JK65Records().keyEnumerator.allObjects copy]){UIView *ow=[JK65Owners() objectForKey:c];if(ow==table||!ow)JK65RestoreCell(c,NO);}
 }
 static void JK65RestoreAll(void){for(UIView *c in [JK65Records().keyEnumerator.allObjects copy])JK65RestoreCell(c,NO);}
 static void JK65SetStyle(NSInteger style){
@@ -96,6 +98,7 @@ static void JK65After(UIScrollView *t){
         cell.layer.transform=m;cell.layer.opacity=nop;cell.layer.zPosition=nz;
         [CATransaction commit];
         [JK65Records() setObject:@[[NSValue valueWithCATransform3D:base],[NSValue valueWithCATransform3D:cell.layer.transform],@(op),@(cell.layer.opacity),@(z),@(cell.layer.zPosition)] forKey:cell];
+        [JK65Owners() setObject:t forKey:cell];
     }
 }
 static void JK65Install(void){
