@@ -12,7 +12,7 @@
     __block NSInteger navigations=0;
     for(NSUInteger i=0;i<5;i++){
         Class c=Fixture(i==2?@"AWETabBarPlusButton":@"TTKTabBarButton",UIButton.class);
-        UIButton *b=[[c alloc] initWithFrame:CGRectMake(i*w/5,0,w/5,49)];b.selected=i==0;
+        UIButton *b=[[c alloc] initWithFrame:CGRectMake(i*w/5,0,w/5,49)];b.selected=NO;
         b.accessibilityLabel=titles[i];
         [b addAction:[UIAction actionWithHandler:^(__unused UIAction *action){navigations++;}] forControlEvents:UIControlEventTouchUpInside];
         UITapGestureRecognizer *g=[[UITapGestureRecognizer alloc] init];[b addGestureRecognizer:g];[tabGRs addObject:g];
@@ -22,6 +22,8 @@
         [dock addSubview:b];[tabs addObject:b];
     }
     (void)counter;
+    UITabBar *fake=[[Fixture(@"TTKFakeTabBar",UITabBar.class) alloc] initWithFrame:dock.frame];fake.userInteractionEnabled=NO;
+    NSMutableArray *fakeItems=[NSMutableArray new];for(NSUInteger i=0;i<4;i++)[fakeItems addObject:[[UITabBarItem alloc] initWithTitle:titles[i<2?i:i+1] image:nil tag:i]];fake.items=fakeItems;fake.selectedItem=fakeItems[0];[fd insertSubview:fake belowSubview:dock];
     CGRect dockBefore=dock.frame;NSArray *buttonFrames=[tabs valueForKey:@"frame"];
     Class playerCls=Fixture(@"TTPlayerView",UIView.class);
     UIView *pv=[[playerCls alloc] initWithFrame:fd.bounds];[fd insertSubview:pv atIndex:0];
@@ -45,6 +47,9 @@
         JK59DockRecord *r=objc_getAssociatedObject(b,kJK59DockState);Check(r && r.decoration.superview==b && !r.decoration.userInteractionEnabled,@"59 dock decoration inert, real button hit region live");
         if(i!=2){UILabel *l=(UILabel *)r.decoration.subviews.lastObject;Check([l.text isEqual:titles[i]],@"59 native destination labels preserved, no fake Settings destination");}
     }
+    JK59DockRecord *selectedPaint=objc_getAssociatedObject(tabs[0],kJK59DockState);
+    Check([((UILabel *)selectedPaint.decoration.subviews.lastObject).textColor isEqual:JK59Amber()] && fake.alpha==0,@"59 actual selected UITabBar item gives amber when all native button.selected flags are false; fake paint suppressed");
+    fake.selectedItem=fakeItems[3];JKStyleApplyAll();selectedPaint=objc_getAssociatedObject(tabs[4],kJK59DockState);Check([((UILabel *)selectedPaint.decoration.subviews.lastObject).textColor isEqual:JK59Amber()],@"59 fake native selected item change updates correct real tab amber");fake.selectedItem=fakeItems[0];JKStyleApplyAll();
     Check(navigations==5,@"59 all five native dock actions still fire");
     JK59PlayerButton *speed=(id)[self.window viewWithTag:9360],*sound=(id)[self.window viewWithTag:9361];
     Check(speed && sound && speed.enabled && sound.enabled,@"59 controls appear only with safe ready public player bridge");
@@ -83,10 +88,10 @@
     BOOL beforeInactive=inactive.muted;[stale sendActionsForControlEvents:UIControlEventTouchUpInside];Check(inactive.muted==beforeInactive && !active.muted,@"59 stale control cannot target newly recycled feed");
     pv.frame=fd.bounds;off.frame=CGRectOffset(fd.bounds,0,-h);JKStyleApplyAll();
     [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();
-    Check(CGRectEqualToRect(dock.frame,dockBefore) && ![dock viewWithTag:9358] && ![self.window viewWithTag:9156] && ![self.window viewWithTag:9360],@"59 default removes new chrome and restores native dock");
+    Check(fake.alpha==1 && CGRectEqualToRect(dock.frame,dockBefore) && ![dock viewWithTag:9358] && ![self.window viewWithTag:9156] && ![self.window viewWithTag:9360],@"59 default removes new chrome and restores native dock");
     for(NSUInteger i=0;i<5;i++){UIView *b=tabs[i];Check(CGRectEqualToRect(b.frame,[buttonFrames[i] CGRectValue]) && !objc_getAssociatedObject(b,kJK59DockState) && [b.gestureRecognizers containsObject:tabGRs[i]],@"59 default restores all native tab geometry paint and gesture identities");}
     Check(CGAffineTransformIsIdentity(fr.transform) && avatar.alpha==1 && music.alpha==1 && follow.userInteractionEnabled,@"59 default restores rail geometry avatar follow music");
     ShotView(self.window,@"59-restored-default");
-    [active pause];[inactive pause];[dock removeFromSuperview];[pv removeFromSuperview];[off removeFromSuperview];
+    [active pause];[inactive pause];[fake removeFromSuperview];[dock removeFromSuperview];[pv removeFromSuperview];[off removeFromSuperview];
     NSLog(@"PASS 59 native dock actions and labels, real AVPlayer rate/mute readback, offscreen rejection, full rail collapse, eye independence, default restoration");
 }

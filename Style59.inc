@@ -31,7 +31,7 @@ static void JK59Source(UIView *v,UIImageView **icon,UILabel **label,NSUInteger d
 @end
 @implementation JK59DockRecord
 @end
-static void JK59Button(UIView *b,CGRect frame,BOOL plus,BOOL on){
+static void JK59Button(UIView *b,CGRect frame,BOOL plus,BOOL on,BOOL selected){
     JK59DockRecord *r=objc_getAssociatedObject(b,kJK59DockState);
     if(!on){
         if(r){[r.decoration removeFromSuperview];JK59ReleasePaint(r.paint);JKRecRestore(b);objc_setAssociatedObject(b,kJK59DockState,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
@@ -52,7 +52,6 @@ static void JK59Button(UIView *b,CGRect frame,BOOL plus,BOOL on){
     b.transform=CGAffineTransformIdentity;b.frame=frame;
     UIView *d=r.decoration;d.frame=b.bounds;d.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
     for(UIView *v in [d.subviews copy])[v removeFromSuperview];
-    BOOL selected=[b isKindOfClass:UIControl.class] && ((UIControl *)b).selected;
     UIColor *ink=selected?JK59Amber():[UIColor colorWithRed:239/255.0 green:244/255.0 blue:241/255.0 alpha:.72];
     UIImageView *im=[[UIImageView alloc] initWithImage:plus?[UIImage systemImageNamed:@"plus" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:22 weight:UIImageSymbolWeightBold]]:[r.icon imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]];
     im.userInteractionEnabled=NO;im.contentMode=UIViewContentModeScaleAspectFit;im.tintColor=plus?[UIColor colorWithRed:36/255.0 green:22/255.0 blue:0 alpha:1]:ink;
@@ -66,6 +65,20 @@ static void JK59Button(UIView *b,CGRect frame,BOOL plus,BOOL on){
     }
     JKResult(YES,@"dock-native-in-place");
 }
+// The device tree reports every TTKTabBarButton selected=0; the known
+// noninteractive TTKFakeTabBar exposes the actual four-item selectedItem.
+// Read only public UITabBar APIs, never guess a private selected-index getter.
+static UITabBar *JK59FakeBar(UIView *bar){
+    NSMutableArray *q=[NSMutableArray arrayWithObject:bar.window];UITabBar *found=nil;
+    for(NSUInteger i=0;i<q.count&&i<5000;i++){
+        UIView *v=q[i];
+        if([NSStringFromClass(v.class) isEqualToString:@"TTKFakeTabBar"] && [v isKindOfClass:UITabBar.class] && !v.hidden && !CGRectIsEmpty(CGRectIntersection([v convertRect:v.bounds toView:bar.window],bar.window.bounds))){
+            if(found)return nil;found=(UITabBar *)v;
+        }
+        [q addObjectsFromArray:[v.subviews copy]];
+    }
+    return found;
+}
 static void JK59Dock(UIView *bar,BOOL on){
     NSMutableArray *buttons=[NSMutableArray new];
     for(UIView *v in [bar.subviews copy]){
@@ -78,7 +91,7 @@ static void JK59Dock(UIView *bar,BOOL on){
     }];
     NSMapTable *bg=objc_getAssociatedObject(bar,kJK59DockState);
     if(!on){
-        for(UIView *b in buttons)JK59Button(b,CGRectZero,NO,NO);
+        for(UIView *b in buttons)JK59Button(b,CGRectZero,NO,NO,NO);
         [[bar viewWithTag:9358] removeFromSuperview];
         if(bg){JK59ReleasePaint(bg);JKRecRestore(bar);objc_setAssociatedObject(bar,kJK59DockState,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
         return;
@@ -93,8 +106,14 @@ static void JK59Dock(UIView *bar,BOOL on){
     UIVisualEffectView *glass=(UIVisualEffectView *)[bar viewWithTag:9358];
     if(!glass){glass=[[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleDark]];glass.tag=9358;glass.userInteractionEnabled=NO;[bar insertSubview:glass atIndex:0];}
     glass.frame=bar.bounds;glass.layer.cornerRadius=31;glass.clipsToBounds=YES;
+    UITabBar *fake=JK59FakeBar(bar);NSUInteger selectedIndex=NSNotFound;
+    if(fake.items.count==4 && fake.selectedItem){NSUInteger j=[fake.items indexOfObjectIdenticalTo:fake.selectedItem];if(j<4)selectedIndex=j<2?j:j+1;}
+    if(fake && !fake.userInteractionEnabled)JK59HidePaint(fake,bg);
     CGFloat unit=(bar.bounds.size.width-12)/5.2,x=6;
-    for(NSUInteger i=0;i<buttons.count;i++){CGFloat width=unit*(i==2?1.2:1);JK59Button(buttons[i],CGRectMake(x,0,width,62),i==2,YES);x+=width;}
+    for(NSUInteger i=0;i<buttons.count;i++){
+        UIView *b=buttons[i];BOOL selected=selectedIndex!=NSNotFound?i==selectedIndex:([b isKindOfClass:UIControl.class]&&((UIControl *)b).selected);
+        CGFloat width=unit*(i==2?1.2:1);JK59Button(b,CGRectMake(x,0,width,62),i==2,YES,selected);x+=width;
+    }
 }
 // Only one mostly-visible known TTPlayerView may supply a bridge. No KVC,
 // guessed getters, private player APIs, offscreen cells or global player lookup.
