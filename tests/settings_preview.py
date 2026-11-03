@@ -192,8 +192,15 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
             Check(TTToolImage(1222)==nil,@"eye unchanged");
             [NSFileManager.defaultManager removeItemAtPath:TTToolPath(1221) error:nil];
             [TTToolCache() removeObjectForKey:@1221];Check(TTToolImage(1221)==nil,@"reset");
-            NSLog(@"PASS UIKit grid/category/back/layout/art persistence smoke");
-            fflush(stdout);exit(0);
+            [vc showCategory:-1 animated:NO];
+            UIButton *button=(UIButton *)vc.stack.arrangedSubviews.lastObject;
+            [button sendActionsForControlEvents:UIControlEventTouchUpInside];
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(1.0*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
+                Check([vc.presentedViewController isKindOfClass:UIActivityViewController.class],@"49 row opens native share sheet");
+                ShotView(self.window,@"49-share-sheet");
+                NSLog(@"PASS UIKit grid/category/back/layout/art persistence and diagnostics share smoke");
+                fflush(stdout);exit(0);
+            });
         });
     });
     return YES;
