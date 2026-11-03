@@ -209,10 +209,13 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
             [vc showCategory:-1 animated:NO];
             UIButton *button=(UIButton *)vc.stack.arrangedSubviews.lastObject;
             [button sendActionsForControlEvents:UIControlEventTouchUpInside];
-            Check([vc.presentedViewController isKindOfClass:UIActivityViewController.class],@"49 row opens native share sheet");
-            NSLog(@"PASS 49 local file and native share presentation");
-            NSLog(@"PASS UIKit grid/category/back/layout/art persistence smoke");
-            fflush(stdout);exit(0);
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,2*NSEC_PER_SEC),dispatch_get_main_queue(), ^{
+                Check([vc.presentedViewController isKindOfClass:UIActivityViewController.class],@"49 row opens native share sheet");
+                ShotView(self.window,@"49-share-sheet");
+                NSLog(@"PASS 49 local file and native share presentation");
+                NSLog(@"PASS UIKit grid/category/back/layout/art persistence smoke");
+                fflush(stdout);exit(0);
+            });
         });
     });
     return YES;
