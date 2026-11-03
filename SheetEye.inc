@@ -74,7 +74,8 @@ static BOOL TT51SheetPeers(UIView *root) {
 @property(nonatomic,weak) UIStackView *stack;
 @property(nonatomic,weak) UIScrollView *scroll;
 @property(nonatomic) UIEdgeInsets oldInset,oldIndicators;
-@property(nonatomic) CGFloat addedInset;
+@property(nonatomic) CGFloat addedInset,grewContent;
+@property(nonatomic,weak) UIScrollView *growScroll;
 @property(nonatomic,strong) NSLayoutConstraint *stackHeight;
 @property(nonatomic) CGFloat originalHeight;
 @property(nonatomic) CGRect originalStackFrame;
@@ -124,6 +125,12 @@ static BOOL TT51SheetPeers(UIView *root) {
     UIScrollView *sc=[self revealScroll];if(!sc || !self.row2.window || self.mode==0)return;
     [sc layoutIfNeeded];
     CGRect r=[self.row2 convertRect:self.row2.bounds toView:sc];
+    // The native sheet may not grow its content size for our extra rows: grow it so the card can be scrolled fully into view.
+    CGFloat needH=CGRectGetMaxY(r)+24;
+    if(needH>sc.contentSize.height+.5){
+        CGSize cs=sc.contentSize;CGFloat d=needH-cs.height;cs.height=needH;sc.contentSize=cs;
+        self.growScroll=sc;self.grewContent+=d;
+    }
     UIEdgeInsets ins=sc.adjustedContentInset;
     CGFloat minY=-ins.top,maxY=MAX(minY,sc.contentSize.height-sc.bounds.size.height+ins.bottom);
     CGFloat want=r.origin.y-ins.top-10;
@@ -139,6 +146,13 @@ static BOOL TT51SheetPeers(UIView *root) {
     }
 }
 static const void *kTT55Card=&kTT55Card;
+- (void)restoreContent {
+    UIScrollView *sc=self.growScroll;
+    if(sc && self.grewContent>0){CGSize cs=sc.contentSize;cs.height=MAX(0,cs.height-self.grewContent);sc.contentSize=cs;
+        CGFloat maxY=MAX(-sc.adjustedContentInset.top,cs.height-sc.bounds.size.height+sc.adjustedContentInset.bottom);
+        if(sc.contentOffset.y>maxY)[sc setContentOffset:CGPointMake(sc.contentOffset.x,maxY) animated:NO];}
+    self.grewContent=0;self.growScroll=nil;
+}
 - (void)styleCard:(BOOL)on {
     UIView *card=self.cardHost;
     if(!on){
@@ -158,7 +172,7 @@ static const void *kTT55Card=&kTT55Card;
     self.subRows=nil;self.mode=mode;
     BOOL open=mode!=0;
     self.row2.caption.alpha=self.row2.glyph.alpha=open?0:1;
-    if(!open){[self relayoutExtra:0];self.row2.clipsToBounds=NO;[self styleCard:NO];[self.row2 setNeedsLayout];return;}
+    if(!open){[self relayoutExtra:0];self.row2.clipsToBounds=NO;[self styleCard:NO];[self restoreContent];[self.row2 setNeedsLayout];return;}
     NSArray *items=mode==1?@[@[@"تنزيل",@"arrow.down",@0],@[@"تنزيل HD",@"arrow.down",@1],@[@"أعلى جودة متاحة",@"arrow.down",@2],@[@"تنزيل الصوت",@"waveform",@3],@[@"حفظ الصوت كفيديو بغلاف",@"photo.on.rectangle",@4],@[@"نسخ",@"doc.on.doc",@101],@[@"رجوع",@"chevron.left",@100]]
         :@[@[@"نسخ الاسم",@"doc.on.doc",@10],@[@"نسخ الوصف",@"doc.on.doc",@11],@[@"نسخ اسم المستخدم",@"doc.on.doc",@12],@[@"رجوع",@"chevron.left",@102]];
     NSMutableArray *rows=[NSMutableArray array];
@@ -179,7 +193,7 @@ static const void *kTT55Card=&kTT55Card;
     for(UIView *r in self.subRows){r.frame=CGRectMake(0,y,self.row2.bounds.size.width,self.rowH);y+=self.rowH;}
 }
 - (void)detach {
-    [self styleCard:NO];
+    [self styleCard:NO];[self restoreContent];
     if(self.stack){
         [self.stack removeArrangedSubview:self.row];[self.stack removeArrangedSubview:self.row2];
         if(self.createdStackHeight)self.stackHeight.active=NO;
