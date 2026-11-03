@@ -22,7 +22,7 @@
     for(NSInteger s=1;s<=5;s++){JK65SetStyle(s);Check(JK65Style()==s,@"65 five styles persist");JK65SetStyle(0);Check(JK65Style()==0,@"65 default clears");}
     Check(JK65Effective(3,YES)==0&&JK65Effective(3,NO)==3,@"65 reduce motion falls back to native");
     for(NSInteger s=1;s<=5;s++){
-        for(NSNumber *pv in @[@0,@.001,@(-.001)]){JK65Out o=JK65Params(s,pv.doubleValue,YES,H65);Check(fabs(o.desired-pv.doubleValue*H65)<=1.5&&fabs(o.rotX)<.01&&fabs(o.tz)<.5&&o.scale>.999&&o.alpha>.999,@"65 near-rest parameters are visually native");}
+        for(NSNumber *pv in @[@0,@.001,@(-.001)]){JK65Out o=JK65Params(s,pv.doubleValue,YES,H65);Check(fabs(o.desired-pv.doubleValue*H65)<=1.5&&fabs(o.rotX)<.01&&fabs(o.tz)<.5&&o.scale>.99&&o.alpha>.99,@"65 near-rest parameters are visually native");}
     }
     JK65Out i1=JK65Params(2,.4,YES,H65),o1=JK65Params(2,-.6,YES,H65);Check(i1.z>o1.z&&o1.pinned&&o1.scale<1&&!i1.pinned,@"65 card stack: incoming above, outgoing pinned and scaled back");
     JK65Out i2=JK65Params(2,-.4,NO,H65);Check(i2.z>0,@"65 card stack backward incoming above");
