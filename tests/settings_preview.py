@@ -18,6 +18,7 @@ static void TTToolRefresh(void){}
 #include "../EmojiBar.inc"
 #include "../TopFeed.inc"
 #include "../NoFlash.inc"
+#include "../SheetEye.inc"
 @interface TT122Hub:NSObject
 +(instancetype)shared;
 -(void)refresh;
@@ -123,6 +124,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         lateWindow.hidden=YES;
         Check([TT50DiagnosticWindows() containsObject:lateWindow],@"50 capture includes newly created hidden windows");
         NSLog(@"PASS 50 exact top classes, lifecycle reapply, reuse, original-state restore and fresh all-window capture");
+        #include "sheet_smoke.inc"
         Shot(vc,@"home");
         for(NSInteger page=0;page<7;page++){
             [vc showCategory:page animated:NO];

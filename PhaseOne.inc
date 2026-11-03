@@ -1,5 +1,6 @@
 #include "TopFeed.inc"
 #include "EmojiBar.inc"
+#include "SheetEye.inc"
 // Phase one is isolated from the 1.21 glyph renderer and tab bar.
 #import <Photos/Photos.h>
 #import <AVFoundation/AVFoundation.h>
@@ -116,6 +117,7 @@ static NSURL *TT122VideoURL(id model, NSInteger quality) {
 @property(nonatomic, strong) NSTimer *timer;
 @property(nonatomic, weak) id hiddenInteraction;
 @property(nonatomic) BOOL uiHidden;
+@property(nonatomic,strong) TT51SheetEye *sheetEye;
 @property(nonatomic) BOOL audio;
 @property(nonatomic) BOOL audioAsVideo;
 @property(nonatomic, strong) NSURL *coverAudio;
@@ -278,7 +280,7 @@ static UIView *TT122Material(CGRect frame) {
         if(window)break;
     }
     window=window ?: self.feed.viewIfLoaded.window;
-    if (!window || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) { self.overlay.hidden = YES; [self.emojiBar detach]; return; }
+    if (!window || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) { self.overlay.hidden = YES; [self.emojiBar detach]; [self.sheetEye detach]; return; }
     if (!self.overlay) {
         self.overlay = [[TT122Passthrough alloc] initWithFrame:window.bounds];
         self.overlay.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
@@ -326,6 +328,11 @@ static UIView *TT122Material(CGRect frame) {
         self.emojiBar.action=^(BOOL eye){[weak tapped:eye?weak.eyeButton:weak.downloadButton];};
     }
     BOOL settingsOpen=[NSStringFromClass(top.class) isEqualToString:@"TTGSettingsController"];
+    if(!self.sheetEye){
+        self.sheetEye=[TT51SheetEye new];__weak typeof(self) weak=self;
+        self.sheetEye.toggle=^{[weak tapped:weak.eyeButton];};
+    }
+    [self.sheetEye scanWindows:TT48Windows() enabled:!settingsOpen && self.feed.viewIfLoaded.window!=nil && TT122Enabled(@"tt122.eye") hidden:self.uiHidden];
     BOOL emojiEnabled=PB(@"tt46.emojiBar",NO) && self.feed.viewIfLoaded.window!=nil && !settingsOpen;
     [self.emojiBar scanWindows:TT48Windows() enabled:emojiEnabled];
     [self.emojiBar.eye setImage:[UIImage systemImageNamed:self.uiHidden?@"eye.slash":@"eye"] forState:UIControlStateNormal];
