@@ -89,11 +89,11 @@ static NSString *JKHierarchyCapture(void) {
     JK63Line(out,[NSString stringWithFormat:@"=== end nodes=%lu nodeLimit=%d depthLimit=%d scanLimit=%d byteLimit=%d; output may be bounded ===",(unsigned long)count,JK_DUMP_NODES,JK_DUMP_DEPTH,JK_DUMP_SCAN,JK_DUMP_BYTES]);
     return out;
 }
-static void JK63RememberBeforeSettings(void) {
+static void __attribute__((unused)) JK63RememberBeforeSettings(void) {
     if(!NSThread.isMainThread)return;
     JK63BeforeSettings=JKHierarchyCapture();JK63BeforeTime=NSProcessInfo.processInfo.systemUptime;
 }
-static void JKAppendCapture(NSString *path) {
+static void __attribute__((unused)) JKAppendCapture(NSString *path) {
     if(!NSThread.isMainThread)return;
     NSMutableString *out=[NSMutableString stringWithString:@"Joker 63 DIAGNOSTIC ONLY. Cards style is not implemented or selectable.\n"];
     NSTimeInterval age=NSProcessInfo.processInfo.systemUptime-JK63BeforeTime;

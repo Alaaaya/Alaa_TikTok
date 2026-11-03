@@ -45,7 +45,7 @@ static NSArray<UIView *> *JK64Roots(NSHashTable *excluded,NSHashTable *modal){
 static NSArray<UIView *> *JK64Views(NSHashTable *excluded,NSHashTable *modal,BOOL *capped){
     NSMutableArray *q=[JK64Roots(excluded,modal) mutableCopy],*out=[NSMutableArray new];
     for(NSUInteger i=0;i<q.count&&i<JK64_VISITS;i++){
-        UIView *v=q[i];if([excluded containsObject:v]||JK63Own(v))continue;[out addObject:v];
+        UIView *v=q[i];if([excluded containsObject:v]||JK63Own(v)||v.hidden||v.alpha<.01)continue;[out addObject:v];
         for(UIView *child in v.subviews){if(q.count>=JK64_VISITS){*capped=YES;break;}[q addObject:child];}
     }
     return out;
