@@ -22,6 +22,7 @@
     [D() removeObjectForKey:JK62Key];Check(JK62Style()==0,@"62 default stagger spring");
     for(id unknown in @[@(-1),@99,@1.5,@"fade",@{},@[ @1 ]]){[D() setObject:unknown forKey:JK62Key];Check(JK62Style()==0,@"62 unknown stored type/value falls back to default");}
     for(NSInteger style=0;style<5;style++){
+        fprintf(stderr,"62 exercise style %ld\n",(long)style);fflush(stderr);
         JK62SetStyle(style);Check(JK62Style()==style,@"62 five choices persist/read back");
         Check(JK62Effective(style,YES)==(style==4?4:1),@"62 Reduce Motion uses fade or none for every style");
         dots.dragged=NO;[dots flip];

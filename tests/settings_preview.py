@@ -60,7 +60,7 @@ prefix+=overlay+helpers+r"""
 -(void)tapped:(UIButton *)button{self.tapCount++;}
 """+methods+'\n@end\n'
 suffix=r"""
-static void Check(BOOL ok,NSString *message) {if(!ok){NSLog(@"FAIL %@",message);exit(1);}}
+static void Check(BOOL ok,NSString *message) {if(!ok){fprintf(stderr,"FAIL %s\n",message.UTF8String);fflush(stderr);exit(1);}}
 static void ShotView(UIView *view,NSString *name) {
     [view setNeedsLayout];[view layoutIfNeeded];
     UIGraphicsImageRenderer *r=[[UIGraphicsImageRenderer alloc] initWithBounds:view.bounds];
