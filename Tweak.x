@@ -1671,6 +1671,7 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
 
     if(category==0) {
+    [self.stack addArrangedSubview:[self row:@"العين والتنزيل العائمان بالشاشة الرئيسية" symbol:@"eye.circle" key:@"tt61.feedFloating" defaultValue:NO tag:261]];
     [self.stack addArrangedSubview:[self row:@"إظهار بشريط الإيموجي" symbol:@"face.smiling" key:@"tt46.emojiBar" defaultValue:NO tag:246]];
     [self.stack addArrangedSubview:[self row:@"استخدام رابط التشغيل (قد يكون بلا علامة)" symbol:@"play.rectangle" key:@"tt.extra.playbackAsset" defaultValue:NO tag:201]];
     [self.stack addArrangedSubview:[self row:@"حفظ القصة بالضغط المطوّل" symbol:@"arrow.down.circle" key:@"tt.extra.storySave" defaultValue:NO tag:202]];
@@ -1981,6 +1982,7 @@ static UIVisualEffect *TTJokerGlass(void) {
 - (void)petSize:(UISlider *)sender {[D() setDouble:sender.value forKey:@"tt.pet.size"];[[TTJokerPet shared] refresh];}
 - (void)petKind:(UISegmentedControl *)sender {[D() setInteger:sender.selectedSegmentIndex forKey:@"tt.pet.kind"];[[TTJokerPet shared] refresh];}
 - (void)changed:(UISwitch *)sender {
+    if(sender.tag==261){[D() setBool:sender.on forKey:@"tt61.feedFloating"];[[TT122Hub shared] refresh];return;}
     if(sender.tag==246){[D() setBool:sender.on forKey:@"tt46.emojiBar"];[[TT122Hub shared] refresh];return;}
     if(sender.tag==360){[D() setBool:sender.on forKey:@"tt.pet.enabled"];[[TTJokerPet shared] refresh];return;}
 

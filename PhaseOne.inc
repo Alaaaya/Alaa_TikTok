@@ -124,6 +124,8 @@ static NSURL *TT122VideoURL(id model, NSInteger quality) {
 @property(nonatomic) BOOL busy;
 @property(nonatomic, strong) NSArray<NSURL *> *audioCandidates;
 @property(nonatomic) BOOL dragging;
+@property(nonatomic) BOOL dragExceeded;
+@property(nonatomic) CGPoint dragOrigin;
 @property(nonatomic) BOOL started;
 @property(nonatomic) BOOL refreshing;
 + (instancetype)shared;
@@ -134,6 +136,12 @@ static NSURL *TT122VideoURL(id model, NSInteger quality) {
 - (void)recoverFeed;
 - (void)finish:(NSString *)message;
 @end
+// Public UIKit glass API when available; checked light clear material fallback.
+static UIVisualEffect *TT61ClearEffect(void){
+    Class cls=NSClassFromString(@"UIGlassEffect");SEL make=NSSelectorFromString(@"effectWithStyle:");
+    if(cls&&[cls respondsToSelector:make])return ((id(*)(id,SEL,NSInteger))objc_msgSend)(cls,make,1);
+    return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialLight];
+}
 static UIView *TT122Material(CGRect frame) {
     UIVisualEffectView *v = [[UIVisualEffectView alloc] initWithEffect:TTGEffect()];
     v.frame = frame; v.layer.cornerRadius = MIN(22, frame.size.height/2); v.clipsToBounds = YES;
@@ -241,14 +249,16 @@ static UIView *TT122Material(CGRect frame) {
 }
 - (UIButton *)floating:(NSString *)symbol tag:(NSInteger)tag {
     UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom]; b.bounds = CGRectMake(0,0,48,48); b.tag = tag;
-    UIView *glass = TT122Material(b.bounds); glass.userInteractionEnabled = NO; glass.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+    UIView *glass = TT122Material(b.bounds); glass.tag=1261; glass.userInteractionEnabled = NO; glass.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
     [b addSubview:glass]; [b setImage:TTToolGlyph(tag,symbol) forState:UIControlStateNormal];
     b.tintColor = [UIColor colorWithRed:1 green:.92 blue:.72 alpha:1];
     b.accessibilityLabel = tag == 1221 ? @"Download menu" : tag == 1222 ? @"Hide or show feed controls" : @"Download progress";
     [b addTarget:self action:@selector(tapped:) forControlEvents:UIControlEventTouchUpInside];
-    [b addGestureRecognizer:[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(pan:)]];
+    UIPanGestureRecognizer *pan=[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(pan:)];pan.cancelsTouchesInView=YES;[b addGestureRecognizer:pan];
+    [b addTarget:self action:@selector(beginFloatingTap:) forControlEvents:UIControlEventTouchDown];
     return b;
 }
+- (void)beginFloatingTap:(UIButton *)sender {self.dragExceeded=NO;}
 - (NSString *)positionKey:(UIView *)view { return [NSString stringWithFormat:@"tt122.position.%ld",(long)view.tag]; }
 - (CGPoint)clamp:(CGPoint)p view:(UIView *)v {
     UIWindow *w = self.overlay.window;
@@ -259,18 +269,23 @@ static UIView *TT122Material(CGRect frame) {
 - (void)place:(UIView *)v y:(CGFloat)y {
     CGSize s = self.overlay.bounds.size;
     NSDictionary *saved = [NSUserDefaults.standardUserDefaults dictionaryForKey:[self positionKey:v]];
-    CGPoint p = saved ? CGPointMake([saved[@"x"] doubleValue]*s.width,[saved[@"y"] doubleValue]*s.height) : CGPointMake(40,y);
+    BOOL valid=[saved[@"x"] isKindOfClass:NSNumber.class]&&[saved[@"y"] isKindOfClass:NSNumber.class]&&isfinite([saved[@"x"] doubleValue])&&isfinite([saved[@"y"] doubleValue]);
+    CGPoint p = valid ? CGPointMake([saved[@"x"] doubleValue]*s.width,[saved[@"y"] doubleValue]*s.height) : CGPointMake(40,y);
     v.center = [self clamp:p view:v];
 }
 - (void)pan:(UIPanGestureRecognizer *)g {
-    UIView *v = g.view; CGPoint delta = [g translationInView:self.overlay];
-    self.dragging = g.state == UIGestureRecognizerStateBegan || g.state == UIGestureRecognizerStateChanged;
-    v.center = [self clamp:CGPointMake(v.center.x+delta.x,v.center.y+delta.y) view:v];
-    [g setTranslation:CGPointZero inView:self.overlay];
-    if (g.state == UIGestureRecognizerStateEnded || g.state == UIGestureRecognizerStateCancelled) {
-        CGSize s = self.overlay.bounds.size;
-        if (s.width && s.height) [NSUserDefaults.standardUserDefaults setObject:@{@"x":@(v.center.x/s.width),@"y":@(v.center.y/s.height)} forKey:[self positionKey:v]];
+    UIControl *v=(id)g.view;CGPoint delta=[g translationInView:self.overlay];
+    if(g.state==UIGestureRecognizerStateBegan){self.dragOrigin=v.center;self.dragExceeded=NO;}
+    if((g.state==UIGestureRecognizerStateBegan||g.state==UIGestureRecognizerStateChanged||g.state==UIGestureRecognizerStateEnded) && (self.dragExceeded||hypot(delta.x,delta.y)>=8)){
+        self.dragExceeded=YES;self.dragging=YES;[v cancelTrackingWithEvent:nil];
+        v.center=[self clamp:CGPointMake(self.dragOrigin.x+delta.x,self.dragOrigin.y+delta.y) view:v];
     }
+    if(g.state==UIGestureRecognizerStateEnded||g.state==UIGestureRecognizerStateCancelled){
+        if(self.dragExceeded){CGSize z=self.overlay.bounds.size;if(z.width&&z.height)[NSUserDefaults.standardUserDefaults setObject:@{@"x":@(v.center.x/z.width),@"y":@(v.center.y/z.height)} forKey:[self positionKey:v]];}
+        self.dragging=NO;
+    }
+    // Keep cumulative translation so sub-threshold motion never starts a drag.
+    if(g.state==UIGestureRecognizerStateCancelled)[g setTranslation:CGPointZero inView:self.overlay];
 }
 - (void)refresh {
     UIWindow *window = nil;
@@ -311,8 +326,14 @@ static UIView *TT122Material(CGRect frame) {
     for(UIView *v=self.feed.view;v;v=v.superview)if(v.hidden || v.alpha<.01){onScreen=NO;break;}
     self.overlay.hidden = !onScreen || !feedTop;
     if(!self.overlay.hidden && self.overlay.superview.subviews.lastObject!=self.overlay)[window bringSubviewToFront:self.overlay];
-    self.downloadButton.hidden = PB(@"tt46.emojiBar",NO) || !TT122Enabled(@"tt122.download");
-    self.eyeButton.hidden = PB(@"tt46.emojiBar",NO) || !TT122Enabled(@"tt122.eye");
+    BOOL floating=PB(@"tt61.feedFloating",NO);
+    BOOL hideFloating=(!floating && PB(@"tt46.emojiBar",NO));
+    self.downloadButton.hidden = hideFloating || !TT122Enabled(@"tt122.download");
+    self.eyeButton.hidden = hideFloating || !TT122Enabled(@"tt122.eye");
+    for(UIButton *button in @[self.downloadButton,self.eyeButton]){
+        UIVisualEffectView *glass=(id)[button viewWithTag:1261];
+        if(glass){glass.effect=floating?TT61ClearEffect():TTGEffect();for(UIView *tint in glass.contentView.subviews)tint.backgroundColor=floating?UIColor.clearColor:[UIColor colorWithWhite:0 alpha:.38];}
+    }
     self.progressButton.hidden = !self.busy || !TT122Enabled(@"tt122.progress");
     if (!TT122Enabled(@"tt122.eye") && self.uiHidden) [self restoreUI];
     [self.downloadButton setImage:TTToolGlyph(1221,@"arrow.down") forState:UIControlStateNormal];
@@ -405,7 +426,7 @@ static UIView *TT122Material(CGRect frame) {
     // This is a window subview, not a presented controller: playback lifecycle is untouched.
 }
 - (void)tapped:(UIButton *)sender {
-    if (self.dragging) return;
+    if (self.dragging || self.dragExceeded) return;
     if (sender == self.downloadButton) { if (self.busy) [self toast:@"التنزيل الحالي قيد التنفيذ"]; else [self showMenu:NO]; }
     else if (sender == self.eyeButton) {
         if (self.uiHidden) { [self restoreUI]; return; }
