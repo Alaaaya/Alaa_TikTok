@@ -59,6 +59,12 @@ static BOOL TT51SheetPeers(UIView *root) {
 @interface TT51SheetEye:NSObject
 @property(nonatomic,strong) TT51EyeRow *row,*row2;
 @property(nonatomic,copy) void (^downloadAction)(void);
+@property(nonatomic,copy) void (^optionAction)(NSInteger code);
+@property(nonatomic,strong) NSLayoutConstraint *row2Height;
+@property(nonatomic,weak) UILabel *sampleLabel;
+@property(nonatomic) CGFloat rowH,extra;
+@property(nonatomic) NSInteger mode;
+@property(nonatomic,strong) NSArray<UIView *> *subRows;
 @property(nonatomic,weak) UIView *cardHost;
 @property(nonatomic,weak) UIView *nativeRow;
 @property(nonatomic,weak) UIView *scope;
@@ -80,7 +86,53 @@ static BOOL TT51SheetPeers(UIView *root) {
     if(self.toggle)self.toggle();
 }
 - (void)downloadPressed:(id)sender {
-    if(self.downloadAction)self.downloadAction();
+    [self setMode:1];
+}
+- (void)optionPressed:(UIButton *)b {
+    NSInteger c=b.tag;
+    if(c==100){[self setMode:0];return;}
+    if(c==101){[self setMode:2];return;}
+    if(c==102){[self setMode:1];return;}
+    if(self.optionAction)self.optionAction(c);
+}
+- (void)relayoutExtra:(CGFloat)newExtra {
+    CGFloat delta=newExtra-self.extra;
+    if(delta==0)return;
+    if(self.stack){
+        self.row2Height.constant=self.rowH+newExtra;
+        if(self.stackHeight)self.stackHeight.constant+=delta;
+        else if(self.resizedStack){CGRect f=self.stack.frame;f.size.height+=delta;self.stack.frame=f;}
+        [self.stack setNeedsLayout];
+    } else if(self.scroll){
+        UIEdgeInsets inset=self.scroll.contentInset;inset.top+=delta;self.scroll.contentInset=inset;
+        UIEdgeInsets ind=self.scroll.verticalScrollIndicatorInsets;ind.top+=delta;self.scroll.verticalScrollIndicatorInsets=ind;
+        self.addedInset+=delta;
+    }
+    self.extra=newExtra;
+}
+- (void)setMode:(NSInteger)mode {
+    if(!self.row2)return;
+    for(UIView *v in self.subRows)[v removeFromSuperview];
+    self.subRows=nil;self.mode=mode;
+    BOOL open=mode!=0;
+    self.row2.caption.alpha=self.row2.glyph.alpha=open?0:1;
+    if(!open){[self relayoutExtra:0];self.row2.clipsToBounds=NO;[self.row2 setNeedsLayout];return;}
+    NSArray *items=mode==1?@[@[@"تنزيل",@"arrow.down",@0],@[@"تنزيل HD",@"arrow.down",@1],@[@"أعلى جودة متاحة",@"arrow.down",@2],@[@"تنزيل الصوت",@"waveform",@3],@[@"حفظ الصوت كفيديو بغلاف",@"photo.on.rectangle",@4],@[@"نسخ",@"doc.on.doc",@101],@[@"رجوع",@"chevron.left",@100]]
+        :@[@[@"نسخ الاسم",@"doc.on.doc",@10],@[@"نسخ الوصف",@"doc.on.doc",@11],@[@"نسخ اسم المستخدم",@"doc.on.doc",@12],@[@"رجوع",@"chevron.left",@102]];
+    NSMutableArray *rows=[NSMutableArray array];
+    for(NSArray *it in items){
+        TT51EyeRow *r=[self makeRow:self.nativeRow label:self.sampleLabel title:it[0] symbol:it[1] withSwitch:NO clear:YES];
+        [r removeTarget:self action:@selector(downloadPressed:) forControlEvents:UIControlEventTouchUpInside];
+        r.tag=[it[2] integerValue];[r addTarget:self action:@selector(optionPressed:) forControlEvents:UIControlEventTouchUpInside];
+        [self.row2 addSubview:r];[rows addObject:r];
+    }
+    self.subRows=rows;self.row2.clipsToBounds=YES;
+    [self relayoutExtra:self.rowH*(rows.count-1)];
+    [self layoutSubRows];
+}
+- (void)layoutSubRows {
+    CGFloat y=0;
+    for(UIView *r in self.subRows){r.frame=CGRectMake(0,y,self.row2.bounds.size.width,self.rowH);y+=self.rowH;}
 }
 - (void)detach {
     if(self.stack){
@@ -89,6 +141,8 @@ static BOOL TT51SheetPeers(UIView *root) {
         else if(self.stackHeight)self.stackHeight.constant=self.originalHeight;
         if(self.resizedStack)self.stack.frame=self.originalStackFrame;
     }
+    for(UIView *v in self.subRows)[v removeFromSuperview];
+    self.subRows=nil;self.mode=0;self.extra=0;self.row2Height=nil;self.sampleLabel=nil;
     [self.row removeFromSuperview];[self.row2 removeFromSuperview];
     if(self.scroll) {
         UIEdgeInsets inset=self.scroll.contentInset;
@@ -143,9 +197,10 @@ static BOOL TT51SheetPeers(UIView *root) {
         if(self.row.toggleSwitch.on!=hidden)[self.row.toggleSwitch setOn:hidden animated:NO];
         if(self.scroll) {
             CGRect r=[self.nativeRow convertRect:self.nativeRow.bounds toView:self.scroll];
-            self.row.frame=CGRectMake(r.origin.x,r.origin.y-2*r.size.height,r.size.width,r.size.height);
-            self.row2.frame=CGRectMake(r.origin.x,r.origin.y-r.size.height,r.size.width,r.size.height);
+            self.row.frame=CGRectMake(r.origin.x,r.origin.y-2*r.size.height-self.extra,r.size.width,r.size.height);
+            self.row2.frame=CGRectMake(r.origin.x,r.origin.y-r.size.height-self.extra,r.size.width,r.size.height+self.extra);
         }
+        [self layoutSubRows];
         return;
     }
     [self detach];
@@ -185,7 +240,7 @@ static BOOL TT51SheetPeers(UIView *root) {
             if(index==NSNotFound)continue;
             row.translatesAutoresizingMaskIntoConstraints=NO;
             [row.heightAnchor constraintEqualToConstant:screen.size.height].active=YES;
-            row2.translatesAutoresizingMaskIntoConstraints=NO;[row2.heightAnchor constraintEqualToConstant:screen.size.height].active=YES;
+            row2.translatesAutoresizingMaskIntoConstraints=NO;self.row2Height=[row2.heightAnchor constraintEqualToConstant:screen.size.height];self.row2Height.active=YES;
             // Grow an explicit stack height if present; otherwise intrinsic stack sizing propagates normally.
             for(NSLayoutConstraint *c in stack.constraints)
                 if(c.active && ![NSStringFromClass(c.class) containsString:@"AutoresizingMask"] && ![c.identifier hasPrefix:@"UIView-Encapsulated-Layout"] && c.firstItem==stack && c.firstAttribute==NSLayoutAttributeHeight && !c.secondItem && c.relation==NSLayoutRelationEqual){
@@ -234,7 +289,7 @@ static BOOL TT51SheetPeers(UIView *root) {
             row.layer.cornerRadius=12;row.layer.maskedCorners=kCALayerMinXMinYCorner|kCALayerMaxXMinYCorner;
             [scroll addSubview:row];[scroll addSubview:row2];self.scroll=scroll;
         }
-        self.row=row;self.row2=row2;self.nativeRow=native;self.scope=scope;
+        self.row=row;self.row2=row2;self.nativeRow=native;self.scope=scope;self.sampleLabel=label;self.rowH=screen.size.height;self.extra=0;
         [self.row.glyph setImage:[UIImage systemImageNamed:hidden?@"eye.slash":@"eye"]];
         [self.row.toggleSwitch setOn:hidden animated:NO];
         [row setNeedsLayout];[row layoutIfNeeded];[row2 setNeedsLayout];[row2 layoutIfNeeded];return;

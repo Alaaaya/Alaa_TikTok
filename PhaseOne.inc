@@ -331,7 +331,7 @@ static UIView *TT122Material(CGRect frame) {
     if(!self.sheetEye){
         self.sheetEye=[TT51SheetEye new];__weak typeof(self) weak=self;
         self.sheetEye.toggle=^{[weak tapped:weak.eyeButton];};
-        self.sheetEye.downloadAction=^{[weak tapped:weak.downloadButton];};
+        self.sheetEye.optionAction=^(NSInteger c){[weak sheetOption:c];};
     }
     [self.sheetEye scanWindows:TT48Windows() enabled:!settingsOpen && self.feed.viewIfLoaded.window!=nil && TT122Enabled(@"tt122.eye") hidden:self.uiHidden];
     BOOL emojiEnabled=PB(@"tt46.emojiBar",NO) && self.feed.viewIfLoaded.window!=nil && !settingsOpen;
@@ -412,6 +412,19 @@ static UIView *TT122Material(CGRect frame) {
         self.uiHidden=YES;[self applyHiddenUI];
         if(!self.hiddenInteraction){self.uiHidden=NO;TT50Restore();TT49RestoreTop();[self toast:@"إخفاء العناصر غير متاح على هذا الفيديو"];}
     } else [self toast:@"التنزيل مستمر"];
+}
+- (void)sheetOption:(NSInteger)c {
+    if(self.busy){[self toast:@"التنزيل الحالي قيد التنفيذ"];return;}
+    id model = self.menuModel ?: TTGActionObject(self.feed,@"model");
+    if ([NSStringFromClass(self.feed.class) isEqualToString:@"TTKStoryDetailContainerViewController"]) model=TTGActionObject(model,@"currentPlayingStory") ?: model;
+    self.menuModel=model;
+    if(c>=10){
+        id author = TTGActionObject(model,@"author");
+        NSString *text = c==10 ? TT122Text(author,@[@"nickname"]) : c==11 ? TT122Text(model,@[@"itemDescription",@"desc",@"awemeDescription"]) : TT122Text(author,@[@"uniqueID",@"uniqueId",@"socialName"]);
+        if(text.length){UIPasteboard.generalPasteboard.string=text;[self toast:@"تم النسخ"];} else [self toast:@"النص غير متاح لهذا الفيديو"];
+        return;
+    }
+    [self start:model quality:c];
 }
 - (void)start:(id)model quality:(NSInteger)quality {
     if (self.busy) return;
