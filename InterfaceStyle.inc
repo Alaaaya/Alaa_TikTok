@@ -116,9 +116,9 @@ static BOOL JKRailClosed=YES;
 - (void)flip {JKRailClosed=!JKRailClosed;[UIView animateWithDuration:.35 animations:^{[self paint];}];[self applyAnimated:YES];}
 - (void)applyAnimated:(BOOL)anim {
     NSArray *subs=self.superview.subviews;NSUInteger k=0,n=0;
-    for(UIView *v in subs)if([v isKindOfClass:NSClassFromString(@"JKStyleItem")])n++;
+    for(UIView *v in subs)if([v isKindOfClass:NSClassFromString(@"JKStyleItem")]||v.tag==9161||v.tag==9162)n++;
     for(UIView *v in subs){
-        if(![v isKindOfClass:NSClassFromString(@"JKStyleItem")])continue;k++;
+        if(![v isKindOfClass:NSClassFromString(@"JKStyleItem")]&&v.tag!=9161&&v.tag!=9162)continue;k++;
         UIView *item=v;NSUInteger kk=k;BOOL closed=JKRailClosed;
         void(^st)(void)=^{item.alpha=closed?0:1;item.transform=closed?CGAffineTransformConcat(CGAffineTransformMakeScale(.25,.25),CGAffineTransformMakeTranslation(0,kk*40.0)):CGAffineTransformIdentity;item.userInteractionEnabled=!closed;};
         if(anim)[UIView animateWithDuration:.5 delay:(closed?(n-kk)*.025:(kk-1)*.045) usingSpringWithDamping:.62 initialSpringVelocity:0 options:0 animations:st completion:nil];else st();
@@ -278,6 +278,7 @@ static void JKAvatarRestore(UIView *avatar){
     JKAvaRec *r=objc_getAssociatedObject(avatar,kJKAvaRec);if(!r)return;
     objc_setAssociatedObject(avatar,kJKAvaRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     if(r.author)r.author.transform=r.authorTx;
+    {UIWindow *w0=avatar.window;if(w0)JKDecoApply(w0,9161,nil,CGRectZero,0,nil,NO,NO);}
     for(UIView *rs in avatar.subviews)JKRecRestore(rs);
     UIView *parent=r.parent;
     if(!parent){[r.spacer removeFromSuperview];return;}
@@ -293,6 +294,9 @@ static void JKAvatarRestore(UIView *avatar){
     }
     avatar.frame=r.frame;avatar.transform=r.transform;
 }
+static void JKDecoApply(UIWindow *w,NSInteger tag,UIView *src,CGRect fr,CGFloat border,UIColor *bc,BOOL spin,BOOL on);
+static UIView *JKRailStack(UIWindow *w);
+static UIImage *JKSnap(UIView *v);
 static void JKAvatarApply(UIView *avatar,UIWindow *window,BOOL on,int mode){
     JKAvaRec *r=objc_getAssociatedObject(avatar,kJKAvaRec);
     UIView *author=JKFindClass(window,@"AWEPlayInteractionAuthorView",0);
@@ -331,15 +335,41 @@ static void JKAvatarApply(UIView *avatar,UIWindow *window,BOOL on,int mode){
         for(UIView *rs in avatar.subviews){
             CGSize z=rs.bounds.size;
             if(([rs isKindOfClass:UIButton.class]||[rs isKindOfClass:UIImageView.class]) && z.width>=30 && z.width<=50 && fabs(z.width-z.height)<2){
-                JKRecSave(rs);rs.clipsToBounds=YES;rs.layer.cornerRadius=z.width/2;rs.layer.borderWidth=2;rs.layer.borderColor=UIColor.whiteColor.CGColor;
+                UIView *stk=window?JKRailStack(window):nil;
+                if(stk){UIImage *im0=JKSnap(rs);JKRecSave(rs);rs.clipsToBounds=YES;(void)im0;}
+                else {JKRecSave(rs);rs.clipsToBounds=YES;}rs.layer.cornerRadius=z.width/2;rs.layer.borderWidth=2;rs.layer.borderColor=UIColor.whiteColor.CGColor;
             }
         }
+        if(window&&JKRailStack(window)){UIView *rs0=nil;for(UIView *rs in avatar.subviews)if(JKRec(rs)){rs0=rs;break;}
+            UIView *stk=JKRailStack(window);JKDecoApply(window,9161,rs0,CGRectMake(stk.bounds.size.width/2-23,-58,46,46),rs0.layer.borderWidth>0?0:2,UIColor.whiteColor,NO,rs0!=nil);}
     } else {
         UIView *nl=JKFindClass(author,@"AWEUserNameLabel",0);
         CGRect nr=nl?[nl convertRect:nl.bounds toView:host]:a;
         avatar.transform=CGAffineTransformIdentity;
         CGRect f=avatar.frame;f.origin.x=CGRectGetMaxX(nr)+10;f.origin.y=midY-f.size.height/2;avatar.frame=f;
     }
+}
+static const void *kJKTbTx=&kJKTbTx;
+static void JKDockRestore(UIView *blur){
+    UIView *tbar=blur.superview;NSValue *t=tbar?objc_getAssociatedObject(tbar,kJKTbTx):nil;
+    if(t){tbar.transform=t.CGAffineTransformValue;objc_setAssociatedObject(tbar,kJKTbTx,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
+}
+static UIImage *JKSnap(UIView *v){
+    if(v.bounds.size.width<2||v.bounds.size.height<2)return nil;
+    UIGraphicsImageRenderer *r=[[UIGraphicsImageRenderer alloc] initWithSize:v.bounds.size];
+    return [r imageWithActions:^(UIGraphicsImageRendererContext *c){[v.layer renderInContext:c.CGContext];}];
+}
+static UIView *JKRailStack(UIWindow *w){return JKFindClass(w,@"TTKFeedRightInteractionStackView",0);}
+// Decorative, non-interactive copies (rendered from the native views). Real controls stay where they are.
+static void JKDecoApply(UIWindow *w,NSInteger tag,UIView *src,CGRect fr,CGFloat border,UIColor *bc,BOOL spin,BOOL on){
+    UIView *st=w?JKRailStack(w):nil;if(!st)return;
+    UIImageView *iv=(UIImageView *)[st viewWithTag:tag];
+    if(!on||!src){[iv.layer removeAllAnimations];[iv removeFromSuperview];return;}
+    UIImage *im=JKSnap(src);if(!im && iv)return;
+    if(!iv){iv=[UIImageView new];iv.tag=tag;iv.userInteractionEnabled=NO;iv.clipsToBounds=YES;iv.contentMode=UIViewContentModeScaleAspectFill;[st insertSubview:iv atIndex:0];}
+    if(im)iv.image=im;
+    iv.frame=fr;iv.layer.cornerRadius=fr.size.width/2;iv.layer.borderWidth=border;iv.layer.borderColor=bc.CGColor;
+    if(spin && ![iv.layer animationForKey:@"jkspin"]){CABasicAnimation *a=[CABasicAnimation animationWithKeyPath:@"transform.rotation.z"];a.fromValue=@0;a.toValue=@(M_PI*2);a.duration=6;a.repeatCount=HUGE_VALF;[iv.layer addAnimation:a forKey:@"jkspin"];}
 }
 static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
     NSString *n=NSStringFromClass(v.class);
@@ -349,8 +379,15 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
             v.frame=CGRectMake(o.origin.x+18,o.origin.y+6,o.size.width-36,o.size.height-31);
             v.layer.cornerRadius=v.frame.size.height/2;v.layer.masksToBounds=YES;
             v.layer.borderWidth=.5;v.layer.borderColor=(JKAlaa()?[UIColor colorWithRed:.937 green:.957 blue:.945 alpha:.14]:[UIColor colorWithWhite:1 alpha:.18]).CGColor;
-            if(JKAlaa()){CGFloat sw=v.superview.bounds.size.width,sh=v.superview.bounds.size.height;v.frame=CGRectMake(16,sh-74,sw-32,62);v.layer.cornerRadius=31;v.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];}}
-        else JKRecRestore(v);
+            if(JKAlaa()){if(v.window){UIView *tbar=v.superview;
+                if(tbar && !objc_getAssociatedObject(tbar,kJKTbTx))objc_setAssociatedObject(tbar,kJKTbTx,[NSValue valueWithCGAffineTransform:tbar.transform],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+                CGRect wb=v.window.bounds;CGFloat topY=tbar.center.y-tbar.bounds.size.height/2;
+                tbar.transform=CGAffineTransformMakeTranslation(0,wb.size.height-43-(topY+24.5));
+                v.frame=[tbar convertRect:CGRectMake(16,wb.size.height-74,wb.size.width-32,62) fromView:v.window];v.layer.cornerRadius=31;}v.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];}}
+        else {JKDockRestore(v);JKRecRestore(v);}
+    } else if([n isEqualToString:@"AWEPlayInteractionMusicView"]){
+        BOOL al=on&&JKAlaa();UIView *st=v.window?JKRailStack(v.window):nil;
+        if(st)JKDecoApply(v.window,9162,v,CGRectMake(st.bounds.size.width/2-21,[v convertRect:v.bounds toView:st].origin.y,42,42),7,[UIColor colorWithRed:.051 green:.071 blue:.078 alpha:1],YES,al);
     } else if([n isEqualToString:@"AWETabBarPlusButton"]){
         UIView *ov=[v viewWithTag:9157];
         if(on && JKAlaa()){

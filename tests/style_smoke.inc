@@ -143,13 +143,15 @@
         CAGradientLayer *gl=[CAGradientLayer layer];gl.frame=fd.bounds;
         gl.colors=@[(id)[UIColor colorWithRed:.04 green:.07 blue:.2 alpha:1].CGColor,(id)[UIColor colorWithRed:.85 green:.35 blue:.2 alpha:1].CGColor,(id)[UIColor colorWithRed:.25 green:.05 blue:.2 alpha:1].CGColor];
         [fd.layer addSublayer:gl];
-        UIView *fr=[[stackClass alloc] initWithFrame:CGRectMake(W-70,H-122-250-120,60,330)];[fd addSubview:fr];
+        UIView *fr=[[stackClass alloc] initWithFrame:CGRectMake(W-70,H-122-420,60,420)];[fd addSubview:fr];
         NSMutableArray<UIButton *> *fn=[NSMutableArray new];NSMutableArray<NSNumber *> *ff=[NSMutableArray new];
         for(NSUInteger i=0;i<4;i++){
             UIButton *b=[btnClass buttonWithType:UIButtonTypeCustom];b.frame=CGRectMake(0,i*80,60,72);b.accessibilityIdentifier=@[@"digg",@"comment",@"collect",@"share"][i];
             UILabel *cl=[[UILabel alloc] initWithFrame:CGRectMake(0,50,60,18)];cl.text=@[@"29.4K",@"163",@"87",@"19K"][i];cl.textColor=UIColor.whiteColor;cl.font=[UIFont systemFontOfSize:12];cl.textAlignment=NSTextAlignmentCenter;[b addSubview:cl];
             NSUInteger ix=i;JKTestWire(b,^{[ff addObject:@(ix)];});[fr addSubview:b];[fn addObject:b];
         }
+        Class mvc=NSClassFromString(@"AWEPlayInteractionMusicView");if(!mvc){mvc=objc_allocateClassPair(UIView.class,"AWEPlayInteractionMusicView",0);objc_registerClassPair(mvc);}
+        UIView *mv=[[mvc alloc] initWithFrame:CGRectMake(10,326,40,40)];mv.backgroundColor=[UIColor colorWithRed:.1 green:.6 blue:.6 alpha:1];mv.layer.cornerRadius=20;[fr addSubview:mv];
         Class dc=NSClassFromString(@"AWEPlayInteractionDescriptionLabel");if(!dc){dc=objc_allocateClassPair(UILabel.class,"AWEPlayInteractionDescriptionLabel",0);objc_registerClassPair(dc);}
         UILabel *dl=[[dc alloc] initWithFrame:CGRectMake(12,H-200,318,42)];dl.numberOfLines=2;dl.textColor=UIColor.whiteColor;dl.font=[UIFont systemFontOfSize:14];
         dl.attributedText=[[NSAttributedString alloc] initWithString:@"The sun goes down and takes the day with it #sunset #desert #calm" attributes:@{NSForegroundColorAttributeName:UIColor.whiteColor,NSFontAttributeName:[UIFont systemFontOfSize:14]}];
@@ -164,7 +166,7 @@
         NSArray *tn=@[@"الرئيسية",@"اكتشف",@"أنا",@"الإعدادات"],*ti=@[@"house",@"magnifyingglass",@"person",@"slider.horizontal.3"];NSMutableArray *tis=[NSMutableArray new];
         for(NSUInteger i=0;i<4;i++)[tis addObject:[[UITabBarItem alloc] initWithTitle:tn[i] image:[UIImage systemImageNamed:ti[i]] tag:i]];
         tabbar.items=tis;tabbar.selectedItem=tis[0];tabbar.backgroundImage=[UIImage new];tabbar.shadowImage=[UIImage new];tabbar.tintColor=UIColor.whiteColor;tabbar.unselectedItemTintColor=[UIColor colorWithWhite:1 alpha:.75];
-        UIView *plusB=[[pc2 alloc] initWithFrame:CGRectMake((W-86)/2,H-83+17,86,49)];[fd addSubview:plusB];
+        UIView *plusB=[[pc2 alloc] initWithFrame:CGRectMake((W-86)/2,0,86,49)];[tabbar addSubview:plusB];
         UIColor *tintBefore=tabbar.tintColor;
         Class tcc=NSClassFromString(@"TikTokFeedTabControl");if(!tcc){tcc=objc_allocateClassPair(UIView.class,"TikTokFeedTabControl",0);objc_registerClassPair(tcc);}
         UIView *tc=[[tcc alloc] initWithFrame:CGRectMake(54,59,323,44)];[fd addSubview:tc];
@@ -200,6 +202,13 @@
          Check(fp.superview==self.window && CGRectGetMinX(fr2)>=CGRectGetMaxX(nr2) && fabs(CGRectGetMidY(fr2)-CGRectGetMidY(ur))<2,@"56 follow chip right of username same row");
          Check(avb.layer.cornerRadius==22 && avb.clipsToBounds,@"56 avatar image round clipped");(void)ar;}
         [avb sendActionsForControlEvents:UIControlEventTouchUpInside];Check(avHits==1 && avb.superview==av,@"56 avatar native action preserved");
+        {CGRect dr=[dock convertRect:dock.bounds toView:self.window];CGRect pr=[plusB convertRect:plusB.bounds toView:self.window];
+         Check(fabs(dr.origin.x-16)<.5 && fabs(dr.size.width-(W-32))<.5 && fabs(dr.size.height-62)<.5 && fabs(H-CGRectGetMaxY(dr)-12)<.5 && dock.layer.cornerRadius==31,@"56 floating dock x16 bottom12 h62 r31 with gap below");
+         Check(pr.origin.y>=dr.origin.y-1 && CGRectGetMaxY(pr)<=CGRectGetMaxY(dr)+1,@"56 tab items inside pill");
+         UIImageView *ac=(UIImageView *)[fr viewWithTag:9161];UIImageView *dsc=(UIImageView *)[fr viewWithTag:9162];
+         Check(ac && ac.image && !ac.userInteractionEnabled && fabs(ac.frame.size.width-46)<.5 && ac.layer.cornerRadius==23 && ac.clipsToBounds,@"56 rail avatar copy 46 round inert");
+         Check(dsc && dsc.image && !dsc.userInteractionEnabled && dsc.frame.size.width==42 && [dsc.layer animationForKey:@"jkspin"],@"56 music disc copy 42 spinning inert");
+         UIView *hit=[fr hitTest:[fr convertPoint:CGPointMake(CGRectGetMidX(ac.frame),CGRectGetMidY(ac.frame)) toView:fr] withEvent:nil];Check(hit!=ac,@"56 avatar copy never takes touches");}
         JKStyleApplyAll();Check(av.superview==self.window,@"56 avatar reuse stable");
         UIView *tgl=[fr viewWithTag:9156];
         Check(tgl!=nil && CGRectGetMaxY(tgl.frame)>=fr.bounds.size.height-1 && JKRailClosed,@"56 rail toggle present and closed by default");
@@ -218,6 +227,7 @@
         ShotView(self.window,@"56-alaa-expanded");
         [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();JKRailClosed=YES;
         Check(av.superview==fd && CGRectEqualToRect(av.frame,CGRectMake(W-70,H-232-100,60,88)) && CGAffineTransformIsIdentity(av.transform),@"56 avatar restored to original place");
+        Check([fr viewWithTag:9161]==nil && [fr viewWithTag:9162]==nil && CGAffineTransformIsIdentity(tabbar.transform),@"56 copies removed, tab bar transform restored");
         Check(CGAffineTransformIsIdentity(au.transform) && avb.layer.cornerRadius==0 && !avb.clipsToBounds && fp.superview==fd && CGRectEqualToRect(fp.frame,CGRectMake(W-70,H-122-330-70,60,40)),@"56 author/avatar/chip fully restored");
         Check([fr viewWithTag:9156]==nil && JKItemOf(fn[0])==nil && fn[0].alpha==1,@"56 default restore removes toggle and overlays");
         Check([plusB viewWithTag:9157]==nil && [tc viewWithTag:9158]==nil && [fp viewWithTag:9159]==nil && c1.layer.cornerRadius==0 && [tabbar.tintColor isEqual:tintBefore],@"56 dock/tabs/chip/corners restored");
