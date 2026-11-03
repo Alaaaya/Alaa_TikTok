@@ -241,7 +241,14 @@
         [D() setInteger:0 forKey:JKStyleKey];JKInstaApplyAll();
         Check(CGRectEqualToRect(tb.frame,CGRectMake(0,0,430,83)) && tb.layer.cornerRadius==0 && tb.layer.borderWidth==0,@"56 dock restored to TikTok");
         [tb removeFromSuperview];
-        NSLog(@"PASS 56 Alaa style fixtures");
+        {UIView *deep=self.window;for(int i=0;i<30;i++){UIView *w=[UIView new];w.frame=deep.bounds;[deep addSubview:w];deep=w;}
+     Class dc2=NSClassFromString(@"TTKFeedRightInteractionStackView");if(!dc2){dc2=objc_allocateClassPair(UIView.class,"TTKFeedRightInteractionStackView",0);objc_registerClassPair(dc2);}
+     UIView *dv=[[dc2 alloc] initWithFrame:CGRectMake(0,0,10,10)];[deep addSubview:dv];
+     [[NSUserDefaults standardUserDefaults] setInteger:3 forKey:JKStyleKey];JKStyleApplyAll();
+     NSString *folder=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject;
+     NSString *lg=[NSString stringWithContentsOfFile:[folder stringByAppendingPathComponent:@"joker_debug.txt"] encoding:NSUTF8StringEncoding error:nil]?:@"";
+     Check([lg containsString:@"JokerStyle apply style=3 on=1"] && [lg containsString:@"TTKFeedRightInteractionStackView=1"],@"56 deep nested real class found and logged");}
+    NSLog(@"PASS 56 Alaa style fixtures");
     }
     NSLog(@"PASS 53 Instagram interface style fixtures: forwarding, counts, reuse, eye, picker gating, restoration");
 }

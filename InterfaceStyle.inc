@@ -384,8 +384,20 @@ static void JKDecoApply(UIWindow *w,NSInteger tag,UIView *src,CGRect fr,CGFloat 
     iv.frame=fr;iv.layer.cornerRadius=fr.size.width/2;iv.layer.borderWidth=(tag==9162)?0:border;iv.layer.borderColor=bc.CGColor;
     if(spin && ![iv.layer animationForKey:@"jkspin"]){CABasicAnimation *a=[CABasicAnimation animationWithKeyPath:@"transform.rotation.z"];a.fromValue=@0;a.toValue=@(M_PI*2);a.duration=6;a.repeatCount=HUGE_VALF;[iv.layer addAnimation:a forKey:@"jkspin"];}
 }
+static NSMutableDictionary *JKHits;static NSUInteger JKNodes;
+static void JKLog(NSString *line){
+    NSString *folder=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject;if(!folder)return;
+    NSString *path=[folder stringByAppendingPathComponent:@"joker_debug.txt"];
+    NSString *l=[NSString stringWithFormat:@"JokerStyle %@\n",line];
+    @synchronized(NSFileManager.defaultManager){
+        if(![NSFileManager.defaultManager fileExistsAtPath:path])[NSData.data writeToFile:path atomically:YES];
+        NSFileHandle *f=[NSFileHandle fileHandleForWritingAtPath:path];
+        @try{[f seekToEndOfFile];[f writeData:[l dataUsingEncoding:NSUTF8StringEncoding]];[f closeFile];}@catch(NSException *e){}
+    }
+}
 static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
-    NSString *n=NSStringFromClass(v.class);
+    NSString *n=NSStringFromClass(v.class);JKNodes++;
+    if(JKHits&&([n hasPrefix:@"TTK"]||[n hasPrefix:@"AWEPlayInteraction"]||[n hasPrefix:@"AWEFeed"]||[n hasPrefix:@"AWETabBar"]||[n hasPrefix:@"AWEUser"]))JKHits[n]=@([JKHits[n] integerValue]+1);
     if([n isEqualToString:@"TTKTabBarBlurView"] && [v.superview isKindOfClass:UITabBar.class]==NO && [NSStringFromClass(v.superview.class) isEqualToString:@"TTKTabBar"]==NO){}
     if([n isEqualToString:@"TTKTabBarBlurView"]){
         if(on){JKRecSave(v);CGRect o=[JKRec(v)[@"frame"] CGRectValue];
@@ -465,11 +477,17 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
             l.attributedText=m;
         } else if(!on || !JKAlaa()){NSAttributedString *o=objc_getAssociatedObject(l,kJKRec);if(o){l.attributedText=o;objc_setAssociatedObject(l,kJKRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}
     }
-    if(depth<14)for(UIView *c in v.subviews)JKInstaPass(c,on,depth+1);
+    if(depth<80 && JKNodes<8000)for(UIView *c in v.subviews)JKInstaPass(c,on,depth+1);
 }
 static void JKInstaApplyAll(void){
-    BOOL on=JKStyleOn();
-    for(UIWindow *w in TT48Windows())JKInstaPass(w,on,0);
+    BOOL on=JKStyleOn();static NSString *last;
+    JKHits=[NSMutableDictionary new];JKNodes=0;NSArray *ws=TT48Windows();
+    for(UIWindow *w in ws)JKInstaPass(w,on,0);
+    NSArray *keys=[JKHits.allKeys sortedArrayUsingSelector:@selector(compare:)];NSMutableString *m=[NSMutableString new];
+    for(NSString *k in keys)[m appendFormat:@" %@=%@",k,JKHits[k]];
+    NSString *sum=[NSString stringWithFormat:@"apply style=%ld on=%d windows=%lu nodes=%lu hits:%@",(long)JKStyle(),on,(unsigned long)ws.count,(unsigned long)JKNodes,m];
+    if(![sum isEqualToString:last]){last=sum;JKLog(sum);}
+    JKHits=nil;
 }
 static NSTimer *JKInstaTimer;
 static void JKInstaEnsureTimer(void){
@@ -499,7 +517,7 @@ static void JKStyleApplyAll(void) {
         self.note.text=@"هالنمط لسا مو متوفر. Facebook بالنسخة 54، وJoker المستقبلي بعد الموافقة على التصميم.";
         return;
     }
-    [[NSUserDefaults standardUserDefaults] setInteger:s.selectedSegmentIndex forKey:JKStyleKey];
+    [[NSUserDefaults standardUserDefaults] setInteger:s.selectedSegmentIndex forKey:JKStyleKey];JKLog([NSString stringWithFormat:@"picker selected=%ld stored=%ld",(long)s.selectedSegmentIndex,(long)JKStyle()]);
     self.note.text=s.selectedSegmentIndex==3?@"نمط Alaa (فيض): أزرار الإعجاب والحفظ بألوان فيض، وشريط سفلي زجاجي. باقي الواجهة أصلية.":s.selectedSegmentIndex==1?@"نمط Instagram: أيقونات الإعجاب والتعليق والمشاركة والحفظ فقط. باقي الواجهة أصلية.":@"واجهة TikTok الأصلية.";
     JKStyleApplyAll();
 }
