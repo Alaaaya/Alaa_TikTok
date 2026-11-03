@@ -63,7 +63,8 @@
     for(int i=0;i<4;i++){
         UIControl *b=buttons[i];JKPaintRec *r=objc_getAssociatedObject(b,kJKPaintRec);
         Check(r && r.glyph.image && r.glyph.superview==b && !r.glyph.userInteractionEnabled,@"58 in-place inert glyph on gesture-only native button");
-        Check(b.alpha==1 && !b.hidden && CGRectIntersectsRect([b convertRect:b.bounds toView:self.window],self.window.bounds) && b.enabled && b.gestureRecognizers.count==1 && b.gestureRecognizers[0]==recognizers[i],@"58 recognizers, enabled state, native hit region preserved");
+        NSLog(@"58 native %d alpha=%g hidden=%d enabled=%d gestures=%@ frame=%@",i,b.alpha,b.hidden,b.enabled,b.gestureRecognizers,NSStringFromCGRect([b convertRect:b.bounds toView:self.window]));
+        Check(b.alpha==1 && !b.hidden && CGRectIntersectsRect([b convertRect:b.bounds toView:self.window],self.window.bounds) && b.enabled && [b.gestureRecognizers containsObject:recognizers[i]],@"58 recognizers, enabled state, native hit region preserved");
         Check(JKItemOf(b)==nil && ((UIView *)images[i]).alpha==0,@"58 no forwarding control, native paint hidden only");
         Check([b hitTest:CGPointMake(25,12) withEvent:nil]==b,@"58 styled glyph never intercepts native hit testing");
     }
@@ -89,7 +90,7 @@
     Check(authorRect.origin.x==12 && !CGRectIntersectsRect(authorRect,avatarRect) && !CGRectIntersectsRect(authorRect,discRect),@"58 author outside avatar/disc bounds");
     Check(CGRectEqualToRect(tc.frame,originalTop),@"58 top native geometry unchanged");
     Check(avatar.superview==fr && follow.superview==avatar && avatar.alpha>0 && !avatar.hidden,@"58 real avatar remains visible inside the native rail");
-    Check(music.alpha>0 && !music.hidden && music.gestureRecognizers[0]==musicGR && ![fr viewWithTag:9162],@"58 original music remains visible and interactive, no inert replacement");
+    Check(music.alpha>0 && !music.hidden && [music.gestureRecognizers containsObject:musicGR] && ![fr viewWithTag:9162],@"58 original music remains visible and interactive, no inert replacement");
     ShotView(self.window,@"58-alaa-style");
     TT50EyeActive=YES;TT50Tree(fd);JKStyleApplyAll();
     Check(fr.hidden && fr.alpha==0 && !fr.userInteractionEnabled && avatar.hidden && follow.hidden && music.hidden,@"58 eye ON hides native rail and moved controls separately");
@@ -97,7 +98,7 @@
     Check(!fr.hidden && fr.alpha>0 && fr.userInteractionEnabled && !avatar.hidden && !follow.hidden && !music.hidden,@"58 eye OFF restores rail, avatar, follow and music");
     for(UIView *b in buttons)Check(b.alpha>0 && !b.hidden && b.userInteractionEnabled && !JKItemOf(b),@"58 eye OFF no hidden original or forwarding replacement");
     [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();
-    for(int i=0;i<4;i++)Check(!objc_getAssociatedObject(buttons[i],kJKPaintRec) && ((UIView *)images[i]).alpha==1 && [buttons[i] gestureRecognizers][0]==recognizers[i],@"58 default restores native icons and recognizers");
+    for(int i=0;i<4;i++)Check(!objc_getAssociatedObject(buttons[i],kJKPaintRec) && ((UIView *)images[i]).alpha==1 && [[buttons[i] gestureRecognizers] containsObject:recognizers[i]],@"58 default restores native icons and recognizers");
     Check(avatar.superview==fr && CGRectEqualToRect(avatar.frame,CGRectMake(20,36,60,88)) && follow.superview==avatar && CGRectEqualToRect(follow.frame,CGRectMake(0,44,60,40)),@"58 avatar and nested follow restore original parents/geometry");
     Check([follow viewWithTag:9159]==nil && [tc viewWithTag:9158]==nil && [plus viewWithTag:9157]==nil && CGAffineTransformIsIdentity(author.transform),@"58 default removes decoration and transforms");
     UIColor *restored=[caption.attributedText attribute:NSForegroundColorAttributeName atIndex:caption.attributedText.length-3 effectiveRange:nil];

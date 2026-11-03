@@ -1,7 +1,7 @@
 // 58: cosmetic restyle inside native action controls. Native hit regions, targets,
 // recognizers, counts and frames remain intact. Not a full HTML overlay.
 static NSString *const JKStyleKey=@"tt.interface.style";
-static const void *kJKPaintAlpha=&kJKPaintAlpha;
+static const void *kJKPaintAlpha=&kJKPaintAlpha,*kJKSyncBusy=&kJKSyncBusy;
 static NSUInteger JKStyled,JKSkipped;
 static NSMutableDictionary *JKReasons;
 static void JKResult(BOOL styled,NSString *reason){if(styled)JKStyled++;else JKSkipped++;if(JKReasons.count<16 || JKReasons[reason])JKReasons[reason]=@([JKReasons[reason] unsignedIntegerValue]+1);}
@@ -239,7 +239,7 @@ static void JKPaintRemember(JKPaintRec *r,UIView *v){
 static void JKPaintHide(JKPaintRec *r,UIView *v){
     JKPaintRemember(r,v);
     if(!objc_getAssociatedObject(v,kJKPaintAlpha))objc_setAssociatedObject(v,kJKPaintAlpha,@(v.alpha),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    v.alpha=0;
+    if(v.alpha!=0)v.alpha=0;
 }
 static void JKPaintRestore(UIView *native){
     JKPaintRec *r=objc_getAssociatedObject(native,kJKPaintRec);if(!r)return;
@@ -267,7 +267,7 @@ static void JKPaintTree(JKPaintRec *r,UIView *v,NSUInteger depth){
     if([v isKindOfClass:UILabel.class]){JKPaintRemember(r,v);v.tintColor=UIColor.whiteColor;return;}
     for(UIView *c in [v.subviews copy])JKPaintTree(r,c,depth+1);
 }
-static void JKStyleSync(UIView *native) {
+static void JKStyleSyncImpl(UIView *native) {
     JKInstaEnsureTimer();
     JKStyleDetach(native); // clean up a previous release's forwarding overlay if still present
     if(!JKStyleOn() || !native.window || !native.superview || !JKInFeed(native)){
@@ -297,8 +297,14 @@ static void JKStyleSync(UIView *native) {
     // the renderer whose window rect overlaps this button, never a sibling action.
     CGRect nr=[native convertRect:native.bounds toView:native.window];
     for(UIView *v in native.superview.subviews)if([NSStringFromClass(v.class) isEqualToString:@"TTGActionGlyph"] && CGRectIntersectsRect(nr,[v convertRect:v.bounds toView:native.window]))JKPaintHide(r,v);
-    [native bringSubviewToFront:r.glyph];
+    if(native.subviews.lastObject!=r.glyph)[native bringSubviewToFront:r.glyph];
     JKResult(YES,native.gestureRecognizers.count?@"rail-in-place-gestures":@"rail-in-place");
+}
+
+static void JKStyleSync(UIView *native){
+    if(!native || [objc_getAssociatedObject(native,kJKSyncBusy) boolValue])return;
+    objc_setAssociatedObject(native,kJKSyncBusy,@YES,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    @try{JKStyleSyncImpl(native);}@finally{objc_setAssociatedObject(native,kJKSyncBusy,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
 }
 
 // 54: in-place Instagram-like restyle of original views (dock, progress line, username weight).
