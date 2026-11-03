@@ -255,6 +255,9 @@ static void JKRecRestore(UIView *v){
     id bg=d[@"bg"];v.backgroundColor=bg==NSNull.null?nil:bg;
     objc_setAssociatedObject(v,kJKRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
+static void JKDecoApply(UIWindow *w,NSInteger tag,UIView *src,CGRect fr,CGFloat border,UIColor *bc,BOOL spin,BOOL on);
+static UIView *JKRailStack(UIWindow *w);
+static UIImage *JKSnap(UIView *v);
 static const void *kJKAvaRec=&kJKAvaRec;
 @interface JKAvaRec:NSObject
 @property(nonatomic,weak) UIView *parent;
@@ -294,9 +297,6 @@ static void JKAvatarRestore(UIView *avatar){
     }
     avatar.frame=r.frame;avatar.transform=r.transform;
 }
-static void JKDecoApply(UIWindow *w,NSInteger tag,UIView *src,CGRect fr,CGFloat border,UIColor *bc,BOOL spin,BOOL on);
-static UIView *JKRailStack(UIWindow *w);
-static UIImage *JKSnap(UIView *v);
 static void JKAvatarApply(UIView *avatar,UIWindow *window,BOOL on,int mode){
     JKAvaRec *r=objc_getAssociatedObject(avatar,kJKAvaRec);
     UIView *author=JKFindClass(window,@"AWEPlayInteractionAuthorView",0);
