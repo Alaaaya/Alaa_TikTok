@@ -78,7 +78,7 @@ static void TT50Lifecycle(UIView *view) {
 static BOOL JK60Chrome(UIView *view){
     NSString *n=NSStringFromClass(view.class);
     // Never hide a feed/cell/video container, window, mascot or floating trigger.
-    return TT50Chrome(view)||[@[@"TTKTabBar",@"TTKFakeTabBar",@"TTKMultiTabNavigationArrowView",@"TTKFeedTabCornerItemView",@"TTKFeedBaseBottomBarView",@"AWEUserNameLabel",@"AWEAwemeMusicInfoView"] containsObject:n]||view.tag==9360||view.tag==9361||view.tag==1221||view.tag==1222||view.tag==1223;
+    return TT50Chrome(view)||[@[@"TTKTabBar",@"TTKFakeTabBar",@"TTKMultiTabNavigationArrowView",@"AWEFeedPlayerBottomProgressBar",@"TTKFeedTabCornerItemView",@"TTKFeedBaseBottomBarView",@"AWEUserNameLabel",@"AWEAwemeMusicInfoView"] containsObject:n]||view.tag==9360||view.tag==9361||view.tag==1221||view.tag==1222||view.tag==1223;
 }
 static void JK60Save(UIView *v){if(![JK60Saved() objectForKey:v])[JK60Saved() setObject:([TT50Saved() objectForKey:v]?:@[@(v.alpha),@(v.hidden),@(v.userInteractionEnabled)]) forKey:v];}
 static void JK60BeforeDraw(UIView *v){if(!JK60Active()||!JK60Chrome(v))return;JK60Save(v);[UIView performWithoutAnimation:^{v.alpha=0;v.hidden=YES;v.userInteractionEnabled=NO;[v.layer removeAnimationForKey:@"opacity"];}];}

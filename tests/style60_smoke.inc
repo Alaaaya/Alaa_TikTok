@@ -3,7 +3,7 @@
     banner.text=@"Joker 60 simulator TEST DATA\nAll-feed collapse + draggable dots";
     NSMutableArray *chrome=[NSMutableArray arrayWithObjects:fr,dock,author,caption,avatar,music,nil];
     NSMutableArray *added=[NSMutableArray new];
-    for(NSString *n in @[@"TikTokFeedTabControl",@"TikTokFeedFadeScrollView",@"TTKMultiTabNavigationArrowView",@"AWELiveFeedEntranceView",@"TTKSearchEntranceButton",@"TTKFeedBaseBottomBarView",@"AWEUserNameLabel"]){
+    for(NSString *n in @[@"TikTokFeedTabControl",@"TikTokFeedFadeScrollView",@"TTKMultiTabNavigationArrowView",@"AWEFeedPlayerBottomProgressBar",@"AWELiveFeedEntranceView",@"TTKSearchEntranceButton",@"TTKFeedBaseBottomBarView",@"AWEUserNameLabel"]){
         UIView *v=[[Fixture(n,UIView.class) alloc] initWithFrame:CGRectMake(10,100,100,25)];[fd addSubview:v];[chrome addObject:v];[added addObject:v];
     }
     UIView *mascot=[[UIView alloc] initWithFrame:CGRectMake(170,400,30,30)];mascot.backgroundColor=UIColor.orangeColor;mascot.accessibilityLabel=@"Enabled mascot fixture";[self.window addSubview:mascot];
