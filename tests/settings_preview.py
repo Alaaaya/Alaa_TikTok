@@ -33,7 +33,12 @@ static void TTToolRefresh(void){}
 - (void)drawRect:(CGRect)r{[_attributedText drawInRect:self.bounds];}
 @end
 static void TTGRestoreGlyph(UIView *native){} // production renderer is outside the UIKit fixture
+// Deterministic simulator accessibility seam; production calls the system API.
+static BOOL JK62FixtureReduce=NO;
+static BOOL JK62FixtureReduceMotion(void){return JK62FixtureReduce;}
+#define UIAccessibilityIsReduceMotionEnabled JK62FixtureReduceMotion
 #include "../InterfaceStyle.inc"
+#undef UIAccessibilityIsReduceMotionEnabled
 #include "../HierarchyDump.inc"
 static UIVisualEffect *TTGEffect(void){return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];}
 static BOOL TT122Enabled(NSString *key){return PB(key,YES);}
