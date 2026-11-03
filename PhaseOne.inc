@@ -173,7 +173,8 @@ static UIView *TT122Material(CGRect frame) {
     if (CGRectIsNull(visible) || visible.size.height < controller.view.window.bounds.size.height*.5) return;
     id currentModel = TTGActionObject(controller,@"model");
     if (self.feed != controller || self.trackedModel != currentModel) {
-        BOOL keepHidden=self.uiHidden;[self restoreUI];self.uiHidden=keepHidden;TT50EyeActive=keepHidden;
+        // Keep the guard armed across video reuse. Restoring here caused a visible frame.
+        self.hiddenInteraction=nil;
         [self.menu removeFromSuperview];self.menu=nil;self.menuModel=nil;self.feed=controller;self.trackedModel=currentModel;
     }
     if(self.uiHidden)[self applyHiddenUI];

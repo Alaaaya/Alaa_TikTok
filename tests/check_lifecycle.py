@@ -1,7 +1,8 @@
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 s=(root/'PhaseOne.inc').read_text();t=(root/'Tweak.x').read_text()
-assert 'BOOL keepHidden=self.uiHidden;[self restoreUI];self.uiHidden=keepHidden;' in s
+assert '[self restoreUI]' not in s[s.index('- (void)track:(UIViewController *)controller {'):s.index('- (void)startLifecycle {')]
+assert 'self.hiddenInteraction=nil;' in s[s.index('- (void)track:(UIViewController *)controller {'):s.index('- (void)startLifecycle {')]
 assert 'if(self.uiHidden)[self applyHiddenUI]' in s
 for event in ['UIApplicationDidBecomeActiveNotification','UIApplicationWillEnterForegroundNotification','UIWindowDidBecomeKeyNotification','UISceneDidActivateNotification']:
  assert event in s

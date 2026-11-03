@@ -23,7 +23,6 @@ static NSArray<UIWindow *> *TT50DiagnosticWindows(void) {
     return windows.array;
 }
 static void TT48Debug(NSString *event) {
-    if(!PB(@"tt46.emojiBar",NO))return;
     NSMutableString *log=[NSMutableString stringWithFormat:@"Joker50 %@ %.3f\n",event,CACurrentMediaTime()];
     for(UIWindow *window in TT50DiagnosticWindows()) {
         NSUInteger total=0;
@@ -80,14 +79,6 @@ static void TT48Frame(UIView *v,CGRect r) {
 @end
 @interface TT46EmojiBar : NSObject
 @property(nonatomic,weak) UIView *nativeBar;
-@property(nonatomic,weak) UIStackView *nativeStack;
-@property(nonatomic,weak) UIView *nativeBackground;
-@property(nonatomic) CGRect originalPanelFrame,originalStackFrame,originalBackgroundFrame;
-@property(nonatomic) UISemanticContentAttribute originalSemantic;
-@property(nonatomic) UIStackViewDistribution originalDistribution;
-@property(nonatomic) CGFloat originalSpacing;
-@property(nonatomic) BOOL nativeBusy;
-- (BOOL)mountNative:(UIView *)panel;
 @property(nonatomic,strong) UIView *extension;
 @property(nonatomic,strong) UIButton *eye,*download;
 @property(nonatomic,copy) void (^action)(BOOL eye);
@@ -97,66 +88,7 @@ static void TT48Frame(UIView *v,CGRect r) {
 - (void)scanWindows:(NSArray<UIWindow *> *)windows enabled:(BOOL)enabled;
 @end
 @implementation TT46EmojiBar
-- (void)detach {
-    if(self.nativeStack) {
-        self.nativeBusy=YES;
-        [self.nativeStack removeArrangedSubview:self.eye];[self.eye removeFromSuperview];
-        [self.nativeStack removeArrangedSubview:self.download];[self.download removeFromSuperview];
-        self.nativeStack.semanticContentAttribute=self.originalSemantic;
-        self.nativeStack.distribution=self.originalDistribution;self.nativeStack.spacing=self.originalSpacing;
-        TT48Frame(self.nativeBar,self.originalPanelFrame);TT48Frame(self.nativeStack,self.originalStackFrame);
-        if(self.nativeBackground)TT48Frame(self.nativeBackground,self.originalBackgroundFrame);
-        self.nativeStack=nil;self.nativeBackground=nil;self.nativeBusy=NO;
-    }
-    [self.extension removeFromSuperview];self.extension=nil;self.nativeBar=nil;self.eye=nil;self.download=nil;
-}
-- (BOOL)mountNative:(UIView *)panel {
-    if(self.nativeBusy)return self.nativeStack!=nil;
-    if(!panel.window || panel.hidden || ![NSStringFromClass(panel.class) isEqual:@"TTKCommentQuickCommentPanelContainerView"])return NO;
-    UIStackView *stack=nil;UIView *background=nil;
-    for(UIView *child in panel.subviews) {
-        if([child isKindOfClass:UIStackView.class])stack=(UIStackView *)child;
-        else if(child.layer.cornerRadius>=20)background=child;
-    }
-    if(!stack)return NO;
-    NSUInteger nativeEmojis=0;
-    for(UIView *v in stack.arrangedSubviews)if([NSStringFromClass(v.class) isEqual:@"TTKCommentSingleEmojiView"])nativeEmojis++;
-    if(nativeEmojis!=4)return NO;
-    if(self.nativeBar!=panel || !self.nativeStack) {
-        [self detach];self.nativeBusy=YES;
-        self.nativeBar=panel;self.nativeStack=stack;self.nativeBackground=background;
-        self.originalPanelFrame=panel.frame;self.originalStackFrame=stack.frame;
-        self.originalBackgroundFrame=background.frame;self.originalSemantic=stack.semanticContentAttribute;
-        self.originalDistribution=stack.distribution;self.originalSpacing=stack.spacing;
-        for(NSInteger i=0;i<2;i++) {
-            UIButton *b=[UIButton buttonWithType:UIButtonTypeSystem];b.tintColor=[UIColor colorWithWhite:.14 alpha:1];
-            b.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
-            [b setImage:[UIImage systemImageNamed:i==0?@"eye":@"arrow.down"] forState:UIControlStateNormal];
-            b.accessibilityLabel=i==0?@"Hide or show feed controls":@"Download menu";
-            [b addTarget:self action:@selector(pressed:) forControlEvents:UIControlEventTouchUpInside];
-            if(i==0)self.eye=b;else self.download=b;
-            [stack insertArrangedSubview:b atIndex:i];
-        }
-        self.nativeBusy=NO;
-    }
-    self.nativeBusy=YES;
-    // Keep the original four 52x56 targets and right edge. Extend only to the physical left.
-    CGRect current=panel.frame;
-    CGFloat extra=104;
-    if(current.size.width<300) {
-        self.originalPanelFrame=current;
-        self.originalStackFrame=stack.frame;self.originalBackgroundFrame=background.frame;
-    }
-    CGRect base=self.originalPanelFrame;
-    if(base.origin.x-extra<0){self.nativeBusy=NO;[self detach];return NO;}
-    TT48Frame(panel,CGRectMake(base.origin.x-extra,base.origin.y,base.size.width+extra,base.size.height));
-    if(background)TT48Frame(background,CGRectMake(0,0,panel.bounds.size.width,panel.bounds.size.height));
-    stack.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
-    stack.distribution=UIStackViewDistributionFillEqually;stack.spacing=0;
-    TT48Frame(stack,CGRectMake(2,0,panel.bounds.size.width-4,panel.bounds.size.height));
-    [stack setNeedsLayout];[stack layoutIfNeeded];
-    self.nativeBusy=NO;return YES;
-}
+- (void)detach {[self.extension removeFromSuperview];self.extension=nil;self.nativeBar=nil;self.eye=nil;self.download=nil;}
 - (NSArray<UIView *> *)emojiLeaves:(UIView *)root {
     NSMutableArray *items=[NSMutableArray new],*queue=[NSMutableArray arrayWithObject:root];
     NSUInteger i=0;
@@ -234,13 +166,6 @@ static void TT48Frame(UIView *v,CGRect r) {
 - (void)pressed:(UIButton *)sender {if(self.action)self.action(sender==self.eye);}
 - (void)scan:(UIWindow *)window enabled:(BOOL)enabled {
     if(!enabled || !window || window.hidden){[self detach];return;}
-    NSMutableArray *nativeQueue=[NSMutableArray arrayWithObject:window];
-    for(NSUInteger j=0;j<nativeQueue.count && j<2200;j++) {
-        UIView *v=nativeQueue[j];if(v.hidden || v.alpha<.05)continue;
-        if([NSStringFromClass(v.class) isEqual:@"TTKCommentQuickCommentPanelContainerView"] && [self mountNative:v])return;
-        if(nativeQueue.count<2200)[nativeQueue addObjectsFromArray:v.subviews];
-    }
-    if(self.nativeStack)[self detach];
     UIView *bar=nil;CGRect rect=CGRectZero;CGFloat d=0;
     NSMutableArray *queue=[NSMutableArray arrayWithObject:window];NSUInteger i=0;
     while(i<queue.count && i<1600){
@@ -283,7 +208,7 @@ static void TT48Frame(UIView *v,CGRect r) {
     // The overlap bridge is passthrough; only the two new circles accept touches.
     [window bringSubviewToFront:self.extension];
     NSString *cls=NSStringFromClass(bar.class);
-    if(![self.detectedClass isEqual:cls]){self.detectedClass=cls;NSLog(@"[Joker48] reaction bar hierarchy class %@",cls);}
+    if(![self.detectedClass isEqual:cls]){self.detectedClass=cls;NSLog(@"[Joker48] reaction bar hierarchy class %@",cls);TT48Debug([@"detected " stringByAppendingString:cls]);}
 }
 - (void)scanWindows:(NSArray<UIWindow *> *)windows enabled:(BOOL)enabled {
     if(!enabled){[self detach];return;}

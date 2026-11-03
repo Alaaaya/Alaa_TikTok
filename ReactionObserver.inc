@@ -1,7 +1,7 @@
 // Observe UIKit hierarchy/lifecycle without intercepting or replacing TikTok gestures.
 static BOOL TT48Pending=NO;
 static void TT48Schedule(void) {
-    if(![NSThread isMainThread] || !PB(@"tt46.emojiBar",NO) || TT48Pending)return;
+    if(![NSThread isMainThread] || TT48Pending)return;
     TT48Pending=YES;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.12*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
         // Keep pending during the scan to suppress hooks caused by our own companion.
@@ -9,7 +9,6 @@ static void TT48Schedule(void) {
     });
 }
 static void TT48Press(void) {
-    if(!PB(@"tt46.emojiBar",NO))return;
     CFTimeInterval now=CACurrentMediaTime();
     if(TT48LastPress>0 && now-TT48LastPress<.35)return;
     TT48LastPress=now;
@@ -60,7 +59,7 @@ static void TT48ObserveGesture(UIGestureRecognizer *gesture) {
     [gesture addTarget:[TT48GestureObserver shared] action:@selector(pressed:)];
 }
 static void TT48Added(UIView *view) {
-    if(![NSThread isMainThread] || !PB(@"tt46.emojiBar",NO))return;
+    if(![NSThread isMainThread])return;
     // Companion controls must never become candidates or cause recursive refresh.
     for(UIView *p=view;p;p=p.superview)if([p isKindOfClass:TT46PillExtension.class])return;
     [TT48Births() setObject:@(CACurrentMediaTime()) forKey:view];
