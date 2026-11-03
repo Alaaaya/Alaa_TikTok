@@ -30,6 +30,7 @@ prefix=prefix.replace('- (void)prepareForReuse {%orig;}\n','')
 # 48 appends a scoped observer to the existing UIKit callback, not renderer logic.
 prefix=prefix.replace('static void TT48Added(UIView *view);\n','').replace('%orig;TT48Added(view);','%orig;')
 prefix=prefix.replace('#include "Glass61.inc"\n','').replace('    JK61Register(glass,nil,@"dock");\n','').replace('        JK61Register(sel,nil,@"dock-selection");\n','').replace('    JK61Register(_glass,nil,@"rail-decor");\n','')
+prefix=prefix.replace('#include "Comments65.inc"\n','').replace('%hook AWECommentPanelCell\n- (void)layoutSubviews {%orig;JK65Apply((UITableViewCell *)self);}\n- (void)didMoveToWindow {%orig;JK65Apply((UITableViewCell *)self);}\n- (void)prepareForReuse {%orig;JK65Restore((UITableViewCell *)self);}\n%end\n\n','')
 prefix=prefix.replace('#include "BarColor61.inc"\n','').replace('    JK61BarRestore(self);%orig;','    %orig;').replace('[self ttg_applyGlass];JK61BarApply(self);','[self ttg_applyGlass];')
 assert prefix.rstrip()==base[:base.index('// A custom, real-material sheet;')].rstrip()
 for key in ['download','eye','progress','standard','hd','highest','audio','copy']:
