@@ -92,6 +92,7 @@ static NSString *JKCountText(UIView *view,NSUInteger depth) {
 - (void)refresh;
 @end
 static void JKStyleSync(UIView *native);
+static void JKInstaEnsureTimer(void);
 static NSArray<UIWindow *> *TT48Windows(void);
 @implementation JKStyleItem
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -168,6 +169,7 @@ static void JKStyleDetach(UIView *native) {
     [UIView performWithoutAnimation:^{native.alpha=orig?orig.doubleValue:1;}];
 }
 static void JKStyleSync(UIView *native) {
+    JKInstaEnsureTimer();
     if(!JKStyleOn() || !native.window || !native.superview || !JKInFeed(native)){JKStyleDetach(native);return;}
     JKKind kind=JKKindOf(native);
     if(kind==JKKindNone || !JKCanForward(native)){JKStyleDetach(native);return;}
@@ -182,7 +184,59 @@ static void JKStyleSync(UIView *native) {
     item.frame=native.frame;item.transform=native.transform;[item refresh];
     if(native.alpha!=0)native.alpha=0; // setAlpha hook records the real value first
 }
+
+// 54: in-place Instagram-like restyle of original views (dock, progress line, username weight).
+// Nothing is replaced, re-parented or re-targeted; originals are recorded and restored.
+static const void *kJKRec=&kJKRec;
+static NSDictionary *JKRec(UIView *v){return objc_getAssociatedObject(v,kJKRec);}
+static void JKRecSave(UIView *v){
+    if(JKRec(v))return;
+    objc_setAssociatedObject(v,kJKRec,@{@"frame":[NSValue valueWithCGRect:v.frame],@"radius":@(v.layer.cornerRadius),
+        @"clip":@(v.layer.masksToBounds),@"bw":@(v.layer.borderWidth),@"bc":v.layer.borderColor?(__bridge id)v.layer.borderColor:(id)NSNull.null,
+        @"bg":v.backgroundColor?:(id)NSNull.null},OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+static void JKRecRestore(UIView *v){
+    NSDictionary *d=JKRec(v);if(!d)return;
+    v.frame=[d[@"frame"] CGRectValue];v.layer.cornerRadius=[d[@"radius"] doubleValue];v.layer.masksToBounds=[d[@"clip"] boolValue];
+    v.layer.borderWidth=[d[@"bw"] doubleValue];id bc=d[@"bc"];v.layer.borderColor=bc==NSNull.null?nil:(__bridge CGColorRef)bc;
+    id bg=d[@"bg"];v.backgroundColor=bg==NSNull.null?nil:bg;
+    objc_setAssociatedObject(v,kJKRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
+    NSString *n=NSStringFromClass(v.class);
+    if([n isEqualToString:@"TTKTabBarBlurView"] && [v.superview isKindOfClass:UITabBar.class]==NO && [NSStringFromClass(v.superview.class) isEqualToString:@"TTKTabBar"]==NO){}
+    if([n isEqualToString:@"TTKTabBarBlurView"]){
+        if(on){JKRecSave(v);CGRect o=[JKRec(v)[@"frame"] CGRectValue];
+            v.frame=CGRectMake(o.origin.x+18,o.origin.y+6,o.size.width-36,o.size.height-31);
+            v.layer.cornerRadius=v.frame.size.height/2;v.layer.masksToBounds=YES;
+            v.layer.borderWidth=.5;v.layer.borderColor=[UIColor colorWithWhite:1 alpha:.18].CGColor;}
+        else JKRecRestore(v);
+    } else if([n isEqualToString:@"AWEFeedPlayerBottomProgressBar"]){
+        for(UIView *s in v.subviews){
+            if(on){JKRecSave(s);s.backgroundColor=UIColor.whiteColor;} else JKRecRestore(s);
+        }
+    } else if([n isEqualToString:@"AWEUserNameLabel"]){
+        for(UIView *s in v.subviews) if([s isKindOfClass:UILabel.class]){
+            UILabel *l=(UILabel *)s;if(!l.text.length)continue;
+            if(on && !objc_getAssociatedObject(l,kJKRec)){objc_setAssociatedObject(l,kJKRec,l.font,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+                l.font=[UIFont systemFontOfSize:l.font.pointSize weight:UIFontWeightBold];}
+            else if(!on){UIFont *f=objc_getAssociatedObject(l,kJKRec);if(f){l.font=f;objc_setAssociatedObject(l,kJKRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}
+        }
+    }
+    if(depth<14)for(UIView *c in v.subviews)JKInstaPass(c,on,depth+1);
+}
+static void JKInstaApplyAll(void){
+    BOOL on=JKStyleOn();
+    for(UIWindow *w in TT48Windows())JKInstaPass(w,on,0);
+}
+static NSTimer *JKInstaTimer;
+static void JKInstaEnsureTimer(void){
+    if(JKInstaTimer || !JKStyleOn())return;
+    JKInstaTimer=[NSTimer scheduledTimerWithTimeInterval:.5 repeats:YES block:^(NSTimer *t){
+        JKInstaApplyAll();if(!JKStyleOn()){[t invalidate];JKInstaTimer=nil;}}];
+}
 static void JKStyleApplyAll(void) {
+    JKInstaApplyAll();JKInstaEnsureTimer();
     Class cls=NSClassFromString(@"AWEFeedVideoButton");if(!cls)return;
     for(UIWindow *w in TT48Windows()) {
         NSMutableArray<UIView *> *q=[NSMutableArray arrayWithObject:w];

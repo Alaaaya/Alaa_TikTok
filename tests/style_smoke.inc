@@ -104,5 +104,23 @@
     [profile removeFromSuperview];
     [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();
     [feedRoot removeFromSuperview];
+
+    // 54: in-place dock / progress / username restyle, fully restored.
+    {
+        [D() setInteger:1 forKey:JKStyleKey];
+        UIView *tb=[[NSClassFromString(@"TTKTabBarBlurView")?:UIView.class alloc] initWithFrame:CGRectMake(0,0,430,83)];
+        Class pc=objc_allocateClassPair(UIView.class,"AWEFeedPlayerBottomProgressBar",0);if(pc)objc_registerClassPair(pc);
+        UIView *bar=[[NSClassFromString(@"AWEFeedPlayerBottomProgressBar") alloc] initWithFrame:CGRectMake(12,846,406,2)];
+        UIView *fill=[[UIView alloc] initWithFrame:CGRectMake(0,0,100,2)];fill.backgroundColor=UIColor.redColor;[bar addSubview:fill];
+        [self.window addSubview:bar];[self.window addSubview:tb];
+        JKInstaApplyAll();
+        Check(fill.backgroundColor==UIColor.whiteColor,@"54 progress fill white");
+        if([NSStringFromClass(tb.class) isEqualToString:@"TTKTabBarBlurView"])Check(tb.layer.cornerRadius>20 && tb.frame.origin.x==18,@"54 dock floating pill");
+        [D() setInteger:0 forKey:JKStyleKey];JKInstaApplyAll();
+        Check(CGColorEqualToColor(fill.backgroundColor.CGColor,UIColor.redColor.CGColor),@"54 progress restored");
+        Check(CGRectEqualToRect(tb.frame,CGRectMake(0,0,430,83)) && tb.layer.cornerRadius==0,@"54 dock restored");
+        [bar removeFromSuperview];[tb removeFromSuperview];
+        NSLog(@"PASS 54 in-place dock/progress restyle and restore");
+    }
     NSLog(@"PASS 53 Instagram interface style fixtures: forwarding, counts, reuse, eye, picker gating, restoration");
 }
