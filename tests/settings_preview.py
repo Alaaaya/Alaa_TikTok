@@ -66,24 +66,14 @@ prefix+=overlay+helpers+r"""
 -(void)tapped:(UIButton *)button{self.tapCount++;}
 """+methods+'\n@end\n'
 suffix=r"""
-// Fixture-only diagnostic for UIKit's frozen outer-window timing.
-@interface CALayer(JK62FixtureTiming)
-- (void)jk62fixtureSpeed:(float)speed;
-@end
-@implementation CALayer(JK62FixtureTiming)
-+ (void)load {
-    method_exchangeImplementations(class_getInstanceMethod(self,@selector(setSpeed:)),class_getInstanceMethod(self,@selector(jk62fixtureSpeed:)));
-}
-- (void)jk62fixtureSpeed:(float)speed {
-    if(speed==0 && [NSStringFromClass(self.class) containsString:@"Window"]){fprintf(stderr,"62 WINDOW PAUSE %s\n",NSThread.callStackSymbols.description.UTF8String);fflush(stderr);}
-    [self jk62fixtureSpeed:speed];
-}
-@end
 static void Check(BOOL ok,NSString *message) {if(!ok){fprintf(stderr,"FAIL %s\n",message.UTF8String);fflush(stderr);exit(1);}}
 static void ShotView(UIView *view,NSString *name) {
     [view setNeedsLayout];[view layoutIfNeeded];
+    // afterScreenUpdates:YES pauses UIKit's outer window until the enclosing
+    // main-dispatch callback returns. This long-running fixture pumps the runloop
+    // inside that callback, so capture existing pixels without freezing time.
     UIGraphicsImageRenderer *r=[[UIGraphicsImageRenderer alloc] initWithBounds:view.bounds];
-    UIImage *im=[r imageWithActions:^(UIGraphicsImageRendererContext *c){[view drawViewHierarchyInRect:view.bounds afterScreenUpdates:YES];}];
+    UIImage *im=[r imageWithActions:^(UIGraphicsImageRendererContext *c){[view drawViewHierarchyInRect:view.bounds afterScreenUpdates:NO];}];
     NSString *folder=[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject stringByAppendingPathComponent:@"shots"];
     [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
     [UIImagePNGRepresentation(im) writeToFile:[folder stringByAppendingPathComponent:[name stringByAppendingString:@".png"]] atomically:YES];

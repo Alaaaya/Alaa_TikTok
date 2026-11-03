@@ -101,9 +101,6 @@ static void JK62Animate(UIWindow *w){
         if([r[1] boolValue]||[r[0] doubleValue]<=.01||v.hidden||v.alpha<=.01)continue;
         BOOL isRail=i<buttons.count;
         CFTimeInterval delay=style==0?JK62Delay(closed,isRail,i,buttons.count):0;
-#ifdef JK62_FIXTURE
-        fprintf(stderr,"62 track style=%ld rail=%d closed=%d index=%lu count=%lu delay=%.3f stack=%p view=%p\n",(long)style,isRail,closed,(unsigned long)i,(unsigned long)buttons.count,delay,rail,v);fflush(stderr);
-#endif
         CFTimeInterval duration=(style==0&&isRail)||style==3?.38:.2;
         total=MAX(total,delay+duration);
         CATransform3D base=v.layer.transform,off=JK62Off(base,style,isRail);
@@ -137,9 +134,6 @@ static void JK62Animate(UIWindow *w){
         group.timingFunction=[CAMediaTimingFunction functionWithControlPoints:.23 :1 :.32 :1];
         group.fillMode=kCAFillModeBoth;group.removedOnCompletion=NO;
         [v.layer addAnimation:group forKey:JK62Track];
-#ifdef JK62_FIXTURE
-        fprintf(stderr,"62 timing now=%.5f requested=%.5f retrieved=%.5f global=%.5f speed=%.1f begin=%.5f offset=%.5f\n",now,group.beginTime,[v.layer animationForKey:JK62Track].beginTime,[v.layer convertTime:[v.layer animationForKey:JK62Track].beginTime toLayer:nil],v.layer.speed,v.layer.beginTime,v.layer.timeOffset);fflush(stderr);
-#endif
     }
     // Hidden flags are committed only after the last reverse-stagger exit.
     // Generation invalidates stale completion blocks on rapid taps/style changes.
