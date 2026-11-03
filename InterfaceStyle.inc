@@ -391,6 +391,7 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
         if(on){JKRecSave(v);CGRect o=[JKRec(v)[@"frame"] CGRectValue];
             v.frame=CGRectMake(o.origin.x+18,o.origin.y+6,o.size.width-36,o.size.height-31);
             v.layer.cornerRadius=v.frame.size.height/2;v.layer.masksToBounds=YES;
+            if(!JKAlaa()){v.backgroundColor=[UIColor colorWithWhite:.16 alpha:.92];v.frame=CGRectMake(o.origin.x+14,o.origin.y+2,o.size.width-28,o.size.height-26);v.layer.cornerRadius=v.frame.size.height/2;}
             v.layer.borderWidth=.5;v.layer.borderColor=(JKAlaa()?[UIColor colorWithRed:.937 green:.957 blue:.945 alpha:.14]:[UIColor colorWithWhite:1 alpha:.18]).CGColor;
             if(JKAlaa()){if(v.window){UIView *tbar=v.superview;
                 if(tbar && !objc_getAssociatedObject(tbar,kJKTbTx))objc_setAssociatedObject(tbar,kJKTbTx,[NSValue valueWithCGAffineTransform:tbar.transform],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
