@@ -122,5 +122,27 @@
         [bar removeFromSuperview];[tb removeFromSuperview];
         NSLog(@"PASS 54 in-place dock/progress restyle and restore");
     }
+    // 56: Alaa (فيض) style, style index 3.
+    {
+        [D() setInteger:3 forKey:JKStyleKey];
+        Check(JKStyleOn() && JKAlaa(),@"56 Alaa style selectable and on");
+        UIView *tb=[[NSClassFromString(@"TTKTabBarBlurView")?:UIView.class alloc] initWithFrame:CGRectMake(0,0,430,83)];
+        [self.window addSubview:tb];JKInstaApplyAll();
+        if([NSStringFromClass(tb.class) isEqualToString:@"TTKTabBarBlurView"])Check(tb.layer.cornerRadius>20 && tb.layer.borderWidth>0 && tb.backgroundColor!=nil,@"56 dock glass pill");
+        JKStyleItem *it=[[JKStyleItem alloc] initWithFrame:CGRectMake(0,0,60,72)];it.kind=JKKindSave;
+        UIButton *nb=[UIButton buttonWithType:UIButtonTypeCustom];nb.selected=YES;JKTestWire(nb,^{});it.native=nb;[it refresh];
+        CGFloat r,g,bl,a;[it.glyph.tintColor getRed:&r green:&g blue:&bl alpha:&a];
+        Check(r>.99 && g>.7 && g<.72 && bl<.3,@"56 saved glyph amber FFB547");
+        it.kind=JKKindLike;[it refresh];[it.glyph.tintColor getRed:&r green:&g blue:&bl alpha:&a];
+        Check(r>.99 && g>.29 && g<.31,@"56 liked glyph heart FF4D6A");
+        UIStackView *ph=[UIStackView new];JKAddStylePicker(ph);
+        UISegmentedControl *sg=(UISegmentedControl *)ph.arrangedSubviews[1];
+        Check(sg.selectedSegmentIndex==3 && [[sg titleForSegmentAtIndex:3] isEqualToString:@"Alaa"],@"56 picker shows Alaa selected");
+        ShotView(self.window,@"56-alaa-style");
+        [D() setInteger:0 forKey:JKStyleKey];JKInstaApplyAll();
+        Check(CGRectEqualToRect(tb.frame,CGRectMake(0,0,430,83)) && tb.layer.cornerRadius==0 && tb.layer.borderWidth==0,@"56 dock restored to TikTok");
+        [tb removeFromSuperview];
+        NSLog(@"PASS 56 Alaa style fixtures");
+    }
     NSLog(@"PASS 53 Instagram interface style fixtures: forwarding, counts, reuse, eye, picker gating, restoration");
 }

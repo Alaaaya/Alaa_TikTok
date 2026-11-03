@@ -7,13 +7,14 @@ static const void *kJKItemKey=&kJKItemKey,*kJKOrigAlphaKey=&kJKOrigAlphaKey;
 typedef NS_ENUM(NSInteger,JKKind){JKKindNone=0,JKKindLike,JKKindComment,JKKindSave,JKKindShare};
 static NSInteger JKStyle(void){return [[NSUserDefaults standardUserDefaults] integerForKey:JKStyleKey];}
 // 0 TikTok, 1 Instagram Reels are shipped. 2 Facebook (53) and 3 Joker futuristic are not available yet.
-static BOOL JKStyleAvailable(NSInteger style){return style==0 || style==1;}
+static BOOL JKStyleAvailable(NSInteger style){return style==0 || style==1 || style==3;}
 // Release gate: Instagram rail ships in 53 (picker offers TikTok + Instagram; Facebook 54, Joker style after mockup approval).
 #ifndef JK_INSTA_SHIPPED
 #define JK_INSTA_SHIPPED 1
 #endif
-static BOOL JKPickerAvailable(NSInteger style){return style==0 || (JK_INSTA_SHIPPED && style==1);}
-static BOOL JKStyleOn(void){NSInteger s=JKStyle();return s==1 && JKStyleAvailable(s);}
+static BOOL JKPickerAvailable(NSInteger style){return style==0 || (JK_INSTA_SHIPPED && style==1) || style==3;}
+static BOOL JKStyleOn(void){NSInteger s=JKStyle();return (s==1 || s==3) && JKStyleAvailable(s);}
+static BOOL JKAlaa(void){return JKStyle()==3;}
 static id JKObject(id object,NSString *name) {
     SEL selector=NSSelectorFromString(name);
     if(!object || ![object respondsToSelector:selector])return nil;
@@ -135,9 +136,9 @@ static NSArray<UIWindow *> *TT48Windows(void);
         case JKKindSave:name=selected?@"bookmark.fill":@"bookmark";label=@"Save";break;
         case JKKindShare:name=@"paperplane";label=@"Share";break;
         default:break;}
-    UIImageSymbolConfiguration *cfg=[UIImageSymbolConfiguration configurationWithPointSize:27 weight:UIImageSymbolWeightLight];
+    UIImageSymbolConfiguration *cfg=[UIImageSymbolConfiguration configurationWithPointSize:27 weight:(JKAlaa()?UIImageSymbolWeightRegular:UIImageSymbolWeightLight)];
     self.glyph.image=[UIImage systemImageNamed:name withConfiguration:cfg];
-    self.glyph.tintColor=(selected && self.kind==JKKindLike)?[UIColor colorWithRed:1 green:.19 blue:.33 alpha:1]:UIColor.whiteColor;
+    self.glyph.tintColor=(selected && self.kind==JKKindLike)?(JKAlaa()?[UIColor colorWithRed:1 green:.302 blue:.416 alpha:1]:[UIColor colorWithRed:1 green:.19 blue:.33 alpha:1]):((selected && self.kind==JKKindSave && JKAlaa())?[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1]:UIColor.whiteColor);
     NSString *t=JKCountText(n,0);
     if(![self.countLabel.text isEqual:t])self.countLabel.text=t;
     BOOL can=JKCanForward(n);
@@ -209,7 +210,8 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
         if(on){JKRecSave(v);CGRect o=[JKRec(v)[@"frame"] CGRectValue];
             v.frame=CGRectMake(o.origin.x+18,o.origin.y+6,o.size.width-36,o.size.height-31);
             v.layer.cornerRadius=v.frame.size.height/2;v.layer.masksToBounds=YES;
-            v.layer.borderWidth=.5;v.layer.borderColor=[UIColor colorWithWhite:1 alpha:.18].CGColor;}
+            v.layer.borderWidth=.5;v.layer.borderColor=(JKAlaa()?[UIColor colorWithRed:.937 green:.957 blue:.945 alpha:.14]:[UIColor colorWithWhite:1 alpha:.18]).CGColor;
+            if(JKAlaa()){CGRect f=v.frame;v.frame=CGRectMake(f.origin.x-6,f.origin.y-4,f.size.width+12,f.size.height+8);v.layer.cornerRadius=v.frame.size.height/2;v.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];}}
         else JKRecRestore(v);
     } else if([n isEqualToString:@"AWEFeedPlayerBottomProgressBar"]){
         for(UIView *s in v.subviews){
@@ -258,7 +260,7 @@ static void JKStyleApplyAll(void) {
         return;
     }
     [[NSUserDefaults standardUserDefaults] setInteger:s.selectedSegmentIndex forKey:JKStyleKey];
-    self.note.text=s.selectedSegmentIndex==1?@"نمط Instagram: أيقونات الإعجاب والتعليق والمشاركة والحفظ فقط. باقي الواجهة أصلية.":@"واجهة TikTok الأصلية.";
+    self.note.text=s.selectedSegmentIndex==3?@"نمط Alaa (فيض): أزرار الإعجاب والحفظ بألوان فيض، وشريط سفلي زجاجي. باقي الواجهة أصلية.":s.selectedSegmentIndex==1?@"نمط Instagram: أيقونات الإعجاب والتعليق والمشاركة والحفظ فقط. باقي الواجهة أصلية.":@"واجهة TikTok الأصلية.";
     JKStyleApplyAll();
 }
 @end
@@ -266,7 +268,7 @@ static void JKAddStylePicker(UIStackView *stack) {
     UILabel *title=[UILabel new];title.text=@"نمط الواجهة";title.textColor=[UIColor colorWithWhite:1 alpha:.88];
     title.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];title.textAlignment=NSTextAlignmentLeft;
     [stack addArrangedSubview:title];
-    UISegmentedControl *seg=[[UISegmentedControl alloc] initWithItems:@[@"TikTok",JK_INSTA_SHIPPED?@"Instagram":@"Instagram · قريباً",@"Facebook · قريباً",@"Joker · قريباً"]];
+    UISegmentedControl *seg=[[UISegmentedControl alloc] initWithItems:@[@"TikTok",JK_INSTA_SHIPPED?@"Instagram":@"Instagram · قريباً",@"Facebook · قريباً",@"Alaa"]];
     seg.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
     seg.selectedSegmentIndex=JKPickerAvailable(JKStyle())?JKStyle():0;
     seg.accessibilityLabel=@"نمط الواجهة";
