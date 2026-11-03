@@ -30,7 +30,13 @@ static void TTToolRefresh(void){}
 - (void)drawRect:(CGRect)r{[_attributedText drawInRect:self.bounds];}
 @end
 static void TTGRestoreGlyph(UIView *native){} // production renderer is outside the UIKit fixture
+// Deterministic simulator accessibility seam; production calls the system API.
+static BOOL JK62FixtureReduce=NO;
+static BOOL JK62FixtureReduceMotion(void){return JK62FixtureReduce;}
+#define JK62_FIXTURE 1
+#define UIAccessibilityIsReduceMotionEnabled JK62FixtureReduceMotion
 #include "../InterfaceStyle.inc"
+#undef UIAccessibilityIsReduceMotionEnabled
 #include "../HierarchyDump.inc"
 static UIVisualEffect *TTGEffect(void){return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];}
 static BOOL TT122Enabled(NSString *key){return PB(key,YES);}
@@ -306,13 +312,7 @@ static UIVisualEffect *TTJokerGlass(void) {
 - (NSURL *)diagnosticLogURL {
     NSString *folder=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject;
     if(!folder)return nil;
-    NSString *path=[folder stringByAppendingPathComponent:@"joker_debug.txt"];
-    @synchronized(NSFileManager.defaultManager) {
-        if(![NSFileManager.defaultManager fileExistsAtPath:path]) {
-            NSString *notice=@"Joker 50\nNo diagnostics recorded yet. Enable the emoji-bar option and long-press comments, then share again.\n";
-            if(![notice writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil])return nil;
-        }
-    }
+    NSString *path=[folder stringByAppendingPathComponent:@"joker_comments63.txt"];
     JKAppendCapture(path);
     return [NSURL fileURLWithPath:path];
 }
@@ -479,6 +479,11 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
 
     if(category==4){
+        UIButton *motion=[UIButton buttonWithType:UIButtonTypeSystem];motion.tag=628;
+        [motion setTitle:[@"حركة إظهار الواجهة · " stringByAppendingString:JK62Names()[JK62Style()]] forState:UIControlStateNormal];
+        motion.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+        [motion.heightAnchor constraintGreaterThanOrEqualToConstant:44].active=YES;
+        [motion addTarget:self action:@selector(motionPicker:) forControlEvents:UIControlEventTouchUpInside];[self.stack addArrangedSubview:motion];
         UILabel *title=[self label:@"لون شريط التنقل السفلي" size:15 weight:UIFontWeightSemibold];[self.stack addArrangedSubview:title];
         UIStackView *swatches=[UIStackView new];swatches.axis=UILayoutConstraintAxisHorizontal;swatches.spacing=10;swatches.distribution=UIStackViewDistributionFillEqually;swatches.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
         NSArray *colors=@[UIColor.blackColor,[UIColor colorWithRed:.12 green:.22 blue:.4 alpha:1],[UIColor colorWithRed:.32 green:.12 blue:.3 alpha:1],[UIColor colorWithRed:.08 green:.32 blue:.26 alpha:1],[UIColor colorWithRed:.95 green:.77 blue:.4 alpha:1],UIColor.whiteColor];
@@ -804,6 +809,19 @@ static UIVisualEffect *TTJokerGlass(void) {
     menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
     [self presentViewController:menu animated:YES completion:nil];
 }
+- (void)motionPicker:(UIButton *)sender {
+    UIAlertController *menu=[UIAlertController alertControllerWithTitle:@"حركة إظهار الواجهة" message:@"لستايل علاء · تقليل الحركة يستخدم تلاشيًا خفيفًا" preferredStyle:UIAlertControllerStyleActionSheet];
+    menu.view.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    for(NSInteger i=0;i<5;i++){
+        NSString *title=[NSString stringWithFormat:@"%@%@",i==JK62Style()?@"✓ ":@"",JK62Names()[i]];
+        [menu addAction:[UIAlertAction actionWithTitle:title style:UIAlertActionStyleDefault handler:^(UIAlertAction *a){
+            JK62SetStyle(i);[sender setTitle:[@"حركة إظهار الواجهة · " stringByAppendingString:JK62Names()[JK62Style()]] forState:UIControlStateNormal];
+        }]];
+    }
+    [menu addAction:[UIAlertAction actionWithTitle:@"إلغاء" style:UIAlertActionStyleCancel handler:nil]];
+    menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
+    [self presentViewController:menu animated:YES completion:nil];
+}
 - (void)barSwatch:(UIButton *)sender {JK61SetBarColor(sender.backgroundColor);}
 - (void)barReset:(UIButton *)sender {JK61SetBarColor(nil);TTGRefreshAll();JKStyleApplyAll();}
 - (void)barPicker:(UIButton *)sender {UIColorPickerViewController *picker=[UIColorPickerViewController new];picker.supportsAlpha=NO;picker.selectedColor=JK61BarColor()?:UIColor.blackColor;picker.delegate=self;[self presentViewController:picker animated:YES completion:nil];}
@@ -852,11 +870,14 @@ static UIVisualEffect *TTJokerGlass(void) {
 }
 @end
 
-static void Check(BOOL ok,NSString *message) {if(!ok){NSLog(@"FAIL %@",message);exit(1);}}
+static void Check(BOOL ok,NSString *message) {if(!ok){fprintf(stderr,"FAIL %s\n",message.UTF8String);fflush(stderr);exit(1);}}
 static void ShotView(UIView *view,NSString *name) {
     [view setNeedsLayout];[view layoutIfNeeded];
+    // afterScreenUpdates:YES pauses UIKit's outer window until the enclosing
+    // main-dispatch callback returns. This long-running fixture pumps the runloop
+    // inside that callback, so capture existing pixels without freezing time.
     UIGraphicsImageRenderer *r=[[UIGraphicsImageRenderer alloc] initWithBounds:view.bounds];
-    UIImage *im=[r imageWithActions:^(UIGraphicsImageRendererContext *c){[view drawViewHierarchyInRect:view.bounds afterScreenUpdates:YES];}];
+    UIImage *im=[r imageWithActions:^(UIGraphicsImageRendererContext *c){[view drawViewHierarchyInRect:view.bounds afterScreenUpdates:NO];}];
     NSString *folder=[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject stringByAppendingPathComponent:@"shots"];
     [NSFileManager.defaultManager createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:nil];
     [UIImagePNGRepresentation(im) writeToFile:[folder stringByAppendingPathComponent:[name stringByAppendingString:@".png"]] atomically:YES];
@@ -920,10 +941,11 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         UIButton *shareRow=(UIButton *)vc.stack.arrangedSubviews.lastObject;
         Check([shareRow.accessibilityLabel isEqual:@"مشاركة سجل التشخيص"],@"49 share row bottom");
         NSURL *logURL=[vc diagnosticLogURL];
-        Check([logURL.lastPathComponent isEqual:@"joker_debug.txt"],@"49 correct file");
+        Check([logURL.lastPathComponent isEqual:@"joker_comments63.txt"],@"63 dedicated structure-only file");
         Check([NSFileManager.defaultManager fileExistsAtPath:logURL.path],@"49 missing log created");
         [@"fixture-class-only" writeToURL:logURL atomically:YES encoding:NSUTF8StringEncoding error:nil];
-        Check([[NSString stringWithContentsOfURL:[vc diagnosticLogURL] encoding:NSUTF8StringEncoding error:nil] hasPrefix:@"fixture-class-only"],@"49 existing log preserved, capture appended");
+        Check(![[NSString stringWithContentsOfURL:[vc diagnosticLogURL] encoding:NSUTF8StringEncoding error:nil] containsString:@"fixture-class-only"],@"63 export replaces untrusted contents, legacy log untouched");
+        #include "hierarchy63_smoke.inc"
         for(TTJokerTile *tile in grid.subviews) {
             Check(tile.caption.text.length>0 && tile.glyph.image!=nil,@"49 all tile content present");
             Check(CGRectContainsRect(tile.bounds,tile.caption.frame) && CGRectContainsRect(tile.bounds,tile.glyph.frame),@"49 tile glyph and label contained");
@@ -969,7 +991,11 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         lateWindow.hidden=YES;
         Check([TT50DiagnosticWindows() containsObject:lateWindow],@"50 capture includes newly created hidden windows");
         NSLog(@"PASS 50 exact top classes, lifecycle reapply, reuse, original-state restore and fresh all-window capture");
+        // Existing 58-61 fixtures explicitly inspect instantaneous settlement.
+        // Exercise the new NONE option rather than weakening their assertions.
+        JK62SetStyle(4);
         #include "style_smoke.inc"
+        JK62SetStyle(0);
         #include "sheet_smoke.inc"
         #include "glass61_smoke.inc"
         Shot(vc,@"home");
@@ -1101,6 +1127,18 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
                 [vc dismissViewControllerAnimated:NO completion:^{
                 [vc barReset:nil];
                 NSLog(@"PASS 61 real public color picker presentation and live delegate");
+            [vc showCategory:4 animated:NO];[vc.view layoutIfNeeded];
+            UIButton *motion=(id)[vc.stack viewWithTag:628];
+            Check(motion&&motion.semanticContentAttribute==UISemanticContentAttributeForceLeftToRight,@"62 motion row is visible, Arabic and physically LTR");
+            ShotView(self.window,@"62-motion-settings");
+            [vc motionPicker:motion];
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(), ^{
+                UIAlertController *choices=(id)vc.presentedViewController;
+                Check([choices isKindOfClass:UIAlertController.class]&&choices.actions.count==6&&choices.view.semanticContentAttribute==UISemanticContentAttributeForceLeftToRight,@"62 real native motion selector has five Arabic LTR choices and cancel");
+                for(NSUInteger i=0;i<5;i++)Check([choices.actions[i].title containsString:JK62Names()[i]],@"62 motion native action labels match persisted choices");
+                ShotView(self.window,@"62-motion-picker");
+                [vc dismissViewControllerAnimated:NO completion:^{
+                NSLog(@"PASS 62 real Arabic LTR native motion picker");
             [vc showCategory:-1 animated:NO];
             UIButton *button=(UIButton *)vc.stack.arrangedSubviews.lastObject;
             [button sendActionsForControlEvents:UIControlEventTouchUpInside];
@@ -1110,6 +1148,8 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
                 NSLog(@"PASS 49 local file and native share presentation");
                 NSLog(@"PASS UIKit grid/category/back/layout/art persistence smoke");
                 fflush(stdout);exit(0);
+            });
+                }];
             });
                 }];
             });

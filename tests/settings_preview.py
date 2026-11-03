@@ -137,10 +137,11 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         UIButton *shareRow=(UIButton *)vc.stack.arrangedSubviews.lastObject;
         Check([shareRow.accessibilityLabel isEqual:@"مشاركة سجل التشخيص"],@"49 share row bottom");
         NSURL *logURL=[vc diagnosticLogURL];
-        Check([logURL.lastPathComponent isEqual:@"joker_debug.txt"],@"49 correct file");
+        Check([logURL.lastPathComponent isEqual:@"joker_comments63.txt"],@"63 dedicated structure-only file");
         Check([NSFileManager.defaultManager fileExistsAtPath:logURL.path],@"49 missing log created");
         [@"fixture-class-only" writeToURL:logURL atomically:YES encoding:NSUTF8StringEncoding error:nil];
-        Check([[NSString stringWithContentsOfURL:[vc diagnosticLogURL] encoding:NSUTF8StringEncoding error:nil] hasPrefix:@"fixture-class-only"],@"49 existing log preserved, capture appended");
+        Check(![[NSString stringWithContentsOfURL:[vc diagnosticLogURL] encoding:NSUTF8StringEncoding error:nil] containsString:@"fixture-class-only"],@"63 export replaces untrusted contents, legacy log untouched");
+        #include "hierarchy63_smoke.inc"
         for(TTJokerTile *tile in grid.subviews) {
             Check(tile.caption.text.length>0 && tile.glyph.image!=nil,@"49 all tile content present");
             Check(CGRectContainsRect(tile.bounds,tile.caption.frame) && CGRectContainsRect(tile.bounds,tile.glyph.frame),@"49 tile glyph and label contained");

@@ -1503,13 +1503,7 @@ static UIVisualEffect *TTJokerGlass(void) {
 - (NSURL *)diagnosticLogURL {
     NSString *folder=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject;
     if(!folder)return nil;
-    NSString *path=[folder stringByAppendingPathComponent:@"joker_debug.txt"];
-    @synchronized(NSFileManager.defaultManager) {
-        if(![NSFileManager.defaultManager fileExistsAtPath:path]) {
-            NSString *notice=@"Joker 50\nNo diagnostics recorded yet. Enable the emoji-bar option and long-press comments, then share again.\n";
-            if(![notice writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil])return nil;
-        }
-    }
+    NSString *path=[folder stringByAppendingPathComponent:@"joker_comments63.txt"];
     JKAppendCapture(path);
     return [NSURL fileURLWithPath:path];
 }
@@ -2070,6 +2064,7 @@ static void TTGShowSettings(UITabBar *bar) {
     UIViewController *top = bar.window.rootViewController;
     while (top.presentedViewController) top = top.presentedViewController;
     if (!top || [top isKindOfClass:TTGSettingsController.class]) return;
+    JK63RememberBeforeSettings(); // Explicit settings entry, before covering a native sheet.
     [TTJokerPet shared].covered=YES;[[TTJokerPet shared] refresh];
     TTGSettingsController *controller = [TTGSettingsController new]; controller.bar = bar;
     controller.modalPresentationStyle = UIModalPresentationOverFullScreen;

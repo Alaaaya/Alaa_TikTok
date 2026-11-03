@@ -10,6 +10,6 @@ assert 'JK62Hold(v))return;JK60Save' in n
 assert 'motionPicker:' in t and 'JK62Names()[JK62Style()]' in t
 assert 'style==4' in m and 'return reduce&&style!=4?1:style' in m
 assert 'JK62Finish();JK60Restore();' in Path('Style59.inc').read_text()
-assert 'Version: 62' in Path('control').read_text()
+assert int(next(l.split(':',1)[1] for l in Path('control').read_text().splitlines() if l.startswith('Version:'))) >= 62
 # Native action / art / global glass implementations are intentionally untouched.
 print('PASS 62 source guards: styles/persistence/reduce/interrupt/compositor-only/keyed cleanup')
