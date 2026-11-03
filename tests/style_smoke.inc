@@ -36,7 +36,9 @@
     UIButton *t2=[[UIButton alloc] initWithFrame:CGRectMake(160,0,80,44)];[t2 setTitle:@"أتابعهم" forState:UIControlStateNormal];[fade addSubview:t2];
     Class descCls=Fixture(@"AWEPlayInteractionDescriptionLabel",JKFixtureAttributedView.class);
     JKFixtureAttributedView *caption=[[descCls alloc] initWithFrame:CGRectMake(12,H-200,318,42)];
-    caption.attributedText=[[NSAttributedString alloc] initWithString:@"The sun goes down #sunset #desert" attributes:@{NSForegroundColorAttributeName:UIColor.whiteColor,NSFontAttributeName:[UIFont systemFontOfSize:14]}];[fd addSubview:caption];
+    NSMutableParagraphStyle *rtl=[NSMutableParagraphStyle new];rtl.alignment=NSTextAlignmentRight;rtl.baseWritingDirection=NSWritingDirectionRightToLeft;
+    caption.backgroundColor=UIColor.blackColor; // Explicit fixture-only drawRect canvas, not a shipping scrim.
+    caption.attributedText=[[NSAttributedString alloc] initWithString:@"وجه منحوت بالمطرقة! ترند جديد\nيعود رغم كل التحذيرات #ترند #عربي" attributes:@{NSParagraphStyleAttributeName:rtl,NSForegroundColorAttributeName:UIColor.whiteColor,NSFontAttributeName:[UIFont systemFontOfSize:14]}];[fd addSubview:caption];
     Class auCls=Fixture(@"AWEPlayInteractionAuthorView",UIView.class);
     UIView *offscreen=[[auCls alloc] initWithFrame:CGRectMake(12,-136,318,22)];[fd addSubview:offscreen];
     UIView *author=[[auCls alloc] initWithFrame:CGRectMake(12,H-232,318,22)];[fd addSubview:author];
@@ -75,7 +77,7 @@
     t1.selected=NO;JKStyleApplyAll();Check([tc viewWithTag:9158]==nil,@"58 no selection fails closed");t1.selected=YES;
     Check(![caption isKindOfClass:UILabel.class],@"58 caption fixture is NOT UILabel");
     UIColor *amber=[caption.attributedText attribute:NSForegroundColorAttributeName atIndex:caption.attributedText.length-3 effectiveRange:nil];CGFloat ar,ag,ab,aa;[amber getRed:&ar green:&ag blue:&ab alpha:&aa];
-    Check(ar>.99 && ag>.7 && ag<.72 && [caption.attributedText.string hasSuffix:@"#desert"],@"58 non-UILabel attributed caption hashtags amber, text preserved");
+    Check(ar>.99 && ag>.7 && ag<.72 && [caption.attributedText.string hasSuffix:@"#عربي"],@"58 non-UILabel attributed caption hashtags amber, text preserved");
     Check(JKFindClass(self.window,@"AWEPlayInteractionAuthorView",0)==author && CGAffineTransformIsIdentity(offscreen.transform),@"58 lookup skips offscreen first author");
     Check([follow viewWithTag:9159] && follow.superview==avatar && [follow.gestureRecognizers containsObject:followGR],@"58 nested follow subtree visited in-place and recognizer preserved");
     Check(objc_getAssociatedObject(nameText,kJKFontRec)!=nil && JKRec(nameText)==nil,@"58 font record separate from geometry");
