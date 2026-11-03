@@ -89,8 +89,8 @@
         Check(cap.length<JK_DUMP_BYTES+4000,@"53 capture bounded");
         [dumpBar removeFromSuperview];
     }
-    seg.selectedSegmentIndex=3;[seg sendActionsForControlEvents:UIControlEventValueChanged];
-    Check(JKStyle()==1,@"53 unavailable Joker rejected");
+    seg.selectedSegmentIndex=2;[seg sendActionsForControlEvents:UIControlEventValueChanged];
+    Check(JKStyle()==1,@"53 unavailable Facebook rejected");
     seg.selectedSegmentIndex=0;[seg sendActionsForControlEvents:UIControlEventValueChanged];
     Check(JKStyle()==0 && JKItemOf(natives[0])==nil && natives[0].alpha==1 && natives[1].alpha==1 && natives[3].alpha==1,@"53 returning to TikTok restores originals");
     Check([rail.subviews filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id v,id b){return [v isKindOfClass:JKStyleItem.class];}]].count==0,@"53 no leftover overlays");
