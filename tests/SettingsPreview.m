@@ -36,7 +36,9 @@ static BOOL JK62FixtureReduceMotion(void){return JK62FixtureReduce;}
 #define JK62_FIXTURE 1
 #define UIAccessibilityIsReduceMotionEnabled JK62FixtureReduceMotion
 #include "../InterfaceStyle.inc"
+#include "../FeedTransitions65.inc"
 #undef UIAccessibilityIsReduceMotionEnabled
+#include "feed65_fixture.inc"
 #include "../HierarchyDump.inc"
 #include "../AutoCapture64.inc"
 static UIVisualEffect *TTGEffect(void){return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];}
@@ -504,6 +506,11 @@ static UIVisualEffect *TTJokerGlass(void) {
         motion.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
         [motion.heightAnchor constraintGreaterThanOrEqualToConstant:44].active=YES;
         [motion addTarget:self action:@selector(motionPicker:) forControlEvents:UIControlEventTouchUpInside];[self.stack addArrangedSubview:motion];
+        UIButton *feedMotion=[UIButton buttonWithType:UIButtonTypeSystem];feedMotion.tag=629;
+        [feedMotion setTitle:[@"حركة تمرير الفيديوهات · " stringByAppendingString:JK65Names()[JK65Style()]] forState:UIControlStateNormal];
+        feedMotion.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+        [feedMotion.heightAnchor constraintGreaterThanOrEqualToConstant:44].active=YES;
+        [feedMotion addTarget:self action:@selector(feedPicker:) forControlEvents:UIControlEventTouchUpInside];[self.stack addArrangedSubview:feedMotion];
         UILabel *title=[self label:@"لون شريط التنقل السفلي" size:15 weight:UIFontWeightSemibold];[self.stack addArrangedSubview:title];
         UIStackView *swatches=[UIStackView new];swatches.axis=UILayoutConstraintAxisHorizontal;swatches.spacing=10;swatches.distribution=UIStackViewDistributionFillEqually;swatches.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
         NSArray *colors=@[UIColor.blackColor,[UIColor colorWithRed:.12 green:.22 blue:.4 alpha:1],[UIColor colorWithRed:.32 green:.12 blue:.3 alpha:1],[UIColor colorWithRed:.08 green:.32 blue:.26 alpha:1],[UIColor colorWithRed:.95 green:.77 blue:.4 alpha:1],UIColor.whiteColor];
@@ -829,6 +836,19 @@ static UIVisualEffect *TTJokerGlass(void) {
     menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
     [self presentViewController:menu animated:YES completion:nil];
 }
+- (void)feedPicker:(UIButton *)sender {
+    UIAlertController *menu=[UIAlertController alertControllerWithTitle:@"حركة تمرير الفيديوهات" message:@"تأثير بصري فقط · تيك توك الأصلي هو الافتراضي · تقليل الحركة يعيد الأصلي" preferredStyle:UIAlertControllerStyleActionSheet];
+    menu.view.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    for(NSInteger i=0;i<6;i++){
+        NSString *title=[NSString stringWithFormat:@"%@%@",i==JK65Style()?@"✓ ":@"",JK65Names()[i]];
+        [menu addAction:[UIAlertAction actionWithTitle:title style:UIAlertActionStyleDefault handler:^(UIAlertAction *a){
+            JK65SetStyle(i);[sender setTitle:[@"حركة تمرير الفيديوهات · " stringByAppendingString:JK65Names()[JK65Style()]] forState:UIControlStateNormal];
+        }]];
+    }
+    [menu addAction:[UIAlertAction actionWithTitle:@"إلغاء" style:UIAlertActionStyleCancel handler:nil]];
+    menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
+    [self presentViewController:menu animated:YES completion:nil];
+}
 - (void)motionPicker:(UIButton *)sender {
     UIAlertController *menu=[UIAlertController alertControllerWithTitle:@"حركة إظهار الواجهة" message:@"لستايل علاء · تقليل الحركة يستخدم تلاشيًا خفيفًا" preferredStyle:UIAlertControllerStyleActionSheet];
     menu.view.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
@@ -1018,6 +1038,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         #include "style_smoke.inc"
         JK62SetStyle(0);
         #include "sheet_smoke.inc"
+        #include "feed65_smoke.inc"
         #include "glass61_smoke.inc"
         Shot(vc,@"home");
         for(NSInteger page=0;page<8;page++){

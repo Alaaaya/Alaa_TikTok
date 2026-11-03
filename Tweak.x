@@ -1199,6 +1199,15 @@ static void TTGPrepareFeedActions(UIView *root) {
 }
 
 // Weak roots only; no retained cells, global-window traversal or display-rate work.
+%hook AWENewFeedTableView
+- (void)layoutSubviews {
+    JK65Install();
+    JK65Before((UIScrollView *)self);
+    %orig;
+    JK65After((UIScrollView *)self);
+}
+- (void)willMoveToWindow:(UIWindow *)w {if(!w)JK65RestoreTable((UIView *)self);%orig;}
+%end
 static void TTJokerPetSync(void);
 @interface TTGFeedWatchdog : NSObject
 @property(nonatomic, strong) NSHashTable<UIView *> *roots;
@@ -1312,6 +1321,7 @@ static void TT122Recover(void);
 #include "StoryTools.inc"
 #include "ProfileTools.inc"
 #include "Mascot.inc"
+#include "FeedTransitions65.inc"
 static void TTJokerPetSync(void) {[TTJokerPet shared].uiHidden=[TT122Hub shared].uiHidden;[[TTJokerPet shared] refresh];}
 %hook AWEAwemeModel
 - (id)initWithDictionary:(id)dictionary error:(id *)error {
@@ -1703,6 +1713,11 @@ static UIVisualEffect *TTJokerGlass(void) {
         motion.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
         [motion.heightAnchor constraintGreaterThanOrEqualToConstant:44].active=YES;
         [motion addTarget:self action:@selector(motionPicker:) forControlEvents:UIControlEventTouchUpInside];[self.stack addArrangedSubview:motion];
+        UIButton *feedMotion=[UIButton buttonWithType:UIButtonTypeSystem];feedMotion.tag=629;
+        [feedMotion setTitle:[@"حركة تمرير الفيديوهات · " stringByAppendingString:JK65Names()[JK65Style()]] forState:UIControlStateNormal];
+        feedMotion.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+        [feedMotion.heightAnchor constraintGreaterThanOrEqualToConstant:44].active=YES;
+        [feedMotion addTarget:self action:@selector(feedPicker:) forControlEvents:UIControlEventTouchUpInside];[self.stack addArrangedSubview:feedMotion];
         UILabel *title=[self label:@"لون شريط التنقل السفلي" size:15 weight:UIFontWeightSemibold];[self.stack addArrangedSubview:title];
         UIStackView *swatches=[UIStackView new];swatches.axis=UILayoutConstraintAxisHorizontal;swatches.spacing=10;swatches.distribution=UIStackViewDistributionFillEqually;swatches.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
         NSArray *colors=@[UIColor.blackColor,[UIColor colorWithRed:.12 green:.22 blue:.4 alpha:1],[UIColor colorWithRed:.32 green:.12 blue:.3 alpha:1],[UIColor colorWithRed:.08 green:.32 blue:.26 alpha:1],[UIColor colorWithRed:.95 green:.77 blue:.4 alpha:1],UIColor.whiteColor];
@@ -2024,6 +2039,19 @@ static UIVisualEffect *TTJokerGlass(void) {
     for(NSString *pack in packs)[menu addAction:[UIAlertAction actionWithTitle:pack.length?pack:@"Joker الأصلية" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a){
         [D() setObject:pack forKey:@"tt.pet.pack"];[[TTJokerPet shared] refresh];[weakSelf showCategory:6 animated:NO];
     }]];
+    [menu addAction:[UIAlertAction actionWithTitle:@"إلغاء" style:UIAlertActionStyleCancel handler:nil]];
+    menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
+    [self presentViewController:menu animated:YES completion:nil];
+}
+- (void)feedPicker:(UIButton *)sender {
+    UIAlertController *menu=[UIAlertController alertControllerWithTitle:@"حركة تمرير الفيديوهات" message:@"تأثير بصري فقط · تيك توك الأصلي هو الافتراضي · تقليل الحركة يعيد الأصلي" preferredStyle:UIAlertControllerStyleActionSheet];
+    menu.view.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    for(NSInteger i=0;i<6;i++){
+        NSString *title=[NSString stringWithFormat:@"%@%@",i==JK65Style()?@"✓ ":@"",JK65Names()[i]];
+        [menu addAction:[UIAlertAction actionWithTitle:title style:UIAlertActionStyleDefault handler:^(UIAlertAction *a){
+            JK65SetStyle(i);[sender setTitle:[@"حركة تمرير الفيديوهات · " stringByAppendingString:JK65Names()[JK65Style()]] forState:UIControlStateNormal];
+        }]];
+    }
     [menu addAction:[UIAlertAction actionWithTitle:@"إلغاء" style:UIAlertActionStyleCancel handler:nil]];
     menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
     [self presentViewController:menu animated:YES completion:nil];
