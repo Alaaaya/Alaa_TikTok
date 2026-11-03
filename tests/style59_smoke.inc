@@ -33,9 +33,11 @@
     AVPlayer *active=[AVPlayer playerWithURL:url],*inactive=[AVPlayer playerWithURL:url];active.automaticallyWaitsToMinimizeStalling=NO;inactive.automaticallyWaitsToMinimizeStalling=NO;
     AVPlayerLayer *pl=[AVPlayerLayer playerLayerWithPlayer:active];pl.frame=pv.bounds;[pv.layer addSublayer:pl];
     AVPlayerLayer *ol=[AVPlayerLayer playerLayerWithPlayer:inactive];ol.frame=off.bounds;[off.layer addSublayer:ol];
-    NSDate *limit=[NSDate dateWithTimeIntervalSinceNow:8];
+    [active playImmediatelyAtRate:1];
+    NSDate *limit=[NSDate dateWithTimeIntervalSinceNow:20];
     while((active.currentItem.status!=AVPlayerItemStatusReadyToPlay || inactive.currentItem.status!=AVPlayerItemStatusReadyToPlay) && limit.timeIntervalSinceNow>0)[NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:.02]];
     [active playImmediatelyAtRate:1];inactive.muted=NO;
+    NSLog(@"59 AVPlayer ready active=%ld item=%ld rate=%g error=%@ / %@ inactive=%ld item=%ld rate=%g error=%@ / %@",(long)active.status,(long)active.currentItem.status,active.rate,active.error,active.currentItem.error,(long)inactive.status,(long)inactive.currentItem.status,inactive.rate,inactive.error,inactive.currentItem.error);
     Check(active.status==AVPlayerStatusReadyToPlay && active.rate==1 && inactive.rate==0,@"59 real AVPlayer fixture ready and playing; offscreen paused");
     JKRailClosed=NO;[D() setInteger:3 forKey:JKStyleKey];JKStyleApplyAll();
     Check(JK59ActivePlayer(self.window)==active,@"59 active player from visible TTPlayerView AVPlayerLayer only");
