@@ -102,6 +102,7 @@ Check(!TT51SheetPeers(unrelated),@"51 no insertion without native Report and Not
     CFRunLoopRunInMode(kCFRunLoopDefaultMode,.6,false);
     CGRect rr=[se2.row2 convertRect:se2.row2.bounds toView:vs];
     CGFloat topVis=rr.origin.y-vs.contentOffset.y;
+    NSLog(@"55 dbg topVis=%f off=%f rr=%@ cs=%f mode=%ld",topVis,vs.contentOffset.y,NSStringFromCGRect(rr),vs.contentSize.height,(long)se2.mode);
     Check(topVis>=-.5 && topVis<=40,@"55 expanded card top visible automatically after tap (started scrolled down)");
     Check(card2.layer.cornerRadius>=12 && card2.layer.maskedCorners==(kCALayerMinXMinYCorner|kCALayerMaxXMinYCorner|kCALayerMinXMaxYCorner|kCALayerMaxXMaxYCorner),@"55 card keeps all four rounded corners");
     ShotView(self.window,@"55-expanded-reveal");
