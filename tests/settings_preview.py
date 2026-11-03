@@ -318,6 +318,18 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
                 [vc dismissViewControllerAnimated:NO completion:^{
                 [vc barReset:nil];
                 NSLog(@"PASS 61 real public color picker presentation and live delegate");
+            [vc showCategory:4 animated:NO];[vc.view layoutIfNeeded];
+            UIButton *motion=(id)[vc.stack viewWithTag:628];
+            Check(motion&&motion.semanticContentAttribute==UISemanticContentAttributeForceLeftToRight,@"62 motion row is visible, Arabic and physically LTR");
+            ShotView(self.window,@"62-motion-settings");
+            [vc motionPicker:motion];
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(), ^{
+                UIAlertController *choices=(id)vc.presentedViewController;
+                Check([choices isKindOfClass:UIAlertController.class]&&choices.actions.count==6&&choices.view.semanticContentAttribute==UISemanticContentAttributeForceLeftToRight,@"62 real native motion selector has five Arabic LTR choices and cancel");
+                for(NSUInteger i=0;i<5;i++)Check([choices.actions[i].title containsString:JK62Names()[i]],@"62 motion native action labels match persisted choices");
+                ShotView(self.window,@"62-motion-picker");
+                [vc dismissViewControllerAnimated:NO completion:^{
+                NSLog(@"PASS 62 real Arabic LTR native motion picker");
             [vc showCategory:-1 animated:NO];
             UIButton *button=(UIButton *)vc.stack.arrangedSubviews.lastObject;
             [button sendActionsForControlEvents:UIControlEventTouchUpInside];
@@ -327,6 +339,8 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
                 NSLog(@"PASS 49 local file and native share presentation");
                 NSLog(@"PASS UIKit grid/category/back/layout/art persistence smoke");
                 fflush(stdout);exit(0);
+            });
+                }];
             });
                 }];
             });
