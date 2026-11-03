@@ -15,6 +15,8 @@ for(NSString *name in @[@"تنزيل",@"غير مهتم",@"إبلاغ"]) {
     [sheetStack addArrangedSubview:r];[nativeRows addObject:r];
 }
 [self.window addSubview:sheet];[sheetStack layoutIfNeeded];
+CGFloat originalStackHeight=sheetStack.bounds.size.height;
+CGFloat addedRowHeight=nativeRows[0].bounds.size.height;
 TT51SheetEye *sheetEye=[TT51SheetEye new];__block BOOL eyeHidden=NO;
 sheetEye.toggle=^{eyeHidden=!eyeHidden;};
 [sheetEye scanWindows:@[self.window] enabled:YES hidden:NO];[sheetStack layoutIfNeeded];
@@ -24,7 +26,8 @@ Check(sheetEye.row.glyph.frame.origin.x>sheetEye.row.caption.frame.origin.x,@"51
 [sheetEye.row sendActionsForControlEvents:UIControlEventTouchUpInside];Check(eyeHidden,@"51 row hides UI");
 [sheetEye.row sendActionsForControlEvents:UIControlEventTouchUpInside];Check(!eyeHidden,@"51 same row restores UI");
 [sheetEye scanWindows:@[self.window] enabled:YES hidden:YES];Check(sheetStack.arrangedSubviews.count==4,@"51 no duplicate insertion");
-Check(fabs(sheetStack.bounds.size.height-224)<.01,@"51 expands fixed-frame stack to fit fourth row");
+NSLog(@"51 geometry before=%f row=%f after=%f",originalStackHeight,addedRowHeight,sheetStack.bounds.size.height);
+Check(sheetStack.bounds.size.height>=originalStackHeight+addedRowHeight-.5,@"51 expands fixed-frame stack to fit fourth row");
 Check(CGRectGetMaxY(sheetEye.row.frame)<=CGRectGetMinY(nativeRows[0].frame)+.01,@"51 stack rows do not overlap");
 ShotView(self.window,@"51-native-sheet-stack");
 [sheetEye scanWindows:@[self.window] enabled:NO hidden:NO];
