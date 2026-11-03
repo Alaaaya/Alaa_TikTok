@@ -5,6 +5,7 @@ static NSString *const JK62Key=@"tt62.collapseMotion";
 static NSString *const JK62Track=@"joker62.visibility";
 static BOOL JK62Running=NO;
 static NSUInteger JK62Generation=0;
+static NSTimer *JK62Completion;
 static NSArray<NSString *> *JK62Names(void){return @[@"ظهور متتابع بنابض",@"تلاشي",@"انزلاق",@"تكبير بنابض",@"بدون حركة"];}
 static NSInteger JK62Style(void){
     id n=[NSUserDefaults.standardUserDefaults objectForKey:JK62Key];
@@ -14,7 +15,7 @@ static NSInteger JK62Style(void){
 static NSInteger JK62Effective(NSInteger style,BOOL reduce){return reduce&&style!=4?1:style;}
 static NSArray *JK62Baseline(UIView *v){return [JK62Held() objectForKey:v]?:[JK60Saved() objectForKey:v]?:[TT50Saved() objectForKey:v]?:@[@(v.alpha),@(v.hidden),@(v.userInteractionEnabled)];}
 static void JK62Cancel(void){
-    ++JK62Generation;JK62Running=NO;
+    ++JK62Generation;JK62Running=NO;[JK62Completion invalidate];JK62Completion=nil;
     JK60Restoring=YES;JK62Writing=YES;
     for(UIView *v in JK62Held().keyEnumerator.allObjects){
         NSArray *r=[JK62Held() objectForKey:v];
@@ -134,7 +135,8 @@ static void JK62Animate(UIWindow *w){
     }
     // Hidden flags are committed only after the last reverse-stagger exit.
     // Generation invalidates stale completion blocks on rapid taps/style changes.
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(total*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
+    JK62Completion=[NSTimer timerWithTimeInterval:total repeats:NO block:^(NSTimer *timer){
         if(JK62Running&&generation==JK62Generation)JK62Finish();
-    });
+    }];
+    [NSRunLoop.mainRunLoop addTimer:JK62Completion forMode:NSRunLoopCommonModes];
 }
