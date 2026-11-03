@@ -1,5 +1,6 @@
 // 52 Instagram interface style smoke (fixtures are TEST DATA, not real TikTok views).
 {
+    #undef JK_INSTA_SHIPPED
     Class stackClass=NSClassFromString(@"TTKFeedRightInteractionStackView");
     if(!stackClass){stackClass=objc_allocateClassPair(UIView.class,"TTKFeedRightInteractionStackView",0);objc_registerClassPair(stackClass);}
     Class btnClass=NSClassFromString(@"AWEFeedVideoButton");
@@ -66,9 +67,11 @@
     // Unavailable styles cannot be selected.
     UIStackView *pickerHost=[UIStackView new];JKAddStylePicker(pickerHost);
     UISegmentedControl *seg=(UISegmentedControl *)pickerHost.arrangedSubviews[1];
-    Check(seg.numberOfSegments==4 && seg.selectedSegmentIndex==1,@"52 picker shows four styles with Instagram selected");
+    Check(seg.numberOfSegments==4 && seg.selectedSegmentIndex==0,@"52 picker shows four styles, only TikTok selectable in 52");
     seg.selectedSegmentIndex=2;[seg sendActionsForControlEvents:UIControlEventValueChanged];
-    Check(JKStyle()==1 && seg.selectedSegmentIndex==1,@"52 unavailable Facebook rejected");
+    Check(JKStyle()==1 && seg.selectedSegmentIndex==0,@"52 unavailable Facebook rejected");
+    seg.selectedSegmentIndex=1;[seg sendActionsForControlEvents:UIControlEventValueChanged];
+    Check(JKStyle()==1 && seg.selectedSegmentIndex==0,@"52 Instagram gated until 53");
     seg.selectedSegmentIndex=3;[seg sendActionsForControlEvents:UIControlEventValueChanged];
     Check(JKStyle()==1,@"52 unavailable Joker rejected");
     seg.selectedSegmentIndex=0;[seg sendActionsForControlEvents:UIControlEventValueChanged];

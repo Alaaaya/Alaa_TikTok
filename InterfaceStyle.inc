@@ -8,6 +8,11 @@ typedef NS_ENUM(NSInteger,JKKind){JKKindNone=0,JKKindLike,JKKindComment,JKKindSa
 static NSInteger JKStyle(void){return [[NSUserDefaults standardUserDefaults] integerForKey:JKStyleKey];}
 // 0 TikTok, 1 Instagram Reels are shipped. 2 Facebook (53) and 3 Joker futuristic are not available yet.
 static BOOL JKStyleAvailable(NSInteger style){return style==0 || style==1;}
+// Release gate: Instagram rail ships in 53, so the picker only offers TikTok in 52 (code stays tested).
+#ifndef JK_INSTA_SHIPPED
+#define JK_INSTA_SHIPPED 0
+#endif
+static BOOL JKPickerAvailable(NSInteger style){return style==0 || (JK_INSTA_SHIPPED && style==1);}
 static BOOL JKStyleOn(void){NSInteger s=JKStyle();return s==1 && JKStyleAvailable(s);}
 static id JKObject(id object,NSString *name) {
     SEL selector=NSSelectorFromString(name);
@@ -193,9 +198,9 @@ static void JKStyleApplyAll(void) {
 @end
 @implementation JKStylePicker
 - (void)changed:(UISegmentedControl *)s {
-    if(!JKStyleAvailable(s.selectedSegmentIndex)) {
+    if(!JKPickerAvailable(s.selectedSegmentIndex)) {
         s.selectedSegmentIndex=JKStyle();
-        self.note.text=@"هالنمط لسا مو متوفر. Facebook بالنسخة 53، وJoker المستقبلي بعد الموافقة على التصميم.";
+        self.note.text=@"هالنمط لسا مو متوفر. Instagram بالنسخة 53، وFacebook بالنسخة 54، وJoker المستقبلي بعد الموافقة على التصميم.";
         return;
     }
     [[NSUserDefaults standardUserDefaults] setInteger:s.selectedSegmentIndex forKey:JKStyleKey];
@@ -207,9 +212,9 @@ static void JKAddStylePicker(UIStackView *stack) {
     UILabel *title=[UILabel new];title.text=@"نمط الواجهة";title.textColor=[UIColor colorWithWhite:1 alpha:.88];
     title.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];title.textAlignment=NSTextAlignmentLeft;
     [stack addArrangedSubview:title];
-    UISegmentedControl *seg=[[UISegmentedControl alloc] initWithItems:@[@"TikTok",@"Instagram",@"Facebook · قريباً",@"Joker · قريباً"]];
+    UISegmentedControl *seg=[[UISegmentedControl alloc] initWithItems:@[@"TikTok",JK_INSTA_SHIPPED?@"Instagram":@"Instagram · قريباً",@"Facebook · قريباً",@"Joker · قريباً"]];
     seg.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
-    seg.selectedSegmentIndex=JKStyleAvailable(JKStyle())?JKStyle():0;
+    seg.selectedSegmentIndex=JKPickerAvailable(JKStyle())?JKStyle():0;
     seg.accessibilityLabel=@"نمط الواجهة";
     [seg.heightAnchor constraintEqualToConstant:42].active=YES;
     seg.backgroundColor=[UIColor colorWithWhite:1 alpha:.08];
