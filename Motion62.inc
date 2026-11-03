@@ -135,6 +135,9 @@ static void JK62Animate(UIWindow *w){
         group.timingFunction=[CAMediaTimingFunction functionWithControlPoints:.23 :1 :.32 :1];
         group.fillMode=kCAFillModeBoth;group.removedOnCompletion=NO;
         [v.layer addAnimation:group forKey:JK62Track];
+#ifdef JK62_FIXTURE
+        fprintf(stderr,"62 timing now=%.5f requested=%.5f retrieved=%.5f global=%.5f speed=%.1f begin=%.5f offset=%.5f\n",now,group.beginTime,[v.layer animationForKey:JK62Track].beginTime,[v.layer convertTime:[v.layer animationForKey:JK62Track].beginTime toLayer:nil],v.layer.speed,v.layer.beginTime,v.layer.timeOffset);fflush(stderr);
+#endif
     }
     // Hidden flags are committed only after the last reverse-stagger exit.
     // Generation invalidates stale completion blocks on rapid taps/style changes.
