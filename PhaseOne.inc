@@ -331,6 +331,7 @@ static UIView *TT122Material(CGRect frame) {
     if(!self.sheetEye){
         self.sheetEye=[TT51SheetEye new];__weak typeof(self) weak=self;
         self.sheetEye.toggle=^{[weak tapped:weak.eyeButton];};
+        self.sheetEye.downloadAction=^{[weak tapped:weak.downloadButton];};
     }
     [self.sheetEye scanWindows:TT48Windows() enabled:!settingsOpen && self.feed.viewIfLoaded.window!=nil && TT122Enabled(@"tt122.eye") hidden:self.uiHidden];
     BOOL emojiEnabled=PB(@"tt46.emojiBar",NO) && self.feed.viewIfLoaded.window!=nil && !settingsOpen;
