@@ -415,7 +415,7 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
             [v bringSubviewToFront:ov];
         } else if(ov){[ov removeFromSuperview];}
     } else if([n isEqualToString:@"TTKTabBar"] || [n isEqualToString:@"TTKFeedTabCornerItemView"] || [n isEqualToString:@"TikTokFeedTabControl"] || [n isEqualToString:@"AWEPlayInteractionFollowPromptView"]){
-        BOOL al=on && JKAlaa();
+        BOOL al=on && JKAlaa();BOOL chipOn=on;
         if([n isEqualToString:@"TTKTabBar"]){
             static const void *kT=&kT;
             if(al){if(!objc_getAssociatedObject(v,kT))objc_setAssociatedObject(v,kT,v.tintColor?:(id)NSNull.null,OBJC_ASSOCIATION_RETAIN_NONATOMIC);v.tintColor=[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1];}
@@ -430,15 +430,15 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
             else if(ul)[ul removeFromSuperview];
         } else {
             UIView *ch=[v viewWithTag:9159];
-            if(al){if(!ch){ch=[UIView new];ch.tag=9159;ch.userInteractionEnabled=NO;ch.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];ch.layer.borderWidth=1;ch.layer.borderColor=[UIColor colorWithWhite:1 alpha:.5].CGColor;ch.layer.cornerRadius=12;
+            if(chipOn){if(!ch){ch=[UIView new];ch.tag=9159;ch.userInteractionEnabled=NO;ch.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];ch.layer.borderWidth=1;ch.layer.borderColor=[UIColor colorWithWhite:1 alpha:.5].CGColor;ch.layer.cornerRadius=12;
                     UILabel *l=[UILabel new];l.tag=1;l.text=@"متابعة";l.textColor=UIColor.whiteColor;l.font=[UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];l.textAlignment=NSTextAlignmentCenter;[ch addSubview:l];[v addSubview:ch];}
                 ch.frame=CGRectMake(0,(v.bounds.size.height-24)/2,MAX(60,v.bounds.size.width),24);[ch viewWithTag:1].frame=ch.bounds;[v bringSubviewToFront:ch];}
             else if(ch)[ch removeFromSuperview];
-            if(v.window)JKAvatarApply(v,v.window,al,1);
+            if(v.window)JKAvatarApply(v,v.window,al,1);if(!chipOn&&ch)[ch removeFromSuperview];
         }
     } else if([n isEqualToString:@"AWEFeedPlayerBottomProgressBar"]){
         UIView *trk=[v viewWithTag:9160];
-        if(on && JKAlaa() && v.bounds.size.width>0){
+        if(on && v.bounds.size.width>0){
             if(!trk){trk=[UIView new];trk.tag=9160;trk.userInteractionEnabled=NO;[v insertSubview:trk atIndex:0];}
             trk.backgroundColor=[UIColor colorWithWhite:1 alpha:.28];trk.frame=CGRectMake(0,0,v.bounds.size.width,MAX(v.bounds.size.height,2));
         } else if(trk){[trk removeFromSuperview];}
