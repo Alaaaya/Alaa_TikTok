@@ -304,8 +304,8 @@ static UIView *TT122Material(CGRect frame) {
     for(UIView *v=self.feed.view;v;v=v.superview)if(v.hidden || v.alpha<.01){onScreen=NO;break;}
     self.overlay.hidden = !onScreen || !feedTop;
     if(!self.overlay.hidden && self.overlay.superview.subviews.lastObject!=self.overlay)[window bringSubviewToFront:self.overlay];
-    self.downloadButton.hidden = !TT122Enabled(@"tt122.download");
-    self.eyeButton.hidden = !TT122Enabled(@"tt122.eye");
+    self.downloadButton.hidden = PB(@"tt46.emojiBar",NO) || !TT122Enabled(@"tt122.download");
+    self.eyeButton.hidden = PB(@"tt46.emojiBar",NO) || !TT122Enabled(@"tt122.eye");
     self.progressButton.hidden = !self.busy || !TT122Enabled(@"tt122.progress");
     if (!TT122Enabled(@"tt122.eye") && self.uiHidden) [self restoreUI];
     [self.downloadButton setImage:TTToolGlyph(1221,@"arrow.down") forState:UIControlStateNormal];
@@ -320,7 +320,9 @@ static UIView *TT122Material(CGRect frame) {
         __weak typeof(self) weak=self;
         self.emojiBar.action=^(BOOL eye){[weak tapped:eye?weak.eyeButton:weak.downloadButton];};
     }
-    [self.emojiBar scan:window enabled:!self.overlay.hidden && PB(@"tt46.emojiBar",NO)];
+    BOOL settingsOpen=[NSStringFromClass(top.class) isEqualToString:@"TTGSettingsController"];
+    BOOL emojiEnabled=PB(@"tt46.emojiBar",NO) && self.feed.viewIfLoaded.window!=nil && !settingsOpen;
+    [self.emojiBar scanWindows:TT48Windows() enabled:emojiEnabled];
     [self.emojiBar.eye setImage:[UIImage systemImageNamed:self.uiHidden?@"eye.slash":@"eye"] forState:UIControlStateNormal];
     // Never bring the overlay over a system permission prompt or the settings sheet.
 }
