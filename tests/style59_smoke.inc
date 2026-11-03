@@ -14,7 +14,7 @@
         Class c=Fixture(i==2?@"AWETabBarPlusButton":@"TTKTabBarButton",UIButton.class);
         UIButton *b=[[c alloc] initWithFrame:CGRectMake(i*w/5,0,w/5,49)];b.selected=NO;
         b.accessibilityLabel=titles[i];
-        [b addAction:[UIAction actionWithHandler:^(__unused UIAction *action){navigations++;}] forControlEvents:UIControlEventTouchUpInside];
+        [b addAction:[UIAction actionWithHandler:^(__unused UIAction *action){navigations++;}] forControlEvents:i==2?UIControlEventTouchUpInside:UIControlEventTouchDown];
         UITapGestureRecognizer *g=[[UITapGestureRecognizer alloc] init];[b addGestureRecognizer:g];[tabGRs addObject:g];
         UIView *content=[[UIView alloc] initWithFrame:b.bounds];content.userInteractionEnabled=NO;[b addSubview:content];
         UIImageView *im=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:icons[i]]];im.frame=CGRectMake(25,0,30,30);[content addSubview:im];
@@ -43,7 +43,8 @@
     Check(CGRectEqualToRect(dr,CGRectMake(16,h-74,w-32,62)) && dock.layer.cornerRadius==31,@"59 native dock exact reference x16 bottom12 height62 radius31");
     for(NSUInteger i=0;i<5;i++){
         UIButton *b=tabs[i];Check(b.superview==dock && [b.gestureRecognizers containsObject:tabGRs[i]] && b.userInteractionEnabled && !b.hidden && b.alpha==1,@"59 dock keeps live native navigation buttons and gestures");
-        [b sendActionsForControlEvents:UIControlEventTouchUpInside];
+        [b sendActionsForControlEvents:i==2?UIControlEventTouchUpInside:UIControlEventTouchDown];
+        Check([b hitTest:CGPointMake(b.bounds.size.width/2,20) withEvent:nil]==b,@"59 native tab hit test is not intercepted by inert decoration");
         JK59DockRecord *r=objc_getAssociatedObject(b,kJK59DockState);Check(r && r.decoration.superview==b && !r.decoration.userInteractionEnabled,@"59 dock decoration inert, real button hit region live");
         if(i!=2){UILabel *l=(UILabel *)r.decoration.subviews.lastObject;Check([l.text isEqual:titles[i]],@"59 native destination labels preserved, no fake Settings destination");}
     }
@@ -71,10 +72,13 @@
     CGRect tr=[dots convertRect:dots.bounds toView:self.window],rr=[fr convertRect:fr.bounds toView:self.window];
     Check(CGRectGetMaxY(rr)<=CGRectGetMinY(tr)-16 && !CGRectIntersectsRect(tr,[caption convertRect:caption.bounds toView:self.window]),@"59 expanded rail above dots, dots outside left caption");
     [speed refresh];[sound refresh];
+    CGRect realCanvas=[caption convertRect:caption.bounds toView:self.window],realAuthor=[author convertRect:author.bounds toView:self.window];
+    Check(CGRectGetMaxX(realCanvas)<=CGRectGetMinX(rr)-12 && CGRectGetMaxX(realAuthor)<=CGRectGetMinX(rr)-12 && !CGRectIntersectsRect(realCanvas,[avatar convertRect:avatar.bounds toView:self.window]) && !CGRectIntersectsRect(realCanvas,[music convertRect:music.bounds toView:self.window]) && [nameText.text isEqual:@"blinx ✓"],@"59 Arabic actual drawRect canvas and checked blinx author remain physically left outside native rail/avatar/disc");
     ShotView(self.window,@"59-expanded");ShotView(self.window,@"59-top-and-dock");
     [dots sendActionsForControlEvents:UIControlEventTouchUpInside];
     Check(JKRailClosed,@"59 native dots collapses state");
     JKRailApply(self.window,NO); // deterministically inspect final animation state
+    for(UIView *v in fr.subviews)[v.layer removeAllAnimations];
     for(UIView *v in fr.subviews)Check(v.alpha==0 && !v.userInteractionEnabled && JKStyleAlpha(v,1)==0,@"59 ALL native rail children including avatar/disc/counts collapse and alpha guard");
     Check(dots.alpha==1 && !dots.hidden && dots.userInteractionEnabled,@"59 dots stays live to restore");
     ShotView(self.window,@"59-collapsed");

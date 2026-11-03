@@ -253,8 +253,8 @@ static void JK59Window(UIWindow *w,BOOL on){
         JK59PlayerButton *b=(JK59PlayerButton *)[w viewWithTag:9360+i];
         if(!player || TT50EyeActive){[b removeFromSuperview];continue;} // no inert controls
         if(!b){b=[[JK59PlayerButton alloc] initWithFrame:CGRectZero];b.tag=9360+i;b.speed=i==0;[w addSubview:b];}
-        // Reference is at top12. Respect the physical display safe inset on device.
-        CGFloat y=MAX(12,w.safeAreaInsets.top+8),width=i==0?54:40;
+        // Exact reference top12; controls stay in the two outer corners, not the center notch.
+        CGFloat y=12,width=i==0?54:40;
         b.frame=CGRectMake(i==0?16:w.bounds.size.width-16-width,y,width,40);[b refresh];[w bringSubviewToFront:b];
     }
 }
