@@ -30,6 +30,7 @@ Check(sheetEye.row.backgroundColor==UIColor.clearColor && sheetEye.row2.backgrou
     Check([sheetEye.row.toggleSwitch.onTintColor isEqual:UIColor.systemGreenColor],@"52 switch copies native auto-scroll switch style");
     Check(sheetEye.row.toggleSwitch && CGRectGetMinX(sheetEye.row.toggleSwitch.frame)<30 && sheetEye.row.toggleSwitch.frame.origin.x<sheetEye.row.caption.frame.origin.x,@"52 switch physically at left");
     CGSize need=[sheetEye.row.caption.text sizeWithAttributes:@{NSFontAttributeName:sheetEye.row.caption.font}];
+    NSLog(@"DBG cap w=%f need=%f iconX=%f sw=%f sx=%f",sheetEye.row.caption.bounds.size.width,need.width,sheetEye.row.iconX,sw,sheetEye.row.toggleSwitch.frame.origin.x);
     Check(sheetEye.row.caption.bounds.size.width>=need.width && [sheetEye.row.caption.text isEqual:@"إخفاء الواجهة"] && sheetEye.row.caption.textAlignment==NSTextAlignmentRight,@"52 caption not truncated, exact title");
     Check([sheetEye.row2.caption.text isEqual:@"تنزيل Joker"],@"52 Joker download row title");
 }
