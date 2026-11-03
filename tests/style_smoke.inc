@@ -62,7 +62,7 @@
     UIView *plus=[[Fixture(@"AWETabBarPlusButton",UIButton.class) alloc] initWithFrame:CGRectMake((W-86)/2,0,86,49)];[tab addSubview:plus];
     [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();
     ShotView(self.window,@"58-native-default");
-    [D() setInteger:3 forKey:JKStyleKey];JKStyleApplyAll();
+    JKRailClosed=NO;[D() setInteger:3 forKey:JKStyleKey];JKStyleApplyAll();
     for(int i=0;i<4;i++){
         UIControl *b=buttons[i];JKPaintRec *r=objc_getAssociatedObject(b,kJKPaintRec);
         Check(r && r.glyph.image && r.glyph.superview==b && !r.glyph.userInteractionEnabled,@"58 in-place inert glyph on gesture-only native button");
@@ -128,6 +128,7 @@
     NSString *folder=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject;
     NSString *log=[NSString stringWithContentsOfFile:[folder stringByAppendingPathComponent:@"joker_debug.txt"] encoding:NSUTF8StringEncoding error:nil];
     Check([log containsString:@"styled="]&&[log containsString:@"skipped="]&&[log containsString:@"rail-in-place-gestures"]&&[log containsString:@"caption-attributed"],@"58 bounded diagnostics include actual styled/skipped reasons");
+    #include "style59_smoke.inc"
     [fd removeFromSuperview];
     NSLog(@"PASS 58 runtime-mirrored style fixtures and complete restoration");
 }

@@ -1,3 +1,4 @@
+// 59: native dock, safe player-layer controls and full native rail collapse.
 // 58: cosmetic restyle inside native action controls. Native hit regions, targets,
 // recognizers, counts and frames remain intact. Not a full HTML overlay.
 static NSString *const JKStyleKey=@"tt.interface.style";
@@ -90,6 +91,8 @@ static NSString *JKCountText(UIView *view,NSUInteger depth) {
 
 // 56: Alaa style collapsible rail. The toggle only shows/hides OUR overlay glyphs; native views are never touched.
 static BOOL JKRailClosed=YES;
+static const void *kJKCollapseAlpha=&kJKCollapseAlpha,*kJKDockPaintAlpha=&kJKDockPaintAlpha;
+static void JKRailApply(UIWindow *window,BOOL animated);
 @interface JKAlaaToggle:UIControl
 @property(nonatomic,strong) UIImageView *dots,*xmark;
 @end
@@ -118,14 +121,7 @@ static BOOL JKRailClosed=YES;
 }
 - (void)flip {JKRailClosed=!JKRailClosed;[UIView animateWithDuration:.35 animations:^{[self paint];}];[self applyAnimated:YES];}
 - (void)applyAnimated:(BOOL)anim {
-    NSArray *subs=self.superview.subviews;NSUInteger k=0,n=0;
-    for(UIView *v in subs)if([v isKindOfClass:NSClassFromString(@"JKStyleItem")]||v.tag==9161||v.tag==9162)n++;
-    for(UIView *v in subs){
-        if(![v isKindOfClass:NSClassFromString(@"JKStyleItem")]&&v.tag!=9161&&v.tag!=9162)continue;k++;
-        UIView *item=v;NSUInteger kk=k;BOOL closed=JKRailClosed;
-        void(^st)(void)=^{item.alpha=closed?0:1;item.transform=closed?CGAffineTransformConcat(CGAffineTransformMakeScale(.25,.25),CGAffineTransformMakeTranslation(0,kk*40.0)):CGAffineTransformIdentity;item.userInteractionEnabled=(item.tag==9161||item.tag==9162)?NO:!closed;};
-        if(anim)[UIView animateWithDuration:.5 delay:(closed?(n-kk)*.025:(kk-1)*.045) usingSpringWithDamping:.62 initialSpringVelocity:0 options:0 animations:st completion:nil];else st();
-    }
+    JKRailApply(self.window,anim);
 }
 @end
 @interface JKStyleItem:UIControl
@@ -204,7 +200,7 @@ static JKStyleItem *JKItemOf(UIView *native){return objc_getAssociatedObject(nat
 // Only explicitly recorded paint roots may be hidden. Never dim a native
 // action container in response to a forwarding overlay (gesture-only rail safety).
 static CGFloat JKStyleAlpha(UIView *view,CGFloat requested) {
-    if(JKStyleOn() && objc_getAssociatedObject(view,kJKPaintAlpha))return 0;
+    if(JKStyleOn() && (objc_getAssociatedObject(view,kJKPaintAlpha) || objc_getAssociatedObject(view,kJKDockPaintAlpha) || (JKAlaa() && JKRailClosed && objc_getAssociatedObject(view,kJKCollapseAlpha))))return 0;
     return requested;
 }
 static void JKStyleDetach(UIView *native) {
@@ -506,6 +502,8 @@ static void JKCaptionApply(UIView *v,BOOL on){
     for(NSTextCheckingResult *r in matches)[m addAttribute:NSForegroundColorAttributeName value:[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1] range:r.range];
     BOOL ok=JKSetAttributed(v,m);JKResult(ok,ok?@"caption-attributed":@"caption-no-setter");
 }
+#include "Style59.inc"
+
 static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
     NSString *n=NSStringFromClass(v.class);JKNodes++;if(depth>JKDeep)JKDeep=depth;
     if(JKGeo&&v.window&&([n isEqualToString:@"TikTokFeedTabControl"]||[n isEqualToString:@"TTKFeedTabCornerItemView"]||[n isEqualToString:@"AWEPlayInteractionDescriptionLabel"]||[n isEqualToString:@"TTKFeedRightInteractionStackView"]||[n isEqualToString:@"TTKTabBar"])){
@@ -516,7 +514,7 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
     if([n isEqualToString:@"AWEPlayInteractionDescriptionLabel"]||[n isEqualToString:@"AWEScrollLabelView"])JKLeftRegion(v,on&&JKAlaa(),12);
     if([n isEqualToString:@"TTKTabBarBlurView"] && [v.superview isKindOfClass:UITabBar.class]==NO && [NSStringFromClass(v.superview.class) isEqualToString:@"TTKTabBar"]==NO){}
     if([n isEqualToString:@"TTKTabBarBlurView"]){
-        if(on){JKRecSave(v);CGRect o=[JKRec(v)[@"frame"] CGRectValue];
+        if(on && !JKAlaa()){JKRecSave(v);CGRect o=[JKRec(v)[@"frame"] CGRectValue];
             v.frame=CGRectMake(o.origin.x+18,o.origin.y+6,o.size.width-36,o.size.height-31);
             v.layer.cornerRadius=v.frame.size.height/2;v.layer.masksToBounds=YES;
             v.layer.borderWidth=.5;v.layer.borderColor=(JKAlaa()?[UIColor colorWithRed:.937 green:.957 blue:.945 alpha:.14]:[UIColor colorWithWhite:1 alpha:.18]).CGColor;
@@ -525,13 +523,13 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
                 CGRect wb=v.window.bounds;CGFloat topY=tbar.center.y-tbar.bounds.size.height/2;
                 tbar.transform=CGAffineTransformMakeTranslation(0,wb.size.height-43-(topY+24.5));
                 v.frame=[tbar convertRect:CGRectMake(16,wb.size.height-74,wb.size.width-32,62) fromView:v.window];v.layer.cornerRadius=31;}v.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];}}
-        else {JKDockRestore(v);JKRecRestore(v);}
+        else if(!JKAlaa() || !on){JKDockRestore(v);JKRecRestore(v);}
     } else if([n isEqualToString:@"AWEPlayInteractionMusicView"]){
         // Leave native music control visible and live. Remove old inert disc copies.
         if(v.window){UIView *st=JKRailStack(v.window);[[st viewWithTag:9162] removeFromSuperview];}
     } else if([n isEqualToString:@"AWETabBarPlusButton"]){
         UIView *ov=[v viewWithTag:9157];
-        if(on && JKAlaa()){
+        if(on && JKAlaa() && !objc_getAssociatedObject(v,kJK59DockState)){
             if(!ov){ov=[UIView new];ov.tag=9157;ov.userInteractionEnabled=NO;ov.layer.cornerRadius=14;
                 UIImageView *pi=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"plus" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:20 weight:UIImageSymbolWeightHeavy]]];
                 pi.tag=1;pi.tintColor=[UIColor colorWithRed:.141 green:.086 blue:0 alpha:1];pi.contentMode=UIViewContentModeCenter;[ov addSubview:pi];[v addSubview:ov];}
@@ -542,6 +540,7 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
     } else if([n isEqualToString:@"TTKTabBar"] || [n isEqualToString:@"TTKFeedTabCornerItemView"] || [n isEqualToString:@"TikTokFeedTabControl"] || [n isEqualToString:@"AWEPlayInteractionFollowPromptView"]){
         BOOL al=on && JKAlaa();
         if([n isEqualToString:@"TTKTabBar"]){
+            JK59Dock(v,al);
             static const void *kT=&kT;
             if(al){if(!objc_getAssociatedObject(v,kT))objc_setAssociatedObject(v,kT,v.tintColor?:(id)NSNull.null,OBJC_ASSOCIATION_RETAIN_NONATOMIC);v.tintColor=[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1];}
             else{id o=objc_getAssociatedObject(v,kT);if(o){v.tintColor=o==NSNull.null?nil:o;objc_setAssociatedObject(v,kT,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}
@@ -592,7 +591,7 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
 static void JKInstaApplyAll(void){
     BOOL on=JKStyleOn();static NSString *last;
     JKHits=[NSMutableDictionary new];JKGeo=[NSMutableString new];JKReasons=[NSMutableDictionary new];JKStyled=JKSkipped=0;JKNodes=0;JKDeep=0;NSArray *ws=TT48Windows();
-    for(UIWindow *w in ws)JKInstaPass(w,on,0);
+    for(UIWindow *w in ws){JKInstaPass(w,on,0);JK59Window(w,on&&JKAlaa());}
     NSArray *keys=[JKHits.allKeys sortedArrayUsingSelector:@selector(compare:)];NSMutableString *m=[NSMutableString new];
     for(NSString *k in keys)[m appendFormat:@" %@=%@",k,JKHits[k]];
     NSString *sum=[NSString stringWithFormat:@"apply style=%ld on=%d windows=%lu nodes=%lu deepest=%lu capped=%d styled=%lu skipped=%lu reasons=%@ geo:%@ hits:%@",(long)JKStyle(),on,(unsigned long)ws.count,(unsigned long)JKNodes,(unsigned long)JKDeep,JKNodes>=8000,(unsigned long)JKStyled,(unsigned long)JKSkipped,JKReasons,JKGeo,m];

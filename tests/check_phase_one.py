@@ -35,7 +35,7 @@ assert 'NSPhotoLibraryAddUsageDescription' in p
 assert 'http://' not in p and 'isEqual:@"https"' in p
 assert 'removeItemAtURL' in p
 assert 'tag:100+i' in s and 'sender.tag-100' in s
-assert 'Version: 58' in (root/'control').read_text()
+assert 'Version: 59' in (root/'control').read_text()
 print('PASS 1.21 bar+glyph byte regression, toggles, playback-preserving menus, saved drags, Photos permission guards, HTTPS, cleanup')
 
 assert 'AVAssetExportPresetPassthrough' in p and 'AVMutableComposition composition' in p
@@ -48,7 +48,7 @@ print('PASS no silent-save path, mux verification, audio share+cover option, Log
 
 style=(root/'InterfaceStyle.inc').read_text()
 assert 'if(JKStyleOwnsPaint(button)){TTGRestoreGlyph(button);JKStyleSync(button);return;}' in s
-assert 'if(JKStyleOn() && objc_getAssociatedObject(view,kJKPaintAlpha))return 0;' in style
+assert 'objc_getAssociatedObject(view,kJKPaintAlpha)' in style and 'kJKCollapseAlpha' in style and 'kJKDockPaintAlpha' in style
 assert 'item.superview!=view.superview' not in style[style.index('static CGFloat JKStyleAlpha'):style.index('// Per-button state')]
 assert 'JKPaintRestore(native)' in style and 'r.glyph.userInteractionEnabled=NO' in style
 print('PASS 58 scoped renderer handoff, no native root alpha suppression, in-place inert paint and restoration')

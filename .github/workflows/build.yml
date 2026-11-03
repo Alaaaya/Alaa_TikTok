@@ -1,7 +1,7 @@
 name: Build Alaa_TikTok
 on:
   push:
-    branches: [main, tiktok-glass, insta57, fix57b, fix58, fix58-fixtures]
+    branches: [main, tiktok-glass, insta57, fix57b, fix58, fix58-fixtures, fix59]
   workflow_dispatch:
 permissions:
   contents: write
