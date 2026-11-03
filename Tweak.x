@@ -1116,17 +1116,20 @@ static CGFloat TTGGuardRendererAlpha(UIView *renderer, CGFloat proposed) {
 
 %end
 
+#include "NoFlash.inc"
 static void TT48Added(UIView *view);
 %hook UIView
-- (void)setAlpha:(CGFloat)alpha { %orig(TTGGuardRendererAlpha(self, alpha)); }
+- (void)setAlpha:(CGFloat)alpha { %orig(TTGGuardRendererAlpha(self, TT50Alpha(self,alpha))); }
 - (void)setHidden:(BOOL)hidden {
-    %orig;
+    %orig(TT50Hidden(self,hidden));
     NSHashTable *owners = objc_getAssociatedObject(self, &kRendererOwnerKey);
     UIView *button = owners.anyObject;
     if (button && ![objc_getAssociatedObject(button, &kGlyphBusyKey) boolValue]) TTGQueueActionGlass(button);
 }
+- (void)setUserInteractionEnabled:(BOOL)enabled {%orig(TT50Interaction(self,enabled));}
+- (void)willMoveToWindow:(UIWindow *)window {TT50Lifecycle(self);%orig;}
 - (void)didAddSubview:(UIView *)view {
-    %orig;TT48Added(view);
+    TT50Tree(view);%orig;TT48Added(view);
     if (!self.window || view.tag == kActionGlassTag || [self isKindOfClass:UIVisualEffectView.class]) return;
     UIView *button = TTGOwnerAction(self);
     if (!button || [objc_getAssociatedObject(button, &kGlyphBusyKey) boolValue]) return;
@@ -1242,9 +1245,10 @@ static void TT122Recover(void);
 %end
 %hook UICollectionViewCell
 - (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) { [[TTGFeedWatchdog shared] addRoot:v]; TT122Recover(); } }
-- (void)prepareForReuse { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) { TTGPrepareFeedActions(v); TT122Recover(); } }
+- (void)prepareForReuse { TT50Tree((UIView *)self);%orig;TT50Tree((UIView *)self); UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) { TTGPrepareFeedActions(v); TT122Recover(); } }
 %end
 %hook UITableViewCell
+- (void)prepareForReuse {TT50Tree((UIView *)self);%orig;TT50Tree((UIView *)self);}
 - (void)didMoveToWindow { %orig; UIView *v = (id)self; if (v.window && TTGFeedRoot(v)) { [[TTGFeedWatchdog shared] addRoot:v]; TT122Recover(); } }
 %end
 // Inherited callbacks cover photo/ad variants without guessing their private names.
@@ -1260,8 +1264,8 @@ static void TT122Recover(void);
 #include "PhaseOne.inc"
 #include "ReactionObserver.inc"
 %hook UIView
-- (void)layoutSubviews {%orig;TT50EnforceTop((UIView *)self);}
-- (void)didMoveToWindow {%orig;TT50EnforceTop((UIView *)self);if(self.window)TT48Added((UIView *)self);else TT48Schedule();}
+- (void)layoutSubviews {%orig;TT50Lifecycle((UIView *)self);}
+- (void)didMoveToWindow {%orig;TT50Lifecycle((UIView *)self);if(self.window)TT48Added((UIView *)self);else TT48Schedule();}
 - (void)addGestureRecognizer:(UIGestureRecognizer *)gesture {%orig;TT48ObserveGesture(gesture);}
 %end
 %hook UIWindow

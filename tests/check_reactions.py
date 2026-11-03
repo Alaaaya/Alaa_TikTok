@@ -14,7 +14,7 @@ assert 'window.bounds.size.width*.65' not in s
 assert 'text]' not in s[s.index('static void TT48Debug'):s.index('// Runtime hierarchy')]
 print('PASS 48 scoped debounced lifecycle hooks, all-window scan, mirrored geometry and bounded class-only diagnostics')
 
-top=(root/'TopFeed.inc').read_text()
+top=(root/'NoFlash.inc').read_text()
 for name in ['TikTokFeedTabControl','TikTokFeedFadeScrollView','TTKFeedTabCornerItemView','AWELiveFeedEntranceView','TTKSearchEntranceButton','TikTokFeedTabItem']:
     assert name in top
 assert 'view.alpha=0' in top and 'view.userInteractionEnabled=NO' in top

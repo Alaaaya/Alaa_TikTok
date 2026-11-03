@@ -7,6 +7,15 @@ base=subprocess.check_output(['git','show','2af08af:Tweak.x'],cwd=root).decode()
 # except calls that notify floating tools of the active feed.
 prefix=s[:s.index('#include "CustomTools.inc"')].replace('static void TT122Track(UIViewController *c);\n','').replace(' TT122Track(c);','').replace('static void TT122Recover(void);\n','').replace('{ [[TTGFeedWatchdog shared] addRoot:v]; TT122Recover(); }','[[TTGFeedWatchdog shared] addRoot:v];').replace('{ TTGPrepareFeedActions(v); TT122Recover(); }','TTGPrepareFeedActions(v);')
 prefix=prefix.replace('static void TTJokerPetSync(void);\n','').replace('    TTJokerPetSync();\n','')
+# 50 wraps eye-only synchronous guards; normalize only these exact additions.
+prefix=prefix.replace('#include "NoFlash.inc"\n','')
+prefix=prefix.replace('TTGGuardRendererAlpha(self, TT50Alpha(self,alpha))','TTGGuardRendererAlpha(self, alpha)')
+prefix=prefix.replace('%orig(TT50Hidden(self,hidden));','%orig;')
+prefix=prefix.replace('- (void)setUserInteractionEnabled:(BOOL)enabled {%orig(TT50Interaction(self,enabled));}\n','')
+prefix=prefix.replace('- (void)willMoveToWindow:(UIWindow *)window {TT50Lifecycle(self);%orig;}\n','')
+prefix=prefix.replace('TT50Tree(view);','')
+prefix=prefix.replace('TT50Tree((UIView *)self);%orig;TT50Tree((UIView *)self);','%orig;')
+prefix=prefix.replace('- (void)prepareForReuse {%orig;}\n','')
 # 48 appends a scoped observer to the existing UIKit callback, not renderer logic.
 prefix=prefix.replace('static void TT48Added(UIView *view);\n','').replace('%orig;TT48Added(view);','%orig;')
 assert prefix.rstrip()==base[:base.index('// A custom, real-material sheet;')].rstrip()

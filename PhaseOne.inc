@@ -156,7 +156,7 @@ static UIView *TT122Material(CGRect frame) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3*NSEC_PER_SEC), dispatch_get_main_queue(), ^{[label removeFromSuperview];});
 }
 - (void)restoreUI {
-    TT49RestoreTop();
+    TT50Restore();TT49RestoreTop();
     if (self.uiHidden) {
         id target = self.hiddenInteraction;
         SEL sel = NSSelectorFromString(@"hideAllElements:exceptArray:");
@@ -173,7 +173,7 @@ static UIView *TT122Material(CGRect frame) {
     if (CGRectIsNull(visible) || visible.size.height < controller.view.window.bounds.size.height*.5) return;
     id currentModel = TTGActionObject(controller,@"model");
     if (self.feed != controller || self.trackedModel != currentModel) {
-        BOOL keepHidden=self.uiHidden;[self restoreUI];self.uiHidden=keepHidden;
+        BOOL keepHidden=self.uiHidden;[self restoreUI];self.uiHidden=keepHidden;TT50EyeActive=keepHidden;
         [self.menu removeFromSuperview];self.menu=nil;self.menuModel=nil;self.feed=controller;self.trackedModel=currentModel;
     }
     if(self.uiHidden)[self applyHiddenUI];
@@ -222,7 +222,8 @@ static UIView *TT122Material(CGRect frame) {
 }
 - (void)applyHiddenUI {
     if(!self.uiHidden || !TT122Enabled(@"tt122.eye"))return;
-    for(UIWindow *window in TT48Windows())TT49HideTop(window);
+    TT50EyeActive=YES;
+    for(UIWindow *window in TT48Windows()){TT49HideTop(window);TT50Tree(window);}
     id interaction=TTGActionObject(self.feed,@"interactionController");
     SEL selector=NSSelectorFromString(@"hideAllElements:exceptArray:");
     NSMethodSignature *sig=[interaction methodSignatureForSelector:selector];
@@ -400,7 +401,7 @@ static UIView *TT122Material(CGRect frame) {
     else if (sender == self.eyeButton) {
         if (self.uiHidden) { [self restoreUI]; return; }
         self.uiHidden=YES;[self applyHiddenUI];
-        if(!self.hiddenInteraction){self.uiHidden=NO;[self toast:@"إخفاء العناصر غير متاح على هذا الفيديو"];}
+        if(!self.hiddenInteraction){self.uiHidden=NO;TT50Restore();TT49RestoreTop();[self toast:@"إخفاء العناصر غير متاح على هذا الفيديو"];}
     } else [self toast:@"التنزيل مستمر"];
 }
 - (void)start:(id)model quality:(NSInteger)quality {

@@ -17,6 +17,7 @@ static void TTToolRefresh(void){}
 #include "../Mascot.inc"
 #include "../EmojiBar.inc"
 #include "../TopFeed.inc"
+#include "../NoFlash.inc"
 @interface TT122Hub:NSObject
 +(instancetype)shared;
 -(void)refresh;
@@ -99,16 +100,23 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
             UIView *item=[[cls alloc] initWithFrame:CGRectMake(10,60,44,44)];
             item.alpha=.73;item.userInteractionEnabled=YES;[self.window addSubview:item];[exactTop addObject:item];
         }
-        TT49HideTop(self.window);
+        TT50EyeActive=YES;TT50Tree(self.window);
         for(UIView *item in exactTop)Check(item.alpha==0 && !item.userInteractionEnabled,@"50 exact class hidden without tab labels");
-        for(UIView *item in exactTop){item.alpha=1;item.userInteractionEnabled=YES;TT50EnforceTop(item);}
+        for(UIView *item in exactTop){item.alpha=1;item.userInteractionEnabled=YES;TT50BeforeDraw(item);}
         for(UIView *item in exactTop)Check(item.alpha==0 && !item.userInteractionEnabled,@"50 lifecycle reapply");
         Class newClass=NSClassFromString(@"TikTokFeedTabItemControl");
         if(!newClass){newClass=objc_allocateClassPair(UIView.class,"TikTokFeedTabItemControl",0);objc_registerClassPair(newClass);}
         UIView *reused=[[newClass alloc] initWithFrame:CGRectMake(50,60,30,44)];
         reused.alpha=.4;reused.userInteractionEnabled=NO;[self.window addSubview:reused];
-        TT50EnforceTop(reused);Check(reused.alpha==0,@"50 newly reused tab stays hidden");
-        TT49RestoreTop();
+        TT50BeforeDraw(reused);Check(reused.alpha==0,@"50 newly reused tab stays hidden");
+        UIView *video=[UIView new];Class rightClass=NSClassFromString(@"TTKFeedRightInteractionStackView");
+        if(!rightClass){rightClass=objc_allocateClassPair(UIView.class,"TTKFeedRightInteractionStackView",0);objc_registerClassPair(rightClass);}
+        UIView *right=[[rightClass alloc] init];right.alpha=.8;[video addSubview:right];
+        TT50Tree(video);
+        Check(right.hidden && right.alpha==0 && video.alpha==1 && !video.hidden,@"50 guards only chrome never video/root");
+        Check(TT50Alpha(right,1)==0 && TT50Hidden(right,NO) && !TT50Interaction(right,YES),@"50 synchronous setter clamps before draw");
+        TT50Restore();
+        Check(fabs(right.alpha-.8)<.001 && !right.hidden,@"50 chrome restores without animation");
         for(UIView *item in exactTop){Check(fabs(item.alpha-.73)<.001 && item.userInteractionEnabled,@"50 original state restored");[item removeFromSuperview];}
         Check(fabs(reused.alpha-.4)<.001 && !reused.userInteractionEnabled,@"50 disabled state preserved");[reused removeFromSuperview];
         UIWindow *lateWindow=[[UIWindow alloc] initWithWindowScene:self.window.windowScene];
