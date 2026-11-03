@@ -630,6 +630,7 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
 static void JKInstaApplyAll(void){
     BOOL on=JKStyleOn();static NSString *last;
     JKHits=[NSMutableDictionary new];JKGeo=[NSMutableString new];JKReasons=[NSMutableDictionary new];JKStyled=JKSkipped=0;JKNodes=0;JKDeep=0;NSArray *ws=TT48Windows();
+    if(!on||!JKAlaa())JK60Restore();
     for(UIWindow *w in ws){JKInstaPass(w,on,0);JK59Window(w,on&&JKAlaa());if(on&&JKAlaa())JK60Tree(w);}
     NSArray *keys=[JKHits.allKeys sortedArrayUsingSelector:@selector(compare:)];NSMutableString *m=[NSMutableString new];
     for(NSString *k in keys)[m appendFormat:@" %@=%@",k,JKHits[k]];
