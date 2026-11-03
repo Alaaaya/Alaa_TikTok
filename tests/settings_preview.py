@@ -66,6 +66,19 @@ prefix+=overlay+helpers+r"""
 -(void)tapped:(UIButton *)button{self.tapCount++;}
 """+methods+'\n@end\n'
 suffix=r"""
+// Fixture-only diagnostic for UIKit's frozen outer-window timing.
+@interface CALayer(JK62FixtureTiming)
+- (void)jk62fixtureSpeed:(float)speed;
+@end
+@implementation CALayer(JK62FixtureTiming)
++ (void)load {
+    method_exchangeImplementations(class_getInstanceMethod(self,@selector(setSpeed:)),class_getInstanceMethod(self,@selector(jk62fixtureSpeed:)));
+}
+- (void)jk62fixtureSpeed:(float)speed {
+    if(speed==0 && [NSStringFromClass(self.class) containsString:@"Window"]){fprintf(stderr,"62 WINDOW PAUSE %s\n",NSThread.callStackSymbols.description.UTF8String);fflush(stderr);}
+    [self jk62fixtureSpeed:speed];
+}
+@end
 static void Check(BOOL ok,NSString *message) {if(!ok){fprintf(stderr,"FAIL %s\n",message.UTF8String);fflush(stderr);exit(1);}}
 static void ShotView(UIView *view,NSString *name) {
     [view setNeedsLayout];[view layoutIfNeeded];
