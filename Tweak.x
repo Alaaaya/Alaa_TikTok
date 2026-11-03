@@ -1265,6 +1265,7 @@ static void TT122Recover(void);
 #include "CustomTools.inc"
 #include "PhaseOne.inc"
 #include "InterfaceStyle.inc"
+#include "HierarchyDump.inc"
 #include "ReactionObserver.inc"
 %hook UIView
 - (void)layoutSubviews {%orig;TT50Lifecycle((UIView *)self);}
@@ -1498,6 +1499,7 @@ static UIVisualEffect *TTJokerGlass(void) {
             if(![notice writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil])return nil;
         }
     }
+    JKAppendCapture(path);
     return [NSURL fileURLWithPath:path];
 }
 - (void)shareDiagnostics:(UIButton *)sender {

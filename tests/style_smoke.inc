@@ -78,6 +78,17 @@
     Check(JKStyle()==1,@"53 Facebook rejected leaves style");
     seg.selectedSegmentIndex=1;[seg sendActionsForControlEvents:UIControlEventValueChanged];
     Check(JKStyle()==1 && seg.selectedSegmentIndex==1,@"53 Instagram selectable");
+    {
+        UITabBar *dumpBar=[[UITabBar alloc] initWithFrame:CGRectMake(0,0,300,50)];
+        UILabel *secret=[UILabel new];secret.text=@"SECRETUSERCAPTION";secret.accessibilityLabel=@"SECRETAX";
+        UILabel *known=[UILabel new];known.text=@"Follow";
+        [dumpBar addSubview:secret];[dumpBar addSubview:known];[self.window addSubview:dumpBar];
+        NSString *cap=JKHierarchyCapture();
+        Check([cap containsString:@"UITabBar"] && [cap containsString:@"<text len=17>"] && [cap containsString:@"\"Follow\""],@"53 capture lists classes, redacts text, keeps control words");
+        Check(![cap containsString:@"SECRETUSERCAPTION"] && ![cap containsString:@"SECRETAX"],@"53 capture never contains user text");
+        Check(cap.length<JK_DUMP_BYTES+4000,@"53 capture bounded");
+        [dumpBar removeFromSuperview];
+    }
     seg.selectedSegmentIndex=3;[seg sendActionsForControlEvents:UIControlEventValueChanged];
     Check(JKStyle()==1,@"53 unavailable Joker rejected");
     seg.selectedSegmentIndex=0;[seg sendActionsForControlEvents:UIControlEventValueChanged];
