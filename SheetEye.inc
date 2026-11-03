@@ -160,7 +160,7 @@ static BOOL TT51SheetPeers(UIView *root) {
             [row.heightAnchor constraintEqualToConstant:screen.size.height].active=YES;
             // Grow an explicit stack height if present; otherwise intrinsic stack sizing propagates normally.
             for(NSLayoutConstraint *c in stack.constraints)
-                if(c.active && c.firstItem==stack && c.firstAttribute==NSLayoutAttributeHeight && !c.secondItem && c.relation==NSLayoutRelationEqual){
+                if(c.active && ![NSStringFromClass(c.class) containsString:@"AutoresizingMask"] && c.firstItem==stack && c.firstAttribute==NSLayoutAttributeHeight && !c.secondItem && c.relation==NSLayoutRelationEqual){
                     self.stackHeight=c;self.originalHeight=c.constant;c.constant+=screen.size.height;break;
                 }
             if(!self.stackHeight){
@@ -169,7 +169,7 @@ static BOOL TT51SheetPeers(UIView *root) {
                 BOOL externallySized=NO;
                 for(UIView *p=stack.superview;p;p=p.superview)
                     for(NSLayoutConstraint *c in p.constraints)
-                        if(c.active && ((c.firstItem==stack && (c.firstAttribute==NSLayoutAttributeHeight || c.firstAttribute==NSLayoutAttributeTop || c.firstAttribute==NSLayoutAttributeBottom)) ||
+                        if(c.active && ![NSStringFromClass(c.class) containsString:@"AutoresizingMask"] && ((c.firstItem==stack && (c.firstAttribute==NSLayoutAttributeHeight || c.firstAttribute==NSLayoutAttributeTop || c.firstAttribute==NSLayoutAttributeBottom)) ||
                            (c.secondItem==stack && (c.secondAttribute==NSLayoutAttributeHeight || c.secondAttribute==NSLayoutAttributeTop || c.secondAttribute==NSLayoutAttributeBottom))))externallySized=YES;
                 if(!externallySized){
                     self.resizedStack=YES;self.originalStackFrame=stack.frame;
