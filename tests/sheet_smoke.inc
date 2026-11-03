@@ -133,6 +133,7 @@ Check(!TT51SheetPeers(unrelated),@"51 no insertion without native Report and Not
     CFRunLoopRunInMode(kCFRunLoopDefaultMode,.5,false);[vs layoutIfNeeded];
     UIView *c0=cards[0],*c1=cards[1];
     CGRect f0=[c0 convertRect:c0.bounds toView:vs],f1=[c1 convertRect:c1.bounds toView:vs];
+    Check(f0.origin.y>=-.5 && f0.origin.y<=40,@"55 card top fully visible (all four corners shown)");
     Check(f1.origin.y-CGRectGetMaxY(f0)>=9.5,@"55 native gap below Joker card preserved (autolayout)");
     Check(c0.layer.cornerRadius>=12 && c0.layer.masksToBounds && c1.layer.cornerRadius>=12,@"55 both cards rounded");
     NSLog(@"55 gapdbg c0=%@ c1=%@ outer=%@ vs=%@ win=%@ sub=%lu",NSStringFromCGRect(f0),NSStringFromCGRect(f1),NSStringFromCGRect(outer.frame),NSStringFromCGRect(vs.frame),NSStringFromCGRect(self.window.bounds),(unsigned long)self.window.subviews.count);
