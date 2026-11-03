@@ -99,6 +99,7 @@
     BOOL beforeInactive=inactive.muted;[stale sendActionsForControlEvents:UIControlEventTouchUpInside];Check(inactive.muted==beforeInactive && !active.muted,@"59 stale control cannot target newly recycled feed");
     pv.frame=fd.bounds;off.frame=CGRectOffset(fd.bounds,0,-h);JKStyleApplyAll();
     [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();
+    fprintf(stderr,"62 cleanup fake=%g dock=%s expected=%s plate=%p dots=%p speed=%p\n",fake.alpha,NSStringFromCGRect(dock.frame).UTF8String,NSStringFromCGRect(dockBefore).UTF8String,[dock viewWithTag:9358],[self.window viewWithTag:9156],[self.window viewWithTag:9360]);fflush(stderr);
     Check(fake.alpha==1 && CGRectEqualToRect(dock.frame,dockBefore) && ![dock viewWithTag:9358] && ![self.window viewWithTag:9156] && ![self.window viewWithTag:9360],@"59 default removes new chrome and restores native dock");
     for(NSUInteger i=0;i<5;i++){UIView *b=tabs[i];Check(CGRectEqualToRect(b.frame,[buttonFrames[i] CGRectValue]) && !objc_getAssociatedObject(b,kJK59DockState) && [b.gestureRecognizers containsObject:tabGRs[i]],@"59 default restores all native tab geometry paint and gesture identities");}
     Check(CGAffineTransformIsIdentity(fr.transform) && avatar.alpha==1 && music.alpha==1 && follow.userInteractionEnabled,@"59 default restores rail geometry avatar follow music");
