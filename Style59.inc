@@ -202,20 +202,54 @@ static void JKRailRestore(UIView *rail){
     objc_setAssociatedObject(rail,kJK59RailState,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     NSValue *t=objc_getAssociatedObject(rail,kJK59RailGeometry);if(t){rail.transform=t.CGAffineTransformValue;objc_setAssociatedObject(rail,kJK59RailGeometry,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
 }
+// Native navigation is an absolute boundary, even when TikTok nests a dock
+// under an interaction/shared container. Never hide/transform its ancestors.
+static BOOL JK60ContainsDock(UIView *root){
+    NSMutableArray *q=[NSMutableArray arrayWithObject:root];
+    for(NSUInteger i=0;i<q.count&&i<8000;i++){
+        UIView *v=q[i];NSString *n=NSStringFromClass(v.class);
+        if([n isEqualToString:@"TTKTabBar"]||[n isEqualToString:@"TTKFakeTabBar"]||[v isKindOfClass:UITabBar.class])return YES;
+        [q addObjectsFromArray:[v.subviews copy]];
+    }
+    // A capped walk cannot prove a branch safe to collapse.
+    return q.count>=8000;
+}
+static void JK60RailTargets(UIView *root,NSMutableArray *targets,NSUInteger depth){
+    if(depth>80)return;
+    for(UIView *v in [root.subviews copy]){
+        NSString *n=NSStringFromClass(v.class);
+        if([n isEqualToString:@"TTKTabBar"]||[n isEqualToString:@"TTKFakeTabBar"]||[v isKindOfClass:UITabBar.class]||v.tag==9156)continue;
+        if(JK60ContainsDock(v))JK60RailTargets(v,targets,depth+1);
+        else [targets addObject:v];
+    }
+}
 static void JKRailApply(UIWindow *w,BOOL animated){
     if(!w)return;
     UIView *rail=JKRailStack(w);JKAlaaToggle *toggle=(JKAlaaToggle *)[w viewWithTag:9156];
     if(!rail)return;
     NSMapTable *states=objc_getAssociatedObject(rail,kJK59RailState);
     if(!states){states=[NSMapTable weakToStrongObjectsMapTable];objc_setAssociatedObject(rail,kJK59RailState,states,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
-    if(!objc_getAssociatedObject(rail,kJK59RailGeometry))objc_setAssociatedObject(rail,kJK59RailGeometry,[NSValue valueWithCGAffineTransform:rail.transform],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    CGAffineTransform original=[objc_getAssociatedObject(rail,kJK59RailGeometry) CGAffineTransformValue];
-    // Keep the live native group above the reference's bottom dots trigger.
-    rail.transform=original;
-    CGRect rr=[rail convertRect:rail.bounds toView:w];CGFloat toggleY=w.bounds.size.height-170;
-    rail.transform=CGAffineTransformConcat(original,CGAffineTransformMakeTranslation(0,-MAX(0,CGRectGetMaxY(rr)-(toggleY-16))));
-    NSUInteger index=0,total=rail.subviews.count;
-    for(UIView *v in [rail.subviews copy]){
+    NSMutableArray *targets=[NSMutableArray new];JK60RailTargets(rail,targets,0);
+    // Repair only our previously recorded collapse paint if reuse/reparenting
+    // has turned an old target into a shared dock ancestor. Never force-show
+    // a native-hidden dock or overwrite native alpha/hidden state otherwise.
+    for(UIView *v in states.keyEnumerator.allObjects)if(JK60ContainsDock(v)){
+        NSDictionary *r=[states objectForKey:v];objc_setAssociatedObject(v,kJKCollapseAlpha,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        [v.layer removeAllAnimations];v.transform=[r[@"transform"] CGAffineTransformValue];v.alpha=[r[@"alpha"] doubleValue];v.hidden=[r[@"hidden"] boolValue];v.userInteractionEnabled=[r[@"interaction"] boolValue];[states removeObjectForKey:v];
+    }
+    BOOL shared=JK60ContainsDock(rail);
+    NSValue *savedGeometry=objc_getAssociatedObject(rail,kJK59RailGeometry);
+    if(shared){
+        if(savedGeometry){rail.transform=savedGeometry.CGAffineTransformValue;objc_setAssociatedObject(rail,kJK59RailGeometry,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
+        JKResult(NO,@"rail-dock-ancestor-protected");
+    }else{
+        if(!savedGeometry){savedGeometry=[NSValue valueWithCGAffineTransform:rail.transform];objc_setAssociatedObject(rail,kJK59RailGeometry,savedGeometry,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
+        CGAffineTransform original=savedGeometry.CGAffineTransformValue;
+        rail.transform=original;CGRect rr=[rail convertRect:rail.bounds toView:w];CGFloat toggleY=w.bounds.size.height-170;
+        rail.transform=CGAffineTransformConcat(original,CGAffineTransformMakeTranslation(0,-MAX(0,CGRectGetMaxY(rr)-(toggleY-16))));
+    }
+    NSUInteger index=0,total=targets.count;
+    for(UIView *v in targets){
         if(v==toggle)continue;
         NSDictionary *r=[states objectForKey:v];
         if(!r){r=@{@"alpha":@(v.alpha),@"hidden":@(v.hidden),@"interaction":@(v.userInteractionEnabled),@"transform":[NSValue valueWithCGAffineTransform:v.transform]};[states setObject:r forKey:v];}
@@ -254,7 +288,7 @@ static void JK59Window(UIWindow *w,BOOL on){
         [toggle placeFloating];
         BOOL covered=TT50EyeActive||JK60ModalCovered(w.rootViewController);
         toggle.hidden=covered;toggle.userInteractionEnabled=!covered;JKRailApply(w,NO);
-    } else if(toggle){toggle.hidden=YES;}
+    } else if(toggle){toggle.hidden=YES;toggle.userInteractionEnabled=NO;}
     AVPlayer *player=JK59ActivePlayer(w);
     for(NSInteger i=0;i<2;i++){
         JK59PlayerButton *b=(JK59PlayerButton *)[w viewWithTag:9360+i];

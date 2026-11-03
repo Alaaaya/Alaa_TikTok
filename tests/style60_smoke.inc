@@ -16,10 +16,33 @@
     [dots sendActionsForControlEvents:UIControlEventTouchUpInside];JKRailApply(self.window,NO);checkDock();
     Check(!JKRailClosed,@"60 tap expands without hiding dock");
     ShotView(self.window,@"60-expanded-dock-visible");
-    // The screenshot with a native back arrow/search footer may be a detail
-    // context with no native tabs. Never fabricate a dock or unhide native tabs
-    // which TikTok has explicitly hidden for another screen.
+    // A realistic shared feed ancestor, then a stricter reuse/nested-dock
+    // adversarial shape: no collapse branch may touch navigation ancestors.
+    CGRect originalDockRect=[dock convertRect:dock.bounds toView:self.window];
+    CGRect originalRailFrame=fr.frame;UIView *originalRailParent=fr.superview;
+    [fr removeFromSuperview];
+    UIView *nestedRail=[[Fixture(@"TTKFeedRightInteractionStackView",UIView.class) alloc] initWithFrame:fd.bounds];[fd addSubview:nestedRail];
+    UIView *shared=[[UIView alloc] initWithFrame:nestedRail.bounds];shared.clipsToBounds=NO;[nestedRail addSubview:shared];
+    [dock removeFromSuperview];[shared addSubview:dock];dock.frame=[shared convertRect:originalDockRect fromView:self.window];
+    UIView *railOnly=[[UIView alloc] initWithFrame:CGRectMake(w-66,300,48,300)];[shared addSubview:railOnly];
+    UIControl *nativeRailButton=[[UIControl alloc] initWithFrame:CGRectMake(0,0,48,48)];[railOnly addSubview:nativeRailButton];
+    CGAffineTransform sharedTx=shared.transform,rootTx=nestedRail.transform;
+    __block NSInteger nestedActions=0;[tabs[0] addAction:[UIAction actionWithHandler:^(__unused UIAction *a){nestedActions++;}] forControlEvents:UIControlEventTouchDown];
+    for(NSNumber *closed in @[@YES,@NO,@YES,@NO]){
+        JKRailClosed=closed.boolValue;JKRailApply(self.window,NO);JKStyleApplyAll();
+        checkDock();Check(CGRectEqualToRect([dock convertRect:dock.bounds toView:self.window],originalDockRect)&&CGAffineTransformEqualToTransform(shared.transform,sharedTx)&&CGAffineTransformEqualToTransform(nestedRail.transform,rootTx),@"60 shared rail/dock ancestors never receive collapse alpha hidden transform or frame changes");
+        Check(shared.alpha==1&&!shared.hidden&&shared.userInteractionEnabled&&nestedRail.alpha==1&&!nestedRail.hidden&&nestedRail.userInteractionEnabled,@"60 shared native navigation ancestry stays visible and interactive");
+        Check(!objc_getAssociatedObject(shared,kJKCollapseAlpha)&&!objc_getAssociatedObject(dock,kJKCollapseAlpha),@"60 shared dock ancestors excluded from synchronous collapse alpha guard");
+        Check(closed.boolValue?railOnly.alpha==0:railOnly.alpha==1,@"60 nested rail-only content still collapses and restores");
+        [tabs[0] sendActionsForControlEvents:UIControlEventTouchDown];
+        Check([tabs[0] hitTest:CGPointMake(((UIView *)tabs[0]).bounds.size.width/2,20) withEvent:nil]==tabs[0],@"60 nested dock button retains native input target");
+    }
+    Check(nestedActions==4,@"60 nested native dock actions work collapsed and expanded");
+    // Native context visibility is not a reason to force-show navigation.
     dock.hidden=YES;JKStyleApplyAll();Check(dock.hidden,@"60 native screen-level hidden dock stays native-hidden, not forcibly resurrected");dock.hidden=NO;
+    [dock removeFromSuperview];[fd addSubview:dock];dock.frame=[fd convertRect:originalDockRect fromView:self.window];
+    JKRailRestore(nestedRail);[nestedRail removeFromSuperview];[originalRailParent addSubview:fr];fr.frame=originalRailFrame;JKRailClosed=NO;JKStyleApplyAll();
+    dots=(id)[self.window viewWithTag:9156];checkDock();
     JK60TestPan *pan=[JK60TestPan new];
     BOOL before=JKRailClosed;
     dots.dragged=NO;pan.fixtureState=UIGestureRecognizerStateBegan;pan.fixtureDelta=CGPointMake(2,2);[dots drag:pan];pan.fixtureState=UIGestureRecognizerStateEnded;[dots drag:pan];
