@@ -101,6 +101,9 @@ static void JK62Animate(UIWindow *w){
         if([r[1] boolValue]||[r[0] doubleValue]<=.01||v.hidden||v.alpha<=.01)continue;
         BOOL isRail=i<buttons.count;
         CFTimeInterval delay=style==0?JK62Delay(closed,isRail,i,buttons.count):0;
+#ifdef JK62_FIXTURE
+        fprintf(stderr,"62 track style=%ld rail=%d closed=%d index=%lu count=%lu delay=%.3f stack=%p view=%p\n",(long)style,isRail,closed,(unsigned long)i,(unsigned long)buttons.count,delay,rail,v);fflush(stderr);
+#endif
         CFTimeInterval duration=(style==0&&isRail)||style==3?.38:.2;
         total=MAX(total,delay+duration);
         CATransform3D base=v.layer.transform,off=JK62Off(base,style,isRail);

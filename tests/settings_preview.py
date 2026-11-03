@@ -36,6 +36,7 @@ static void TTGRestoreGlyph(UIView *native){} // production renderer is outside 
 // Deterministic simulator accessibility seam; production calls the system API.
 static BOOL JK62FixtureReduce=NO;
 static BOOL JK62FixtureReduceMotion(void){return JK62FixtureReduce;}
+#define JK62_FIXTURE 1
 #define UIAccessibilityIsReduceMotionEnabled JK62FixtureReduceMotion
 #include "../InterfaceStyle.inc"
 #undef UIAccessibilityIsReduceMotionEnabled
