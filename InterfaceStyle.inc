@@ -89,12 +89,17 @@ static NSString *JKCountText(UIView *view,NSUInteger depth) {
     return nil;
 }
 
-// 56: Alaa style collapsible rail. The toggle only shows/hides OUR overlay glyphs; native views are never touched.
+// Alaa rail collapse trigger. Dragging affects this 48pt control only, never native inputs.
 static BOOL JKRailClosed=YES;
 static const void *kJKCollapseAlpha=&kJKCollapseAlpha,*kJKDockPaintAlpha=&kJKDockPaintAlpha;
 static void JKRailApply(UIWindow *window,BOOL animated);
 @interface JKAlaaToggle:UIControl
 @property(nonatomic,strong) UIImageView *dots,*xmark;
+@property(nonatomic,strong) UIPanGestureRecognizer *dragRecognizer;
+@property(nonatomic) CGPoint dragOrigin;
+@property(nonatomic) BOOL dragged;
+- (void)placeFloating;
+- (void)drag:(UIPanGestureRecognizer *)g;
 @end
 @implementation JKAlaaToggle
 - (instancetype)initWithFrame:(CGRect)f {
@@ -106,10 +111,44 @@ static void JKRailApply(UIWindow *window,BOOL animated);
     self.xmark=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"xmark" withConfiguration:c]];
     for(UIImageView *v in @[self.dots,self.xmark]){v.contentMode=UIViewContentModeCenter;v.userInteractionEnabled=NO;[self addSubview:v];}
     [self addTarget:self action:@selector(flip) forControlEvents:UIControlEventTouchUpInside];
+    self.dragRecognizer=[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(drag:)];
+    self.dragRecognizer.maximumNumberOfTouches=1;self.dragRecognizer.cancelsTouchesInView=YES;
+    [self addGestureRecognizer:self.dragRecognizer];
     [self paint];
     return self;
 }
+- (CGPoint)clampFloating:(CGPoint)p {
+    UIWindow *w=self.window;if(!w)return p;
+    UIEdgeInsets i=w.safeAreaInsets;CGRect b=w.bounds;
+    CGFloat left=CGRectGetMinX(b)+i.left+24,right=MAX(left,CGRectGetMaxX(b)-i.right-24);
+    CGFloat top=CGRectGetMinY(b)+i.top+24,bottom=MAX(top,CGRectGetMaxY(b)-i.bottom-24);
+    return CGPointMake(MAX(left,MIN(right,p.x)),MAX(top,MIN(bottom,p.y)));
+}
+- (void)placeFloating {
+    UIWindow *w=self.window;if(!w || self.dragRecognizer.state==UIGestureRecognizerStateBegan || self.dragRecognizer.state==UIGestureRecognizerStateChanged)return;
+    // Same normalized NSUserDefaults schema as Joker's existing floating controls.
+    NSDictionary *saved=[NSUserDefaults.standardUserDefaults dictionaryForKey:@"tt122.position.9156"];
+    id x=saved[@"x"],y=saved[@"y"];BOOL valid=[x isKindOfClass:NSNumber.class]&&[y isKindOfClass:NSNumber.class]&&isfinite([x doubleValue])&&isfinite([y doubleValue]);
+    CGPoint p=valid?CGPointMake(w.bounds.origin.x+[x doubleValue]*w.bounds.size.width,w.bounds.origin.y+[y doubleValue]*w.bounds.size.height):CGPointMake(CGRectGetMaxX(w.bounds)-42,CGRectGetMaxY(w.bounds)-146);
+    p=[self clampFloating:p];CGRect f=[self.superview convertRect:CGRectMake(p.x-24,p.y-24,48,48) fromView:w];
+    if(!CGRectEqualToRect(self.frame,f))self.frame=f;
+}
 - (void)layoutSubviews{[super layoutSubviews];self.dots.frame=self.bounds;self.xmark.frame=self.bounds;}
+- (void)safeAreaInsetsDidChange{[super safeAreaInsetsDidChange];[self placeFloating];}
+- (BOOL)beginTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event{self.dragged=NO;return [super beginTrackingWithTouch:touch withEvent:event];}
+- (void)drag:(UIPanGestureRecognizer *)g {
+    UIWindow *w=self.window;if(!w || self.hidden || !self.userInteractionEnabled)return;
+    CGPoint d=[g translationInView:w];
+    if(g.state==UIGestureRecognizerStateBegan)self.dragOrigin=[self.superview convertPoint:self.center toView:w];
+    if((g.state==UIGestureRecognizerStateBegan||g.state==UIGestureRecognizerStateChanged||g.state==UIGestureRecognizerStateEnded) && (self.dragged || hypot(d.x,d.y)>=8)){
+        self.dragged=YES;[self cancelTrackingWithEvent:nil];
+        CGPoint p=[self clampFloating:CGPointMake(self.dragOrigin.x+d.x,self.dragOrigin.y+d.y)];self.center=[self.superview convertPoint:p fromView:w];
+    }
+    if((g.state==UIGestureRecognizerStateEnded || g.state==UIGestureRecognizerStateCancelled) && self.dragged){
+        CGPoint p=[self.superview convertPoint:self.center toView:w];
+        if(w.bounds.size.width>0&&w.bounds.size.height>0)[NSUserDefaults.standardUserDefaults setObject:@{@"x":@((p.x-w.bounds.origin.x)/w.bounds.size.width),@"y":@((p.y-w.bounds.origin.y)/w.bounds.size.height)} forKey:@"tt122.position.9156"];
+    }
+}
 - (void)paint {
     UIColor *amber=[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1];
     self.backgroundColor=JKRailClosed?[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58]:amber;
@@ -119,7 +158,7 @@ static void JKRailApply(UIWindow *window,BOOL animated);
     self.dots.transform=JKRailClosed?CGAffineTransformIdentity:CGAffineTransformMakeRotation(M_PI_2);
     self.xmark.transform=JKRailClosed?CGAffineTransformMakeRotation(-M_PI_2):CGAffineTransformIdentity;
 }
-- (void)flip {JKRailClosed=!JKRailClosed;[UIView animateWithDuration:.35 animations:^{[self paint];}];[self applyAnimated:YES];}
+- (void)flip {if(self.dragged)return;JKRailClosed=!JKRailClosed;[UIView animateWithDuration:.35 animations:^{[self paint];}];[self applyAnimated:YES];}
 - (void)applyAnimated:(BOOL)anim {
     JKRailApply(self.window,anim);
 }

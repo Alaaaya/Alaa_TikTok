@@ -1,5 +1,6 @@
 // Real UIKit actions, nested native labels and real AVPlayer public state.
 {
+    [NSUserDefaults.standardUserDefaults removeObjectForKey:@"tt122.position.9156"];
     [tab removeFromSuperview];
     banner.text=@"Joker 59 simulator TEST DATA\nNative controls fixture, NOT real TikTok";
     caption.attributedText=[[NSAttributedString alloc] initWithString:@"وجه منحوت بالمطرقة! ترند جديد\nيعود رغم كل التحذيرات #ترند #عربي" attributes:@{NSParagraphStyleAttributeName:rtl,NSForegroundColorAttributeName:UIColor.whiteColor,NSFontAttributeName:[UIFont systemFontOfSize:14]}];
@@ -89,6 +90,7 @@
     [dots sendActionsForControlEvents:UIControlEventTouchUpInside];JKRailApply(self.window,NO);
     Check(!JKRailClosed,@"59 dots expands after eye roundtrip");
     for(UIView *v in fr.subviews)Check(v.alpha>0 && v.userInteractionEnabled,@"59 native rail children restored after expand");
+    #include "style60_smoke.inc"
     // A tap on a stale visible control cannot mutate an offscreen player.
     JK59PlayerButton *stale=(id)[self.window viewWithTag:9361];[active pause];pv.frame=CGRectOffset(fd.bounds,0,-h);off.frame=fd.bounds;
     BOOL beforeInactive=inactive.muted;[stale sendActionsForControlEvents:UIControlEventTouchUpInside];Check(inactive.muted==beforeInactive && !active.muted,@"59 stale control cannot target newly recycled feed");

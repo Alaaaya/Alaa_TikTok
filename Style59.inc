@@ -244,8 +244,11 @@ static void JK59Window(UIWindow *w,BOOL on){
     // If eye hides the whole native rail, keep the trigger/top controls hidden too,
     // without overwriting the pre-collapse native child states.
     if(rail){
-        if(!toggle){toggle=[[JKAlaaToggle alloc] initWithFrame:CGRectZero];[rail.superview addSubview:toggle];}
-        toggle.frame=[toggle.superview convertRect:CGRectMake(w.bounds.size.width-66,w.bounds.size.height-170,48,48) fromView:w];
+        // A direct window child avoids feed scrolling/clipping while leaving every
+        // point outside the actual 48pt button to native hit testing.
+        if(!toggle)toggle=[[JKAlaaToggle alloc] initWithFrame:CGRectMake(0,0,48,48)];
+        if(toggle.superview!=w){[toggle removeFromSuperview];[w addSubview:toggle];}
+        [toggle placeFloating];
         toggle.hidden=TT50EyeActive;toggle.userInteractionEnabled=!TT50EyeActive;JKRailApply(w,NO);
     } else if(toggle){toggle.hidden=YES;}
     AVPlayer *player=JK59ActivePlayer(w);
