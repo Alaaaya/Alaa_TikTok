@@ -7,6 +7,10 @@ base=subprocess.check_output(['git','show','2af08af:Tweak.x'],cwd=root).decode()
 # except calls that notify floating tools of the active feed.
 prefix=s[:s.index('#include "CustomTools.inc"')].replace('static void TT122Track(UIViewController *c);\n','').replace(' TT122Track(c);','').replace('static void TT122Recover(void);\n','').replace('{ [[TTGFeedWatchdog shared] addRoot:v]; TT122Recover(); }','[[TTGFeedWatchdog shared] addRoot:v];').replace('{ TTGPrepareFeedActions(v); TT122Recover(); }','TTGPrepareFeedActions(v);')
 prefix=prefix.replace('static void TTJokerPetSync(void);\n','').replace('    TTJokerPetSync();\n','')
+# 52 interface style hooks, normalized narrowly.
+prefix=prefix.replace('static void JKStyleSync(UIView *native);\nstatic CGFloat JKStyleAlpha(UIView *view,CGFloat requested);\n','')
+prefix=prefix.replace('%orig(JKStyleAlpha(self,TTGGuardRendererAlpha(self, TT50Alpha(self,alpha))))','%orig(TTGGuardRendererAlpha(self, TT50Alpha(self,alpha)))')
+prefix=prefix.replace(' JKStyleSync((UIView *)self);','')
 # 50 wraps eye-only synchronous guards; normalize only these exact additions.
 prefix=prefix.replace('#include "NoFlash.inc"\n','')
 prefix=prefix.replace('TTGGuardRendererAlpha(self, TT50Alpha(self,alpha))','TTGGuardRendererAlpha(self, alpha)')
