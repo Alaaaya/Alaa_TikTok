@@ -9,7 +9,7 @@ static BOOL TT50Chrome(UIView *view) {
     return [@[@"TikTokFeedTabControl",@"TikTokFeedFadeScrollView",@"TTKFeedTabCornerItemView",
         @"AWELiveFeedEntranceView",@"TTKSearchEntranceButton",@"TTKFeedRightInteractionStackView",
         @"AWEPlayInteractionAuthorView",@"AWEPlayInteractionDescriptionLabel",@"AWEScrollLabelView",
-        @"TTKFeedBaseBottomBarView",@"ACCCLACaptionLabel"] containsObject:name] ||
+        @"TTKFeedBaseBottomBarView",@"ACCCLACaptionLabel",@"JKStyleItem"] containsObject:name] ||
         ([name hasPrefix:@"TikTokFeedTabItem"] && [name hasSuffix:@"Control"]);
 }
 static void TT50Save(UIView *view) {

@@ -1116,10 +1116,12 @@ static CGFloat TTGGuardRendererAlpha(UIView *renderer, CGFloat proposed) {
 
 %end
 
+static void JKStyleSync(UIView *native);
+static CGFloat JKStyleAlpha(UIView *view,CGFloat requested);
 #include "NoFlash.inc"
 static void TT48Added(UIView *view);
 %hook UIView
-- (void)setAlpha:(CGFloat)alpha { %orig(TTGGuardRendererAlpha(self, TT50Alpha(self,alpha))); }
+- (void)setAlpha:(CGFloat)alpha { %orig(JKStyleAlpha(self,TTGGuardRendererAlpha(self, TT50Alpha(self,alpha)))); }
 - (void)setHidden:(BOOL)hidden {
     %orig(TT50Hidden(self,hidden));
     NSHashTable *owners = objc_getAssociatedObject(self, &kRendererOwnerKey);
@@ -1139,11 +1141,11 @@ static void TT48Added(UIView *view);
 %end
 
 %hook AWEFeedVideoButton
-- (void)layoutSubviews { %orig; TTGQueueActionGlass((UIView *)self); }
-- (void)didMoveToWindow { %orig; TTGQueueActionGlass((UIView *)self); }
-- (void)didMoveToSuperview { %orig; TTGQueueActionGlass((UIView *)self); }
+- (void)layoutSubviews { %orig; TTGQueueActionGlass((UIView *)self); JKStyleSync((UIView *)self); }
+- (void)didMoveToWindow { %orig; TTGQueueActionGlass((UIView *)self); JKStyleSync((UIView *)self); }
+- (void)didMoveToSuperview { %orig; TTGQueueActionGlass((UIView *)self); JKStyleSync((UIView *)self); }
 - (void)setImageNameString:(NSString *)name { %orig; TTGQueueActionGlass((UIView *)self); }
-- (void)setSelected:(BOOL)selected { %orig; TTGQueueActionGlass((UIView *)self); }
+- (void)setSelected:(BOOL)selected { %orig; TTGQueueActionGlass((UIView *)self); JKStyleSync((UIView *)self); }
 - (void)setHighlighted:(BOOL)highlighted { %orig; TTGQueueActionGlass((UIView *)self); }
 %end
 
@@ -1262,6 +1264,7 @@ static void TT122Recover(void);
 
 #include "CustomTools.inc"
 #include "PhaseOne.inc"
+#include "InterfaceStyle.inc"
 #include "ReactionObserver.inc"
 %hook UIView
 - (void)layoutSubviews {%orig;TT50Lifecycle((UIView *)self);}
@@ -1735,6 +1738,7 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack addArrangedSubview:mascot];
         [self.stack addArrangedSubview:[self iconRow:@"صورة زر التنزيل" tag:1221]];
         [self.stack addArrangedSubview:[self iconRow:@"صورة زر العين" tag:1222]];
+        JKAddStylePicker(self.stack);
     [self.stack addArrangedSubview:[self row:@"الشريط الزجاجي" symbol:@"rectangle.bottomthird.inset.filled" key:kPrefEnabled defaultValue:YES tag:0]];
     [self.stack addArrangedSubview:[self row:@"كبسولة عائمة" symbol:@"capsule" key:kPrefFloating defaultValue:YES tag:1]];
     [self.stack addArrangedSubview:[self row:@"الفيديو تحت الشريط" symbol:@"rectangle.expand.vertical" key:kPrefUnder defaultValue:YES tag:2]];
