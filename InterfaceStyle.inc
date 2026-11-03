@@ -401,6 +401,9 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
     } else if([n isEqualToString:@"AWEPlayInteractionMusicView"]){
         BOOL al=on&&JKAlaa();UIView *st=v.window?JKRailStack(v.window):nil;
         if(st)JKDecoApply(v.window,9162,v,CGRectMake(st.bounds.size.width/2-21,[v convertRect:v.bounds toView:st].origin.y,42,42),7,[UIColor colorWithRed:.051 green:.071 blue:.078 alpha:1],YES,al);
+        {static const void *kMa=&kMa;
+         if(al){if(!objc_getAssociatedObject(v,kMa))objc_setAssociatedObject(v,kMa,@(v.alpha),OBJC_ASSOCIATION_RETAIN_NONATOMIC);v.alpha=0;}
+         else{NSNumber *oa=objc_getAssociatedObject(v,kMa);if(oa){v.alpha=oa.doubleValue;objc_setAssociatedObject(v,kMa,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}}
     } else if([n isEqualToString:@"AWETabBarPlusButton"]){
         UIView *ov=[v viewWithTag:9157];
         if(on && JKAlaa()){

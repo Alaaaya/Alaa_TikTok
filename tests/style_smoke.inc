@@ -207,6 +207,7 @@
          Check(pr.origin.y>=dr.origin.y-1 && CGRectGetMaxY(pr)<=CGRectGetMaxY(dr)+1,@"56 tab items inside pill");
          UIImageView *ac=(UIImageView *)[fr viewWithTag:9161];UIImageView *dsc=(UIImageView *)[fr viewWithTag:9162];
          Check(ac && ac.image && !ac.userInteractionEnabled && fabs(ac.frame.size.width-46)<.5 && ac.layer.cornerRadius==23 && ac.clipsToBounds,@"56 rail avatar copy 46 round inert");
+         Check(mv.alpha==0,@"56 native music view hidden behind drawn disc");
          Check(dsc && dsc.image && !dsc.userInteractionEnabled && dsc.frame.size.width==42 && [dsc.layer animationForKey:@"jkspin"],@"56 music disc copy 42 spinning inert");
          UIView *hit=[fr hitTest:[fr convertPoint:CGPointMake(CGRectGetMidX(ac.frame),CGRectGetMidY(ac.frame)) toView:fr] withEvent:nil];Check(hit!=ac,@"56 avatar copy never takes touches");}
         JKStyleApplyAll();Check(av.superview==self.window,@"56 avatar reuse stable");
@@ -228,6 +229,7 @@
         ShotView(self.window,@"56-alaa-expanded");
         [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();JKRailClosed=YES;
         Check(av.superview==fd && CGRectEqualToRect(av.frame,CGRectMake(W-70,H-232-100,60,88)) && CGAffineTransformIsIdentity(av.transform),@"56 avatar restored to original place");
+        Check(mv.alpha==1,@"56 native music view alpha restored");
         Check([fr viewWithTag:9161]==nil && [fr viewWithTag:9162]==nil && CGAffineTransformIsIdentity(tabbar.transform),@"56 copies removed, tab bar transform restored");
         Check(CGAffineTransformIsIdentity(au.transform) && avb.layer.cornerRadius==0 && !avb.clipsToBounds && fp.superview==fd && CGRectEqualToRect(fp.frame,CGRectMake(W-70,H-122-330-70,60,40)),@"56 author/avatar/chip fully restored");
         Check([fr viewWithTag:9156]==nil && JKItemOf(fn[0])==nil && fn[0].alpha==1,@"56 default restore removes toggle and overlays");
