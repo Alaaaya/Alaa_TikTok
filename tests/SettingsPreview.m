@@ -16,6 +16,16 @@ static void TTToolRefresh(void){}
 #include "../TopFeed.inc"
 #include "../NoFlash.inc"
 #include "../SheetEye.inc"
+// UIView-based attributed-text fixture for the observed non-UILabel description class.
+@interface JKFixtureAttributedView:UIView
+@property(nonatomic,copy) NSAttributedString *attributedText;
+@end
+@implementation JKFixtureAttributedView
+- (void)setAttributedText:(NSAttributedString *)text{_attributedText=[text copy];[self setNeedsDisplay];}
+- (void)drawRect:(CGRect)r{[_attributedText drawInRect:self.bounds];}
+@end
+#include "../InterfaceStyle.inc"
+#include "../HierarchyDump.inc"
 @interface TT122Hub:NSObject
 +(instancetype)shared;
 -(void)refresh;
@@ -172,6 +182,7 @@ static UIVisualEffect *TTJokerGlass(void) {
             if(![notice writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil])return nil;
         }
     }
+    JKAppendCapture(path);
     return [NSURL fileURLWithPath:path];
 }
 - (void)shareDiagnostics:(UIButton *)sender {
@@ -412,6 +423,7 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack addArrangedSubview:mascot];
         [self.stack addArrangedSubview:[self iconRow:@"صورة زر التنزيل" tag:1221]];
         [self.stack addArrangedSubview:[self iconRow:@"صورة زر العين" tag:1222]];
+        JKAddStylePicker(self.stack);
     [self.stack addArrangedSubview:[self row:@"الشريط الزجاجي" symbol:@"rectangle.bottomthird.inset.filled" key:kPrefEnabled defaultValue:YES tag:0]];
     [self.stack addArrangedSubview:[self row:@"كبسولة عائمة" symbol:@"capsule" key:kPrefFloating defaultValue:YES tag:1]];
     [self.stack addArrangedSubview:[self row:@"الفيديو تحت الشريط" symbol:@"rectangle.expand.vertical" key:kPrefUnder defaultValue:YES tag:2]];
@@ -733,7 +745,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         Check([logURL.lastPathComponent isEqual:@"joker_debug.txt"],@"49 correct file");
         Check([NSFileManager.defaultManager fileExistsAtPath:logURL.path],@"49 missing log created");
         [@"fixture-class-only" writeToURL:logURL atomically:YES encoding:NSUTF8StringEncoding error:nil];
-        Check([[NSString stringWithContentsOfURL:[vc diagnosticLogURL] encoding:NSUTF8StringEncoding error:nil] isEqual:@"fixture-class-only"],@"49 existing log preserved");
+        Check([[NSString stringWithContentsOfURL:[vc diagnosticLogURL] encoding:NSUTF8StringEncoding error:nil] hasPrefix:@"fixture-class-only"],@"49 existing log preserved, capture appended");
         for(TTJokerTile *tile in grid.subviews) {
             Check(tile.caption.text.length>0 && tile.glyph.image!=nil,@"49 all tile content present");
             Check(CGRectContainsRect(tile.bounds,tile.caption.frame) && CGRectContainsRect(tile.bounds,tile.glyph.frame),@"49 tile glyph and label contained");
@@ -779,6 +791,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         lateWindow.hidden=YES;
         Check([TT50DiagnosticWindows() containsObject:lateWindow],@"50 capture includes newly created hidden windows");
         NSLog(@"PASS 50 exact top classes, lifecycle reapply, reuse, original-state restore and fresh all-window capture");
+        #include "style_smoke.inc"
         #include "sheet_smoke.inc"
         Shot(vc,@"home");
         for(NSInteger page=0;page<7;page++){

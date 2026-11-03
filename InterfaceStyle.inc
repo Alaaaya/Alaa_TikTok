@@ -1,8 +1,10 @@
-// Joker interface style (52). Style 1 = Instagram Reels-like right action rail.
-// Only AWEFeedVideoButton-style native action controls that are positively identified
-// (identity keywords) AND have a UIControl touch-up target are replaced. Everything else
-// stays native. Taps are forwarded to the native control; counts are read from its label.
+// 58: cosmetic restyle inside native action controls. Native hit regions, targets,
+// recognizers, counts and frames remain intact. Not a full HTML overlay.
 static NSString *const JKStyleKey=@"tt.interface.style";
+static const void *kJKPaintAlpha=&kJKPaintAlpha;
+static NSUInteger JKStyled,JKSkipped;
+static NSMutableDictionary *JKReasons;
+static void JKResult(BOOL styled,NSString *reason){if(styled)JKStyled++;else JKSkipped++;if(JKReasons.count<16 || JKReasons[reason])JKReasons[reason]=@([JKReasons[reason] unsignedIntegerValue]+1);}
 static const void *kJKItemKey=&kJKItemKey,*kJKOrigAlphaKey=&kJKOrigAlphaKey;
 typedef NS_ENUM(NSInteger,JKKind){JKKindNone=0,JKKindLike,JKKindComment,JKKindSave,JKKindShare};
 static NSInteger JKStyle(void){return [[NSUserDefaults standardUserDefaults] integerForKey:JKStyleKey];}
@@ -35,6 +37,7 @@ static void JKIdentity(UIView *node,NSMutableString *out,NSUInteger depth) {
 static JKKind JKKindOf(UIView *button) {
     if([button isKindOfClass:UILabel.class] || [button isKindOfClass:UIImageView.class])return JKKindNone;
     NSMutableString *identity=[NSMutableString stringWithString:NSStringFromClass(button.class)];
+    if([NSStringFromClass(button.superview.class) containsString:@"PlayInteractionLikeView"])[identity appendString:@" like"];
     for(NSString *key in @[@"imageNameString",@"accessibilityIdentifier",@"accessibilityLabel"]) {
         id v=JKObject(button,key);if([v isKindOfClass:NSString.class])[identity appendFormat:@" %@",v];
     }
@@ -200,6 +203,7 @@ static NSArray<UIWindow *> *TT48Windows(void);
 static JKStyleItem *JKItemOf(UIView *native){return objc_getAssociatedObject(native,kJKItemKey);}
 // Called from the UIView setAlpha hook: a replaced native action stays invisible while our item is attached.
 static CGFloat JKStyleAlpha(UIView *view,CGFloat requested) {
+    if(JKStyleOn() && objc_getAssociatedObject(view,kJKPaintAlpha))return 0;
     JKStyleItem *item=JKItemOf(view);
     if(!item || item.superview!=view.superview || !JKStyleOn())return requested;
     if(requested>0)objc_setAssociatedObject(view,kJKOrigAlphaKey,@(requested),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -214,33 +218,88 @@ static void JKStyleDetach(UIView *native) {
     objc_setAssociatedObject(native,kJKOrigAlphaKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [UIView performWithoutAnimation:^{native.alpha=orig?orig.doubleValue:1;}];
 }
+
+// Per-button state, never stored in the geometry/font/attributed-string slots.
+static const void *kJKPaintRec=&kJKPaintRec;
+@interface JKPaintRec:NSObject
+@property(nonatomic,strong) NSMapTable<UIView *,NSDictionary *> *views;
+@property(nonatomic,strong) UIImageView *glyph;
+@end
+@implementation JKPaintRec
+@end
+static void JKPaintRemember(JKPaintRec *r,UIView *v){
+    if([r.views objectForKey:v])return;
+    NSMutableDictionary *d=[@{@"alpha":@(v.alpha),@"tint":v.tintColor?:(id)NSNull.null,
+        @"bg":v.backgroundColor?:(id)NSNull.null} mutableCopy];
+    [r.views setObject:d forKey:v];
+}
+static void JKPaintHide(JKPaintRec *r,UIView *v){
+    JKPaintRemember(r,v);
+    if(!objc_getAssociatedObject(v,kJKPaintAlpha))objc_setAssociatedObject(v,kJKPaintAlpha,@(v.alpha),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    v.alpha=0;
+}
+static void JKPaintRestore(UIView *native){
+    JKPaintRec *r=objc_getAssociatedObject(native,kJKPaintRec);if(!r)return;
+    [r.glyph removeFromSuperview];
+    for(UIView *v in r.views){
+        NSDictionary *d=[r.views objectForKey:v];
+        objc_setAssociatedObject(v,kJKPaintAlpha,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        v.alpha=[d[@"alpha"] doubleValue];id t=d[@"tint"],bg=d[@"bg"];
+        v.tintColor=t==NSNull.null?nil:t;v.backgroundColor=bg==NSNull.null?nil:bg;
+    }
+    objc_setAssociatedObject(native,kJKPaintRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+// The observed tree has both HDRUIImageView and existing TTGActionGlyph renderers.
+// Record/hide paint only, not UIControls or recognizers; our glyph is inert.
+static UIView *JKPaintIcon(UIView *v,NSUInteger depth){
+    if(depth>5 || v.tag==9258)return nil;
+    if([v isKindOfClass:UIImageView.class] && !v.hidden && v.bounds.size.width>=12 && v.bounds.size.width<=64 && v.bounds.size.height>=12)return v;
+    for(UIView *c in v.subviews){UIView *i=JKPaintIcon(c,depth+1);if(i)return i;}
+    return nil;
+}
+static void JKPaintTree(JKPaintRec *r,UIView *v,NSUInteger depth){
+    if(depth>6 || v==r.glyph)return;
+    if([NSStringFromClass(v.class) isEqualToString:@"TTGActionGlyph"]){JKPaintHide(r,v);return;}
+    if([v isKindOfClass:UIImageView.class] && v.bounds.size.width>=12 && v.bounds.size.height>=12){JKPaintHide(r,v);return;}
+    if([v isKindOfClass:UILabel.class]){JKPaintRemember(r,v);v.tintColor=UIColor.whiteColor;return;}
+    for(UIView *c in [v.subviews copy])JKPaintTree(r,c,depth+1);
+}
 static void JKStyleSync(UIView *native) {
     JKInstaEnsureTimer();
-    if(!JKStyleOn() || !native.window || !native.superview || !JKInFeed(native)){JKStyleDetach(native);return;}
-    JKKind kind=JKKindOf(native);
-    if(kind==JKKindNone || !JKCanForward(native)){JKStyleDetach(native);return;}
-    JKStyleItem *item=JKItemOf(native);
-    if(!item || item.superview!=native.superview || item.kind!=kind) {
-        JKStyleDetach(native);
-        item=[[JKStyleItem alloc] initWithFrame:native.frame];item.native=native;item.kind=kind;
-        objc_setAssociatedObject(native,kJKOrigAlphaKey,@(native.alpha>0?native.alpha:1),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        objc_setAssociatedObject(native,kJKItemKey,item,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        [native.superview insertSubview:item aboveSubview:native];
+    JKStyleDetach(native); // clean up a previous release's forwarding overlay if still present
+    if(!JKStyleOn() || !native.window || !native.superview || !JKInFeed(native)){
+        JKPaintRestore(native);[[native.superview viewWithTag:9156] removeFromSuperview];if(JKStyleOn())JKResult(NO,@"rail-offscreen-or-not-feed");return;
     }
-    item.frame=native.frame;item.transform=native.transform;[item refresh];
-    UIView *tg=[native.superview viewWithTag:9156];
-    if(JKAlaa()){
-        if(!tg){CGFloat mx=0;for(UIView *v in native.superview.subviews)if(!v.hidden && v.tag!=9156)mx=MAX(mx,CGRectGetMaxY(v.frame));
-            JKAlaaToggle *t=[[JKAlaaToggle alloc] initWithFrame:CGRectMake((native.superview.bounds.size.width-48)/2,MAX(native.superview.bounds.size.height-48,0),48,48)];
-            [native.superview addSubview:t];tg=t;}
-        JKAlaaToggle *t=(JKAlaaToggle *)tg;[t paint];[t applyAnimated:NO];
-    } else if(tg){[tg removeFromSuperview];}
-    if(native.alpha!=0)native.alpha=0; // setAlpha hook records the real value first
+    JKKind kind=JKKindOf(native);
+    if(kind==JKKindNone){JKPaintRestore(native);JKResult(NO,@"rail-unidentified");return;}
+    JKPaintRec *r=objc_getAssociatedObject(native,kJKPaintRec);
+    UIView *icon=JKPaintIcon(native,0);
+    // Reuse: do not leave old paint attached when a native icon disappears.
+    if(!icon){JKPaintRestore(native);JKResult(NO,@"rail-no-icon");return;}
+    if(!r){r=[JKPaintRec new];r.views=[NSMapTable weakToStrongObjectsMapTable];
+        r.glyph=[UIImageView new];r.glyph.tag=9258;r.glyph.userInteractionEnabled=NO;
+        r.glyph.isAccessibilityElement=NO;r.glyph.accessibilityElementsHidden=YES;
+        r.glyph.contentMode=UIViewContentModeScaleAspectFit;
+        objc_setAssociatedObject(native,kJKPaintRec,r,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        [native addSubview:r.glyph];
+    }
+    BOOL selected=[native isKindOfClass:UIControl.class] && ((UIControl *)native).selected;
+    NSString *name=kind==JKKindLike?(selected?@"heart.fill":@"heart"):kind==JKKindComment?@"bubble.right":kind==JKKindSave?(selected?@"bookmark.fill":@"bookmark"):@"paperplane";
+    r.glyph.image=[UIImage systemImageNamed:name withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:28 weight:UIImageSymbolWeightRegular]];
+    r.glyph.tintColor=selected&&kind==JKKindLike?[UIColor colorWithRed:1 green:.302 blue:.416 alpha:1]:(selected&&kind==JKKindSave&&JKAlaa()?[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1]:UIColor.whiteColor);
+    CGRect f=[icon convertRect:icon.bounds toView:native];r.glyph.frame=CGRectInset(f,MAX(0,(f.size.width-32)/2),MAX(0,(f.size.height-32)/2));
+    JKPaintTree(r,native,0);
+    // Some builds also attach a second TTG renderer beside the button. Hide only
+    // the renderer whose window rect overlaps this button, never a sibling action.
+    CGRect nr=[native convertRect:native.bounds toView:native.window];
+    for(UIView *v in native.superview.subviews)if([NSStringFromClass(v.class) isEqualToString:@"TTGActionGlyph"] && CGRectIntersectsRect(nr,[v convertRect:v.bounds toView:native.window]))JKPaintHide(r,v);
+    [native bringSubviewToFront:r.glyph];
+    JKResult(YES,native.gestureRecognizers.count?@"rail-in-place-gestures":@"rail-in-place");
 }
 
 // 54: in-place Instagram-like restyle of original views (dock, progress line, username weight).
 // Nothing is replaced, re-parented or re-targeted; originals are recorded and restored.
-static const void *kJKRec=&kJKRec;
+static const void *kJKRec=&kJKRec,*kJKFontRec=&kJKFontRec,*kJKTextRec=&kJKTextRec;
 static NSDictionary *JKRec(UIView *v){return objc_getAssociatedObject(v,kJKRec);}
 static void JKRecSave(UIView *v){
     if(JKRec(v))return;
@@ -272,7 +331,11 @@ static const void *kJKAvaRec=&kJKAvaRec;
 @implementation JKAvaRec
 @end
 static UIView *JKFindClass(UIView *root,NSString *name,NSUInteger depth){
-    if([NSStringFromClass(root.class) isEqualToString:name])return root;
+    if([NSStringFromClass(root.class) isEqualToString:name] && root.window){
+        CGRect wr=[root convertRect:root.bounds toView:root.window];BOOL visible=!root.hidden&&root.alpha>.01&&CGRectIntersectsRect(wr,root.window.bounds)&&!CGRectIsEmpty(wr);
+        for(UIView *p=root.superview;visible&&p;p=p.superview)if(p.hidden||p.alpha<=.01)visible=NO;
+        if(visible)return root;
+    }
     if(depth>80)return nil;
     for(UIView *c in root.subviews){UIView *f=JKFindClass(c,name,depth+1);if(f)return f;}
     return nil;
@@ -300,6 +363,8 @@ static void JKAvatarRestore(UIView *avatar){
 static void JKAvatarApply(UIView *avatar,UIWindow *window,BOOL on,int mode){
     JKAvaRec *r=objc_getAssociatedObject(avatar,kJKAvaRec);
     UIView *author=JKFindClass(window,@"AWEPlayInteractionAuthorView",0);
+    CGRect vr=[avatar convertRect:avatar.bounds toView:window];
+    if(!r && (avatar.hidden||!CGRectIntersectsRect(vr,window.bounds)))return;
     if(!on || !author || !author.window){if(r)JKAvatarRestore(avatar);return;}
     UIView *host=nil;
     if(r){host=avatar.superview;}
@@ -380,7 +445,7 @@ static void JKDecoApply(UIWindow *w,NSInteger tag,UIView *src,CGRect fr,CGFloat 
     if(!on||!src){[iv.layer removeAllAnimations];[iv removeFromSuperview];return;}
     UIImage *im=JKSnap(src);if(tag==9162)im=JKDisc(im);if(!im && iv)return;
     if(!iv){iv=[UIImageView new];iv.tag=tag;iv.userInteractionEnabled=NO;iv.clipsToBounds=YES;iv.contentMode=UIViewContentModeScaleAspectFill;[st insertSubview:iv atIndex:0];}
-    if(im)iv.image=im;iv.userInteractionEnabled=NO;if(!iv.window||!iv.layer.presentationLayer){iv.alpha=JKRailClosed?0:1;iv.transform=JKRailClosed?CGAffineTransformConcat(CGAffineTransformMakeScale(.25,.25),CGAffineTransformMakeTranslation(0,40)):CGAffineTransformIdentity;}
+    if(im)iv.image=im;iv.userInteractionEnabled=NO;if(!iv.window||!iv.layer.presentationLayer){iv.alpha=1;iv.transform=CGAffineTransformIdentity;}
     iv.frame=fr;iv.layer.cornerRadius=fr.size.width/2;iv.layer.borderWidth=(tag==9162)?0:border;iv.layer.borderColor=bc.CGColor;
     if(spin && ![iv.layer animationForKey:@"jkspin"]){CABasicAnimation *a=[CABasicAnimation animationWithKeyPath:@"transform.rotation.z"];a.fromValue=@0;a.toValue=@(M_PI*2);a.duration=6;a.repeatCount=HUGE_VALF;[iv.layer addAnimation:a forKey:@"jkspin"];}
 }
@@ -391,15 +456,44 @@ static void JKLog(NSString *line){
     NSString *l=[NSString stringWithFormat:@"JokerStyle %@\n",line];
     @synchronized(NSFileManager.defaultManager){
         if(![NSFileManager.defaultManager fileExistsAtPath:path])[NSData.data writeToFile:path atomically:YES];
+        NSDictionary *attrs=[NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
+        if([attrs fileSize]>512*1024){NSData *data=[NSData dataWithContentsOfFile:path];if(data.length>128*1024)[[data subdataWithRange:NSMakeRange(data.length-128*1024,128*1024)] writeToFile:path atomically:YES];}
         NSFileHandle *f=[NSFileHandle fileHandleForWritingAtPath:path];
         @try{[f seekToEndOfFile];[f writeData:[l dataUsingEncoding:NSUTF8StringEncoding]];[f closeFile];}@catch(NSException *e){}
     }
+}
+
+static BOOL JKSetAttributed(UIView *v,NSAttributedString *text){
+    SEL sel=NSSelectorFromString(@"setAttributedText:");
+    NSMethodSignature *sig=[v methodSignatureForSelector:sel];
+    if(![v respondsToSelector:sel] || !sig || sig.numberOfArguments!=3 || sig.methodReturnType[0]!='v' || [sig getArgumentTypeAtIndex:2][0]!='@')return NO;
+    @try{((void(*)(id,SEL,id))objc_msgSend)(v,sel,text);return YES;}@catch(__unused NSException *e){return NO;}
+}
+static void JKCaptionApply(UIView *v,BOOL on){
+    id value=JKObject(v,@"attributedText");
+    if(![value isKindOfClass:NSAttributedString.class]){if(on)JKResult(NO,@"caption-no-attributedText");return;}
+    NSAttributedString *current=value,*saved=objc_getAssociatedObject(v,kJKTextRec);
+    if(!on){
+        // Only restore an unchanged string, never overwrite a reused video's caption.
+        if([saved isKindOfClass:NSAttributedString.class] && [saved.string isEqual:current.string])JKSetAttributed(v,saved);
+        objc_setAssociatedObject(v,kJKTextRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);return;
+    }
+    if(!current.length){JKResult(NO,@"caption-empty");return;}
+    if(!saved || ![saved.string isEqual:current.string]){
+        saved=[current copy];objc_setAssociatedObject(v,kJKTextRec,saved,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    NSMutableAttributedString *m=[saved mutableCopy];
+    NSRegularExpression *re=[NSRegularExpression regularExpressionWithPattern:@"#[^\\s#]+" options:0 error:nil];
+    NSArray *matches=[re matchesInString:m.string options:0 range:NSMakeRange(0,m.length)];
+    for(NSTextCheckingResult *r in matches)[m addAttribute:NSForegroundColorAttributeName value:[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1] range:r.range];
+    BOOL ok=JKSetAttributed(v,m);JKResult(ok,ok?@"caption-attributed":@"caption-no-setter");
 }
 static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
     NSString *n=NSStringFromClass(v.class);JKNodes++;if(depth>JKDeep)JKDeep=depth;
     if(JKGeo&&v.window&&([n isEqualToString:@"TikTokFeedTabControl"]||[n isEqualToString:@"TTKFeedTabCornerItemView"]||[n isEqualToString:@"AWEPlayInteractionDescriptionLabel"]||[n isEqualToString:@"TTKFeedRightInteractionStackView"]||[n isEqualToString:@"TTKTabBar"])){
         CGRect r=[v convertRect:v.bounds toView:v.window];[JKGeo appendFormat:@" %@@%d,%d,%d,%d",n,(int)r.origin.x,(int)r.origin.y,(int)r.size.width,(int)r.size.height];}
     if(JKHits&&([n hasPrefix:@"TTK"]||[n hasPrefix:@"AWEPlayInteraction"]||[n hasPrefix:@"AWEFeed"]||[n hasPrefix:@"AWETabBar"]||[n hasPrefix:@"AWEUser"]))JKHits[n]=@([JKHits[n] integerValue]+1);
+    if([n isEqualToString:@"AWEFeedVideoButton"])JKStyleSync(v);
     if([n isEqualToString:@"TTKTabBarBlurView"] && [v.superview isKindOfClass:UITabBar.class]==NO && [NSStringFromClass(v.superview.class) isEqualToString:@"TTKTabBar"]==NO){}
     if([n isEqualToString:@"TTKTabBarBlurView"]){
         if(on){JKRecSave(v);CGRect o=[JKRec(v)[@"frame"] CGRectValue];
@@ -438,9 +532,12 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
             JKRecRestore(v); // no dead pill backgrounds: no native 1x/speaker actions
         } else if([n isEqualToString:@"TikTokFeedTabControl"]){
             UIView *ul=[v viewWithTag:9158];UIView *sel=nil;
-            if(al){for(UIView *c in v.subviews)if(c.tag!=9158 && [c isKindOfClass:UIControl.class] && ((UIControl *)c).selected){sel=c;break;}}
+            if(al){NSMutableArray *q=[NSMutableArray arrayWithArray:v.subviews];
+                for(NSUInteger i=0;i<q.count&&i<128;i++){UIView *c=q[i];if(c.tag==9158)continue;
+                    if([c isKindOfClass:UIControl.class]&&((UIControl *)c).selected&&!c.hidden){sel=c;break;}[q addObjectsFromArray:c.subviews];}
+                JKResult(sel!=nil,sel?@"tab-selected-descendant":@"tab-no-selected");}
             if(sel){if(!ul){ul=[UIView new];ul.tag=9158;ul.userInteractionEnabled=NO;ul.backgroundColor=[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1];ul.layer.cornerRadius=1;[v addSubview:ul];}
-                ul.frame=CGRectMake(CGRectGetMidX(sel.frame)-8,CGRectGetMaxY(sel.frame)-2,16,2);}
+                CGRect sr=[sel convertRect:sel.bounds toView:v];ul.frame=CGRectMake(CGRectGetMidX(sr)-8,CGRectGetMaxY(sr)-2,16,2);}
             else if(ul)[ul removeFromSuperview];
         } else {
             UIView *ch=[v viewWithTag:9159];
@@ -460,34 +557,28 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
             if(on){JKRecSave(s);s.backgroundColor=UIColor.whiteColor;} else JKRecRestore(s);
         }
     } else if([n isEqualToString:@"AWEPlayInteractionUserAvatarView"] && v.window){
-        JKAvatarApply(v,v.window,on&&JKAlaa(),0);return;
+        JKAvatarApply(v,v.window,on&&JKAlaa(),0);
     } else if([n isEqualToString:@"AWEUserNameLabel"]){
         for(UIView *s in v.subviews) if([s isKindOfClass:UILabel.class]){
             UILabel *l=(UILabel *)s;if(!l.text.length)continue;
-            if(on && !objc_getAssociatedObject(l,kJKRec)){objc_setAssociatedObject(l,kJKRec,l.font,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            if(on && !objc_getAssociatedObject(l,kJKFontRec)){objc_setAssociatedObject(l,kJKFontRec,l.font,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
                 l.font=[UIFont systemFontOfSize:l.font.pointSize weight:UIFontWeightBold];}
-            else if(!on){UIFont *f=objc_getAssociatedObject(l,kJKRec);if(f){l.font=f;objc_setAssociatedObject(l,kJKRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}
+            else if(!on){UIFont *f=objc_getAssociatedObject(l,kJKFontRec);if([f isKindOfClass:UIFont.class]){l.font=f;objc_setAssociatedObject(l,kJKFontRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}
         }
-    } else if([n isEqualToString:@"AWEPlayInteractionDescriptionLabel"] && [v isKindOfClass:UILabel.class]){
-        UILabel *l=(UILabel *)v;
-        if(on && JKAlaa() && !objc_getAssociatedObject(l,kJKRec) && l.attributedText.length){
-            objc_setAssociatedObject(l,kJKRec,[l.attributedText copy],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-            NSMutableAttributedString *m=[l.attributedText mutableCopy];NSString *t=m.string;
-            NSRegularExpression *re=[NSRegularExpression regularExpressionWithPattern:@"#[^\\s#]+" options:0 error:nil];
-            for(NSTextCheckingResult *r in [re matchesInString:t options:0 range:NSMakeRange(0,t.length)])
-                [m addAttribute:NSForegroundColorAttributeName value:[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1] range:r.range];
-            l.attributedText=m;
-        } else if(!on || !JKAlaa()){NSAttributedString *o=objc_getAssociatedObject(l,kJKRec);if(o){l.attributedText=o;objc_setAssociatedObject(l,kJKRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}
+    } else if([n isEqualToString:@"AWEPlayInteractionDescriptionLabel"]){
+        // This real device class is NOT UILabel. Require the public-shaped
+        // attributedText getter/setter signatures before messaging it (YYLabel-like).
+        JKCaptionApply(v,on&&JKAlaa());
     }
-    if(depth<80 && JKNodes<8000)for(UIView *c in v.subviews)JKInstaPass(c,on,depth+1);
+    if(depth<80 && JKNodes<8000)for(UIView *c in [v.subviews copy])JKInstaPass(c,on,depth+1);
 }
 static void JKInstaApplyAll(void){
     BOOL on=JKStyleOn();static NSString *last;
-    JKHits=[NSMutableDictionary new];JKGeo=[NSMutableString new];JKNodes=0;JKDeep=0;NSArray *ws=TT48Windows();
+    JKHits=[NSMutableDictionary new];JKGeo=[NSMutableString new];JKReasons=[NSMutableDictionary new];JKStyled=JKSkipped=0;JKNodes=0;JKDeep=0;NSArray *ws=TT48Windows();
     for(UIWindow *w in ws)JKInstaPass(w,on,0);
     NSArray *keys=[JKHits.allKeys sortedArrayUsingSelector:@selector(compare:)];NSMutableString *m=[NSMutableString new];
     for(NSString *k in keys)[m appendFormat:@" %@=%@",k,JKHits[k]];
-    NSString *sum=[NSString stringWithFormat:@"apply style=%ld on=%d windows=%lu nodes=%lu deepest=%lu capped=%d geo:%@ hits:%@",(long)JKStyle(),on,(unsigned long)ws.count,(unsigned long)JKNodes,(unsigned long)JKDeep,JKNodes>=8000,JKGeo,m];
+    NSString *sum=[NSString stringWithFormat:@"apply style=%ld on=%d windows=%lu nodes=%lu deepest=%lu capped=%d styled=%lu skipped=%lu reasons=%@ geo:%@ hits:%@",(long)JKStyle(),on,(unsigned long)ws.count,(unsigned long)JKNodes,(unsigned long)JKDeep,JKNodes>=8000,(unsigned long)JKStyled,(unsigned long)JKSkipped,JKReasons,JKGeo,m];
     if(![sum isEqualToString:last]){last=sum;JKLog(sum);}
     JKHits=nil;
 }
@@ -499,15 +590,7 @@ static void JKInstaEnsureTimer(void){
 }
 static void JKStyleApplyAll(void) {
     JKInstaApplyAll();JKInstaEnsureTimer();
-    Class cls=NSClassFromString(@"AWEFeedVideoButton");if(!cls)return;
-    for(UIWindow *w in TT48Windows()) {
-        NSMutableArray<UIView *> *q=[NSMutableArray arrayWithObject:w];
-        for(NSUInteger i=0;i<q.count && i<2600;i++) {
-            UIView *v=q[i];if([v isKindOfClass:JKStyleItem.class])continue;
-            if([v isKindOfClass:cls])JKStyleSync(v);
-            [q addObjectsFromArray:v.subviews];
-        }
-    }
+
 }
 @interface JKStylePicker:NSObject
 @property(nonatomic,weak) UILabel *note;

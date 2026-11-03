@@ -1,6 +1,6 @@
 Package: com.alaaaya.tiktokglass
 Name: Joker
-Version: 57
+Version: 58
 Architecture: iphoneos-arm64
 Description: Clear glass tab bar and persistent glass action glyphs (device-test build).
 Maintainer: Alaaaya

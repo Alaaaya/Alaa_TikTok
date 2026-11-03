@@ -19,6 +19,14 @@ static void TTToolRefresh(void){}
 #include "../TopFeed.inc"
 #include "../NoFlash.inc"
 #include "../SheetEye.inc"
+// UIView-based attributed-text fixture for the observed non-UILabel description class.
+@interface JKFixtureAttributedView:UIView
+@property(nonatomic,copy) NSAttributedString *attributedText;
+@end
+@implementation JKFixtureAttributedView
+- (void)setAttributedText:(NSAttributedString *)text{_attributedText=[text copy];[self setNeedsDisplay];}
+- (void)drawRect:(CGRect)r{[_attributedText drawInRect:self.bounds];}
+@end
 #include "../InterfaceStyle.inc"
 #include "../HierarchyDump.inc"
 @interface TT122Hub:NSObject
