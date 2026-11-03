@@ -43,23 +43,3 @@ static void TT48Added(UIView *view) {
     for(UIGestureRecognizer *g in view.gestureRecognizers)TT48ObserveGesture(g);
     TT48Schedule();
 }
-%hook UIView
-- (void)didAddSubview:(UIView *)subview {%orig;TT48Added(subview);}
-- (void)didMoveToWindow {%orig;if(self.window)TT48Added((UIView *)self);else TT48Schedule();}
-- (void)addGestureRecognizer:(UIGestureRecognizer *)gesture {%orig;TT48ObserveGesture(gesture);}
-%end
-%hook UIWindow
-- (void)sendEvent:(UIEvent *)event {
-    %orig;
-    if(!PB(@"tt46.emojiBar",NO) || event.type!=UIEventTypeTouches)return;
-    for(UITouch *touch in event.allTouches) {
-        if(touch.phase!=UITouchPhaseBegan)continue;
-        // Fallback for custom recognizers, with no cancellation/swallowing of native touches.
-        __weak UITouch *weakTouch=touch;
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.52*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
-            UITouch *held=weakTouch;
-            if(held && (held.phase==UITouchPhaseStationary || held.phase==UITouchPhaseMoved))TT48Press();
-        });
-    }
-}
-%end

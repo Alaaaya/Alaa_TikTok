@@ -1,7 +1,7 @@
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 s=(root/'EmojiBar.inc').read_text()
-h=(root/'ReactionObserver.inc').read_text()
+h=(root/'ReactionObserver.inc').read_text()+(root/'Tweak.x').read_text()
 p=(root/'PhaseOne.inc').read_text()
 for term in ['joker_debug.txt','256*1024','scanWindows:','TT48Births','TT48LastPress','UIImageView.class','imageForState:UIControlStateNormal']:
     assert term in s,term
