@@ -136,6 +136,7 @@ Check(!TT51SheetPeers(unrelated),@"51 no insertion without native Report and Not
     Check(f1.origin.y-CGRectGetMaxY(f0)>=9.5,@"55 native gap below Joker card preserved (autolayout)");
     Check(c0.layer.cornerRadius>=12 && c0.layer.masksToBounds && c1.layer.cornerRadius>=12,@"55 both cards rounded");
     NSLog(@"55 gapdbg c0=%@ c1=%@ outer=%@ vs=%@ win=%@ sub=%lu",NSStringFromCGRect(f0),NSStringFromCGRect(f1),NSStringFromCGRect(outer.frame),NSStringFromCGRect(vs.frame),NSStringFromCGRect(self.window.bounds),(unsigned long)self.window.subviews.count);
+    NSLog(@"55 cdbg r=%f m=%d mc=%lu host=%@ c0=%@ sub0=%@ bg=%@",c0.layer.cornerRadius,c0.layer.masksToBounds,(unsigned long)c0.layer.maskedCorners,se3.cardHost,c0,c0.subviews.firstObject,se3.row2.backgroundColor);
     ShotView(self.window,@"55-card-gap");
     [se3 scanWindows:@[self.window] enabled:NO hidden:NO];[vs removeFromSuperview];[cover removeFromSuperview];
 }
