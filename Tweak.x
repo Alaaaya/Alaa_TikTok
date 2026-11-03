@@ -1280,6 +1280,18 @@ static void TT122Recover(void);
 }
 %end
 
+// Confirmed on-device native reaction panel. All native emoji targets stay in the stack.
+%hook TTKCommentQuickCommentPanelContainerView
+- (void)didMoveToWindow {
+    %orig;TT48Added((UIView *)self);
+    if(PB(@"tt46.emojiBar",NO))[[TT122Hub shared].emojiBar mountNative:(UIView *)self];
+}
+- (void)layoutSubviews {
+    %orig;
+    if(PB(@"tt46.emojiBar",NO))[[TT122Hub shared].emojiBar mountNative:(UIView *)self];
+}
+%end
+
 #include "LaterFeatures.inc"
 #include "StoryTools.inc"
 #include "ProfileTools.inc"
