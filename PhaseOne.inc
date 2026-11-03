@@ -284,7 +284,7 @@ static UIView *TT122Material(CGRect frame) {
     } @catch (__unused NSException *error) {}
 }
 - (UIButton *)floating:(NSString *)symbol tag:(NSInteger)tag {
-    UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom]; b.bounds = CGRectMake(0,0,48,48); b.tag = tag;
+    UIButton *b = [TT61FloatingButton buttonWithType:UIButtonTypeCustom]; b.bounds = CGRectMake(0,0,48,48); b.tag = tag;
     UIView *glass = TT122Material(b.bounds); glass.tag=1261; glass.userInteractionEnabled = NO; glass.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
     [b addSubview:glass]; [b setImage:TTToolGlyph(tag,symbol) forState:UIControlStateNormal];
     b.tintColor = [UIColor colorWithRed:1 green:.92 blue:.72 alpha:1];

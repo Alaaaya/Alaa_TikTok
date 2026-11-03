@@ -2,7 +2,7 @@ from pathlib import Path
 p=Path('PhaseOne.inc').read_text();b=Path('BarColor61.inc').read_text();g=Path('Glass61.inc').read_text()
 assert 'tt61.feedFloating' in p and 'TT61FloatingHidden' in p
 assert 'if(b.tag!=1221&&b.tag!=1222)return;' in p
-assert 'TT61FloatingButton' in p and 'return self.bounds;' in p
+assert '[TT61FloatingButton buttonWithType:UIButtonTypeCustom]' in p and 'return self.bounds;' in p
 assert 'UIImageRenderingModeAlwaysOriginal' in Path('CustomTools.inc').read_text()
 for name in ['EmojiBar.inc','SheetEye.inc']:
  s=Path(name).read_text();assert 'TTToolGlyph' not in s and 'TT61ButtonArt' not in s
