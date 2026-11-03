@@ -50,7 +50,7 @@ static void JK59Button(UIView *b,CGRect frame,BOOL plus,BOOL on,BOOL selected){
     for(UIView *v in [b.subviews copy])if(v!=r.decoration)JK59HidePaint(v,r.paint);
     if(r.decoration.superview!=b)[b addSubview:r.decoration];
     b.transform=CGAffineTransformIdentity;b.frame=frame;
-    UIView *d=r.decoration;d.frame=b.bounds;d.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    UIView *d=r.decoration;objc_setAssociatedObject(d,kJK61BarSelected,@(selected),OBJC_ASSOCIATION_RETAIN_NONATOMIC);d.frame=b.bounds;d.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
     for(UIView *v in [d.subviews copy])[v removeFromSuperview];
     UIColor *ink=selected?JK59Amber():[UIColor colorWithRed:239/255.0 green:244/255.0 blue:241/255.0 alpha:.72];
     UIImageView *im=[[UIImageView alloc] initWithImage:plus?[UIImage systemImageNamed:@"plus" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:22 weight:UIImageSymbolWeightBold]]:[r.icon imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]];

@@ -14,8 +14,10 @@ static NSUserDefaults *D(void){return NSUserDefaults.standardUserDefaults;}
 static BOOL PB(NSString *key,BOOL fallback){id v=[D() objectForKey:key];return v?[v boolValue]:fallback;}
 static NSInteger TTGStyle(void){return [D() integerForKey:kPrefStyle];}
 static void TTGRefreshAll(void){}
+static void JKStyleApplyAll(void);
 static void TTToolRefresh(void){}
 #include "../Glass61.inc"
+#include "../BarColor61.inc"
 #include "../Mascot.inc"
 #include "../EmojiBar.inc"
 #include "../TopFeed.inc"

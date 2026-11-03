@@ -544,6 +544,7 @@ static void JKCaptionApply(UIView *v,BOOL on){
 #include "Style59.inc"
 
 static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
+    if(JK61ActualBar(v))JK61BarRestore(v);
     NSString *n=NSStringFromClass(v.class);JKNodes++;if(depth>JKDeep)JKDeep=depth;
     if(JKGeo&&v.window&&([n isEqualToString:@"TikTokFeedTabControl"]||[n isEqualToString:@"TTKFeedTabCornerItemView"]||[n isEqualToString:@"AWEPlayInteractionDescriptionLabel"]||[n isEqualToString:@"TTKFeedRightInteractionStackView"]||[n isEqualToString:@"TTKTabBar"])){
         CGRect r=[v convertRect:v.bounds toView:v.window];[JKGeo appendFormat:@" %@@%d,%d,%d,%d",n,(int)r.origin.x,(int)r.origin.y,(int)r.size.width,(int)r.size.height];}
@@ -626,6 +627,7 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
         JKCaptionApply(v,on&&JKAlaa());
     }
     if(depth<80 && JKNodes<8000)for(UIView *c in [v.subviews copy])JKInstaPass(c,on,depth+1);
+    if(JK61ActualBar(v))JK61BarApply(v);
 }
 static void JKInstaApplyAll(void){
     BOOL on=JKStyleOn();static NSString *last;

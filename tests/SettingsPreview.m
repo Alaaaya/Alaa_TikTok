@@ -11,8 +11,10 @@ static NSUserDefaults *D(void){return NSUserDefaults.standardUserDefaults;}
 static BOOL PB(NSString *key,BOOL fallback){id v=[D() objectForKey:key];return v?[v boolValue]:fallback;}
 static NSInteger TTGStyle(void){return [D() integerForKey:kPrefStyle];}
 static void TTGRefreshAll(void){}
+static void JKStyleApplyAll(void);
 static void TTToolRefresh(void){}
 #include "../Glass61.inc"
+#include "../BarColor61.inc"
 #include "../Mascot.inc"
 #include "../EmojiBar.inc"
 #include "../TopFeed.inc"
@@ -258,7 +260,7 @@ static UIVisualEffect *TTJokerGlass(void) {
     return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];
 }
 // A custom, real-material sheet; no action-sheet emoji or developer-copy action.
-@interface TTGSettingsController : UIViewController
+@interface TTGSettingsController : UIViewController <UIColorPickerViewControllerDelegate>
 @property(nonatomic, weak) UITabBar *bar;
 @property(nonatomic, strong) UIVisualEffectView *panel;
 @property(nonatomic, strong) UIView *shade;
@@ -454,6 +456,13 @@ static UIVisualEffect *TTJokerGlass(void) {
         if ((category==0 && i!=1) || (category==1 && i==1))
         [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
 
+    if(category==4){
+        UILabel *title=[self label:@"لون شريط التنقل السفلي" size:15 weight:UIFontWeightSemibold];[self.stack addArrangedSubview:title];
+        UIStackView *swatches=[UIStackView new];swatches.axis=UILayoutConstraintAxisHorizontal;swatches.spacing=10;swatches.distribution=UIStackViewDistributionFillEqually;swatches.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+        NSArray *colors=@[UIColor.blackColor,[UIColor colorWithRed:.12 green:.22 blue:.4 alpha:1],[UIColor colorWithRed:.32 green:.12 blue:.3 alpha:1],[UIColor colorWithRed:.08 green:.32 blue:.26 alpha:1],[UIColor colorWithRed:.95 green:.77 blue:.4 alpha:1],UIColor.whiteColor];
+        for(NSUInteger i=0;i<colors.count;i++){UIButton *b=[UIButton buttonWithType:UIButtonTypeCustom];b.tag=620+i;b.backgroundColor=colors[i];b.layer.cornerRadius=10;b.layer.borderWidth=1;b.layer.borderColor=[UIColor colorWithWhite:.7 alpha:1].CGColor;b.accessibilityLabel=[NSString stringWithFormat:@"لون الشريط %lu",(unsigned long)i+1];[b addTarget:self action:@selector(barSwatch:) forControlEvents:UIControlEventTouchUpInside];[swatches addArrangedSubview:b];}[swatches.heightAnchor constraintEqualToConstant:38].active=YES;[self.stack addArrangedSubview:swatches];
+        for(NSUInteger i=0;i<2;i++){UIButton *b=[UIButton buttonWithType:UIButtonTypeSystem];[b setTitle:i?@"إعادة لون الشريط حسب الثيم":@"اختيار لون مخصص" forState:UIControlStateNormal];b.tag=626+i;[b addTarget:self action:i?@selector(barReset:):@selector(barPicker:) forControlEvents:UIControlEventTouchUpInside];[self.stack addArrangedSubview:b];}
+    }
     if(category==7){
         NSArray *labels=@[@"درجة التعتيم / الشفافية",@"قوة الضبابية",@"لمعة الحواف"];
         for(NSInteger i=0;i<3;i++){
@@ -773,6 +782,10 @@ static UIVisualEffect *TTJokerGlass(void) {
     menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
     [self presentViewController:menu animated:YES completion:nil];
 }
+- (void)barSwatch:(UIButton *)sender {JK61SetBarColor(sender.backgroundColor);}
+- (void)barReset:(UIButton *)sender {JK61SetBarColor(nil);TTGRefreshAll();JKStyleApplyAll();}
+- (void)barPicker:(UIButton *)sender {UIColorPickerViewController *picker=[UIColorPickerViewController new];picker.supportsAlpha=NO;picker.selectedColor=JK61BarColor()?:UIColor.blackColor;picker.delegate=self;[self presentViewController:picker animated:YES completion:nil];}
+- (void)colorPickerViewControllerDidSelectColor:(UIColorPickerViewController *)picker {JK61SetBarColor(picker.selectedColor);}
 - (void)glassChanged:(UISlider *)sender {if(sender.tag>=610&&sender.tag<=612)JK61Set(JK61Keys()[sender.tag-610],sender.value);}
 - (void)glassReset:(UIButton *)sender {JK61Reset();for(UIView *v in self.stack.arrangedSubviews)if([v isKindOfClass:UISlider.class]&&v.tag>=610&&v.tag<=612)((UISlider *)v).value=JK61Value(JK61Keys()[v.tag-610]);}
 - (void)petSize:(UISlider *)sender {[D() setDouble:sender.value forKey:@"tt.pet.size"];[[TTJokerPet shared] refresh];}
