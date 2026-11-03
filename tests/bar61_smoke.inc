@@ -7,7 +7,7 @@
     UIView *plate=[dock viewWithTag:9369];Check(plate&&!plate.userInteractionEnabled&&CGRectEqualToRect(before,dock.frame)&&dock.layer.cornerRadius==radius&&plate.layer.cornerRadius==radius,@"61 bar color preserves original shape/frame/navigation hit targets");
     UIColor *persisted=JK61BarColor();Check(persisted&&[D() arrayForKey:@"tt61.barColor"].count==3,@"61 RGB persisted and re-read without cached selection");
     Check([unrelated.textColor isEqual:nativeInk]&&[nativePanel.backgroundColor isEqual:UIColor.redColor]&&![JK61Bars() objectForKey:nativePanel],@"61 top panels/native surfaces not colored");
-    for(NSUInteger i=0;i<5;i++){Check([tabs[i].gestureRecognizers containsObject:tabGRs[i]],@"61 bottom-color preserves native action recognizers");}
+    for(NSUInteger i=0;i<5;i++){Check([((UIView *)tabs[i]).gestureRecognizers containsObject:tabGRs[i]],@"61 bottom-color preserves native action recognizers");}
     ShotView(self.window,@"61-colored-bottom-bar");
     JKRailClosed=YES;JKRailApply(self.window,NO);JK61SetBarColor(UIColor.whiteColor);Check(dock.hidden&&dock.alpha==0&&!dock.userInteractionEnabled,@"61 changing bottom color cannot reveal collapsed bar");
     JKRailClosed=NO;JKRailApply(self.window,NO);Check(!dock.hidden&&dock.alpha>0&&dock.userInteractionEnabled,@"61 expansion restores colored dock without action regression");

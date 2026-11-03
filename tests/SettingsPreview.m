@@ -57,7 +57,7 @@ static void TT61ButtonArt(UIButton *b,NSString *symbol){
     b.imageView.clipsToBounds=NO;b.imageView.layer.cornerRadius=0;
     b.imageView.contentMode=UIViewContentModeScaleAspectFit;
     b.adjustsImageWhenHighlighted=custom?NO:YES;
-    b.contentEdgeInsets=UIEdgeInsetsZero;b.imageEdgeInsets=UIEdgeInsetsZero;
+    b.contentEdgeInsets=UIEdgeInsetsZero;b.imageEdgeInsets=custom?UIEdgeInsetsZero:UIEdgeInsetsMake(12,12,12,12);
     [b setImage:custom?:[UIImage systemImageNamed:symbol] forState:UIControlStateNormal];
     [b setImage:nil forState:UIControlStateHighlighted];[b setBackgroundImage:nil forState:UIControlStateNormal];
 }
