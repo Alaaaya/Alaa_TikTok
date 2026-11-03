@@ -49,13 +49,10 @@ static NSMapTable *JK65Records(void){static NSMapTable *t;static dispatch_once_t
 static void JK65RestoreCell(UIView *cell,BOOL force){
     NSArray *r=[JK65Records() objectForKey:cell];if(!r)return;
     CATransform3D applied=[r[1] CATransform3DValue];
-    BOOL same=CATransform3DEqualToTransform(cell.layer.transform,applied)&&fabs(cell.layer.opacity-[r[3] floatValue])<1e-4&&cell.layer.zPosition==[r[5] doubleValue];
-    if(same||force){
-        // Only unwind what we own; a native change in between is kept as native.
-        if(CATransform3DEqualToTransform(cell.layer.transform,applied))cell.layer.transform=[r[0] CATransform3DValue];
-        if(fabs(cell.layer.opacity-[r[3] floatValue])<1e-4)cell.layer.opacity=[r[2] floatValue];
-        if(cell.layer.zPosition==[r[5] doubleValue])cell.layer.zPosition=[r[4] doubleValue];
-    }
+    // Unwind each property only if it still holds what we applied; a native change to any one is kept.
+    if(CATransform3DEqualToTransform(cell.layer.transform,applied))cell.layer.transform=[r[0] CATransform3DValue];
+    if(fabs(cell.layer.opacity-[r[3] floatValue])<1e-4)cell.layer.opacity=[r[2] floatValue];
+    if(cell.layer.zPosition==[r[5] doubleValue])cell.layer.zPosition=[r[4] doubleValue];
     [JK65Records() removeObjectForKey:cell];
 }
 static void JK65RestoreTable(UIView *table){
