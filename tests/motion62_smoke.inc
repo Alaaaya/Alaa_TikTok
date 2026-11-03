@@ -32,6 +32,8 @@
                 CAAnimationGroup *first=[((UIView *)fr.subviews.firstObject).layer animationForKey:JK62Track];
                 CAAnimationGroup *last=[((UIView *)fr.subviews.lastObject).layer animationForKey:JK62Track];
                 CAAnimationGroup *dockExit=[dock.layer animationForKey:JK62Track];
+                for(UIView *child in fr.subviews){CAAnimationGroup *g=(id)[child.layer animationForKey:JK62Track];fprintf(stderr,"rail class=%s tag=%ld centerY=%g alpha=%g hidden=%d group=%p time=%g\n",NSStringFromClass(child.class).UTF8String,(long)child.tag,child.center.y,child.alpha,child.hidden,g,g.beginTime);}
+                fprintf(stderr,"dock group=%p time=%g first=%p last=%p\n",dockExit,dockExit.beginTime,first,last);fflush(stderr);
                 Check(first&&last&&dockExit&&first.beginTime>=last.beginTime&&last.beginTime>dockExit.beginTime,@"62 reverse exit dock/tabs/caption first, rail bottom to top");
             }
             UIView *fresh=[[Fixture(@"TTKFeedBaseBottomBarView",UIView.class) alloc] initWithFrame:CGRectMake(10,100,80,30)];[fd addSubview:fresh];JK60BeforeDraw(fresh);
