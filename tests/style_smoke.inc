@@ -1,5 +1,11 @@
 // 53 Instagram interface style smoke (fixtures are TEST DATA, not real TikTok views).
 {
+    static NSMutableArray *keep;if(!keep)keep=[NSMutableArray new];
+    Class tcls=NSClassFromString(@"JKTestTarget");
+    if(!tcls){tcls=objc_allocateClassPair(NSObject.class,"JKTestTarget",0);
+        IMP imp=imp_implementationWithBlock(^(id me){void(^blk)(void)=objc_getAssociatedObject(me,"blk");if(blk)blk();});
+        class_addMethod(tcls,NSSelectorFromString(@"fire"),imp,"v@:");objc_registerClassPair(tcls);}
+    void(^JKTestWire)(UIControl *,void(^)(void))=^(UIControl *c,void(^blk)(void)){id t=[tcls new];objc_setAssociatedObject(t,"blk",blk,OBJC_ASSOCIATION_COPY_NONATOMIC);[keep addObject:t];[c addTarget:t action:NSSelectorFromString(@"fire") forControlEvents:UIControlEventTouchUpInside];};
     Class stackClass=NSClassFromString(@"TTKFeedRightInteractionStackView");
     if(!stackClass){stackClass=objc_allocateClassPair(UIView.class,"TTKFeedRightInteractionStackView",0);objc_registerClassPair(stackClass);}
     Class btnClass=NSClassFromString(@"AWEFeedVideoButton");
@@ -20,12 +26,12 @@
         UILabel *l=[[UILabel alloc] initWithFrame:CGRectMake(0,50,60,18)];l.text=counts[i];l.textColor=UIColor.whiteColor;l.font=[UIFont systemFontOfSize:12];l.textAlignment=NSTextAlignmentCenter;[b addSubview:l];
         UIImageView *iv=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"heart.fill"]];iv.frame=CGRectMake(14,8,32,32);iv.tintColor=UIColor.whiteColor;[b addSubview:iv];
         NSUInteger idx=i;b.tag=500+i;
-        [b addAction:[UIAction actionWithHandler:^(UIAction *a){[fired addObject:@(idx)];}] forControlEvents:UIControlEventTouchUpInside];
+        JKTestWire(b,^{[fired addObject:@(idx)];});
         [rail addSubview:b];[natives addObject:b];
     }
     // Unidentified control and an identified one without a native touch target: must stay native.
     UIButton *mystery=[btnClass buttonWithType:UIButtonTypeCustom];mystery.frame=CGRectMake(0,-80,60,72);[rail addSubview:mystery];
-    [mystery addAction:[UIAction actionWithHandler:^(UIAction *a){}] forControlEvents:UIControlEventTouchUpInside];
+    JKTestWire(mystery,^{});
     UIButton *noTarget=[btnClass buttonWithType:UIButtonTypeCustom];noTarget.frame=CGRectMake(0,-160,60,72);noTarget.accessibilityIdentifier=@"digg";[rail addSubview:noTarget];
     UILabel *banner=[[UILabel alloc] initWithFrame:CGRectMake(10,70,W-20,22)];banner.text=@"TEST DATA - simulator fixture, not real TikTok";banner.textColor=UIColor.whiteColor;banner.font=[UIFont boldSystemFontOfSize:11];banner.textAlignment=NSTextAlignmentLeft;[feedRoot addSubview:banner];
     [D() setInteger:0 forKey:JKStyleKey];
@@ -82,7 +88,7 @@
     UIView *profile=[UIView new];Class profCls=NSClassFromString(@"TTKProfileFixtureView");if(!profCls){profCls=objc_allocateClassPair(UIView.class,"TTKProfileFixtureView",0);objc_registerClassPair(profCls);}
     profile=[[profCls alloc] initWithFrame:self.window.bounds];[self.window addSubview:profile];
     UIButton *pb=[btnClass buttonWithType:UIButtonTypeCustom];pb.frame=CGRectMake(W-70,H*.5,60,72);pb.accessibilityIdentifier=@"digg";
-    [pb addAction:[UIAction actionWithHandler:^(UIAction *a){}] forControlEvents:UIControlEventTouchUpInside];[profile addSubview:pb];
+    JKTestWire(pb,^{});[profile addSubview:pb];
     JKStyleSync(pb);Check(JKItemOf(pb)==nil && pb.alpha==1,@"53 non-feed screens untouched");
     [profile removeFromSuperview];
     [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();
