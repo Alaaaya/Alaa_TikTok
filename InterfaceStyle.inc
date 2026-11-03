@@ -179,6 +179,10 @@ static NSArray<UIWindow *> *TT48Windows(void);
         default:break;}
     UIImageSymbolConfiguration *cfg=[UIImageSymbolConfiguration configurationWithPointSize:27 weight:(JKAlaa()?UIImageSymbolWeightRegular:UIImageSymbolWeightLight)];
     self.glyph.image=[UIImage systemImageNamed:name withConfiguration:cfg];
+    if(JKAlaa()){
+        self.glyph.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];self.glyph.layer.cornerRadius=16;
+        self.glyph.layer.borderWidth=1;self.glyph.layer.borderColor=[UIColor colorWithRed:.937 green:.957 blue:.945 alpha:.14].CGColor;
+    } else {self.glyph.backgroundColor=nil;self.glyph.layer.cornerRadius=0;self.glyph.layer.borderWidth=0;}
     self.glyph.tintColor=(selected && self.kind==JKKindLike)?(JKAlaa()?[UIColor colorWithRed:1 green:.302 blue:.416 alpha:1]:[UIColor colorWithRed:1 green:.19 blue:.33 alpha:1]):((selected && self.kind==JKKindSave && JKAlaa())?[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1]:UIColor.whiteColor);
     NSString *t=JKCountText(n,0);
     if(![self.countLabel.text isEqual:t])self.countLabel.text=t;
@@ -262,9 +266,19 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
             v.layer.borderWidth=.5;v.layer.borderColor=(JKAlaa()?[UIColor colorWithRed:.937 green:.957 blue:.945 alpha:.14]:[UIColor colorWithWhite:1 alpha:.18]).CGColor;
             if(JKAlaa()){CGRect f=v.frame;v.frame=CGRectMake(f.origin.x-6,f.origin.y-4,f.size.width+12,f.size.height+8);v.layer.cornerRadius=v.frame.size.height/2;v.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];}}
         else JKRecRestore(v);
+    } else if([n isEqualToString:@"AWETabBarPlusButton"]){
+        UIView *ov=[v viewWithTag:9157];
+        if(on && JKAlaa()){
+            if(!ov){ov=[UIView new];ov.tag=9157;ov.userInteractionEnabled=NO;ov.layer.cornerRadius=14;
+                UIImageView *pi=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"plus" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:20 weight:UIImageSymbolWeightHeavy]]];
+                pi.tag=1;pi.tintColor=[UIColor colorWithRed:.141 green:.086 blue:0 alpha:1];pi.contentMode=UIViewContentModeCenter;[ov addSubview:pi];[v addSubview:ov];}
+            ov.backgroundColor=[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1];
+            CGFloat w=52,h=40;ov.frame=CGRectMake((v.bounds.size.width-w)/2,(v.bounds.size.height-h)/2,w,h);[ov viewWithTag:1].frame=ov.bounds;
+            [v bringSubviewToFront:ov];
+        } else if(ov){[ov removeFromSuperview];}
     } else if([n isEqualToString:@"AWEFeedPlayerBottomProgressBar"]){
         for(UIView *s in v.subviews){
-            if(on){JKRecSave(s);s.backgroundColor=UIColor.whiteColor;} else JKRecRestore(s);
+            if(on){JKRecSave(s);s.backgroundColor=JKAlaa()?[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1]:UIColor.whiteColor;} else JKRecRestore(s);
         }
     } else if([n isEqualToString:@"AWEUserNameLabel"]){
         for(UIView *s in v.subviews) if([s isKindOfClass:UILabel.class]){

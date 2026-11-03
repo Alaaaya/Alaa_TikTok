@@ -156,8 +156,11 @@
         [fd addSubview:dl];
         UIView *pbar=[[NSClassFromString(@"AWEFeedPlayerBottomProgressBar") alloc] initWithFrame:CGRectMake(12,H-86,406,2)];
         UIView *pf=[[UIView alloc] initWithFrame:CGRectMake(0,0,300,2)];pf.backgroundColor=UIColor.redColor;[pbar addSubview:pf];[fd addSubview:pbar];
+        Class pc2=NSClassFromString(@"AWETabBarPlusButton");if(!pc2){pc2=objc_allocateClassPair(UIButton.class,"AWETabBarPlusButton",0);objc_registerClassPair(pc2);}
+        UIView *plusB=[[pc2 alloc] initWithFrame:CGRectMake(172,H-83+17,86,49)];[fd addSubview:plusB];
         UIView *dock=[[NSClassFromString(@"TTKTabBarBlurView")?:UIView.class alloc] initWithFrame:CGRectMake(0,H-83,430,83)];[fd addSubview:dock];
         JKStyleApplyAll();
+        Check([plusB viewWithTag:9157]!=nil && ![plusB viewWithTag:9157].userInteractionEnabled,@"56 amber plus overlay, inert");
         UIView *tgl=[fr viewWithTag:9156];
         Check(tgl!=nil && JKRailClosed,@"56 rail toggle present and closed by default");
         for(UIView *v in fr.subviews)if([v isKindOfClass:JKStyleItem.class])Check(v.alpha==0 && !v.userInteractionEnabled,@"56 collapsed items hidden and inert");
@@ -175,6 +178,7 @@
         ShotView(self.window,@"56-alaa-expanded");
         [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();JKRailClosed=YES;
         Check([fr viewWithTag:9156]==nil && JKItemOf(fn[0])==nil && fn[0].alpha==1,@"56 default restore removes toggle and overlays");
+        Check([plusB viewWithTag:9157]==nil,@"56 plus overlay removed on default");
         UIColor *rc=[dl.attributedText attribute:NSForegroundColorAttributeName atIndex:dl.attributedText.length-3 effectiveRange:nil];
         Check(CGColorEqualToColor(rc.CGColor,UIColor.whiteColor.CGColor),@"56 hashtag color restored");
         ShotView(self.window,@"56-alaa-default");
