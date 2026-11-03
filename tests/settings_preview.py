@@ -15,6 +15,7 @@ static NSInteger TTGStyle(void){return [D() integerForKey:kPrefStyle];}
 static void TTGRefreshAll(void){}
 static void TTToolRefresh(void){}
 #include "../Mascot.inc"
+#include "../EmojiBar.inc"
 @interface TT122Hub:NSObject
 +(instancetype)shared;
 -(void)refresh;
@@ -148,6 +149,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         [D() setObject:folder forKey:@"tt.pet.pack"];[pet refresh];[pet updateSprite:@"climb"];
         Check(pet.sprite.image==pet.packFrames[@1],@"missing pose falls back to stand");
         #include "mascot_smoke.inc"
+        #include "emoji_smoke.inc"
         [D() setObject:@"" forKey:@"tt.pet.pack"];[pet refresh];Check(!pet.packFrames,@"original default restored");
         [D() setBool:NO forKey:@"tt.pet.enabled"];[pet refresh];
         // Persisted artwork, cache reload, target isolation and reset.

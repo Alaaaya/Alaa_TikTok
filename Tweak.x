@@ -1555,6 +1555,7 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
 
     if(category==0) {
+    [self.stack addArrangedSubview:[self row:@"show in emoji bar" symbol:@"face.smiling" key:@"tt46.emojiBar" defaultValue:NO tag:246]];
     [self.stack addArrangedSubview:[self row:@"استخدام رابط التشغيل (قد يكون بلا علامة)" symbol:@"play.rectangle" key:@"tt.extra.playbackAsset" defaultValue:NO tag:201]];
     [self.stack addArrangedSubview:[self row:@"حفظ القصة بالضغط المطوّل" symbol:@"arrow.down.circle" key:@"tt.extra.storySave" defaultValue:NO tag:202]];
     }

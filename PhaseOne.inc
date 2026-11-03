@@ -1,3 +1,4 @@
+#include "EmojiBar.inc"
 // Phase one is isolated from the 1.21 glyph renderer and tab bar.
 #import <Photos/Photos.h>
 #import <AVFoundation/AVFoundation.h>
@@ -102,6 +103,7 @@ static NSURL *TT122VideoURL(id model, NSInteger quality) {
 @property(nonatomic, strong) TT122Passthrough *overlay;
 @property(nonatomic, strong) UIButton *downloadButton;
 @property(nonatomic, strong) UIButton *eyeButton;
+@property(nonatomic,strong) TT46EmojiBar *emojiBar;
 @property(nonatomic, strong) UIButton *progressButton;
 @property(nonatomic, strong) CAShapeLayer *ring;
 @property(nonatomic, strong) UIView *menu;
@@ -271,7 +273,7 @@ static UIView *TT122Material(CGRect frame) {
         if(window)break;
     }
     window=window ?: self.feed.viewIfLoaded.window;
-    if (!window || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) { self.overlay.hidden = YES; return; }
+    if (!window || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) { self.overlay.hidden = YES; [self.emojiBar detach]; return; }
     if (!self.overlay) {
         self.overlay = [[TT122Passthrough alloc] initWithFrame:window.bounds];
         self.overlay.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
@@ -313,6 +315,13 @@ static UIView *TT122Material(CGRect frame) {
     self.eyeButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
     [self.downloadButton bringSubviewToFront:self.downloadButton.imageView];
     [self.eyeButton bringSubviewToFront:self.eyeButton.imageView];
+    if(!self.emojiBar){
+        self.emojiBar=[TT46EmojiBar new];
+        __weak typeof(self) weak=self;
+        self.emojiBar.action=^(BOOL eye){[weak tapped:eye?weak.eyeButton:weak.downloadButton];};
+    }
+    [self.emojiBar scan:window enabled:!self.overlay.hidden && PB(@"tt46.emojiBar",NO)];
+    [self.emojiBar.eye setImage:[UIImage systemImageNamed:self.uiHidden?@"eye.slash":@"eye"] forState:UIControlStateNormal];
     // Never bring the overlay over a system permission prompt or the settings sheet.
 }
 - (void)closeMenu { [self.menu removeFromSuperview]; self.menu = nil; self.menuModel = nil; }
