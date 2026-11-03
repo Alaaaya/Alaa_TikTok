@@ -80,7 +80,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         Check([logURL.lastPathComponent isEqual:@"joker_debug.txt"],@"49 correct file");
         Check([NSFileManager.defaultManager fileExistsAtPath:logURL.path],@"49 missing log created");
         [@"fixture-class-only" writeToURL:logURL atomically:YES encoding:NSUTF8StringEncoding error:nil];
-        Check([[NSString stringWithContentsOfURL:[vc diagnosticLogURL] encoding:NSUTF8StringEncoding error:nil] isEqual:@"fixture-class-only"],@"49 existing log preserved");
+        Check([[NSString stringWithContentsOfURL:[vc diagnosticLogURL] encoding:NSUTF8StringEncoding error:nil] hasPrefix:@"fixture-class-only"],@"49 existing log preserved, capture appended");
         for(TTJokerTile *tile in grid.subviews) {
             Check(tile.caption.text.length>0 && tile.glyph.image!=nil,@"49 all tile content present");
             Check(CGRectContainsRect(tile.bounds,tile.caption.frame) && CGRectContainsRect(tile.bounds,tile.glyph.frame),@"49 tile glyph and label contained");
