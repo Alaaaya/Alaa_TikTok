@@ -8,9 +8,9 @@ typedef NS_ENUM(NSInteger,JKKind){JKKindNone=0,JKKindLike,JKKindComment,JKKindSa
 static NSInteger JKStyle(void){return [[NSUserDefaults standardUserDefaults] integerForKey:JKStyleKey];}
 // 0 TikTok, 1 Instagram Reels are shipped. 2 Facebook (53) and 3 Joker futuristic are not available yet.
 static BOOL JKStyleAvailable(NSInteger style){return style==0 || style==1;}
-// Release gate: Instagram rail ships in 53, so the picker only offers TikTok in 52 (code stays tested).
+// Release gate: Instagram rail ships in 53 (picker offers TikTok + Instagram; Facebook 54, Joker style after mockup approval).
 #ifndef JK_INSTA_SHIPPED
-#define JK_INSTA_SHIPPED 0
+#define JK_INSTA_SHIPPED 1
 #endif
 static BOOL JKPickerAvailable(NSInteger style){return style==0 || (JK_INSTA_SHIPPED && style==1);}
 static BOOL JKStyleOn(void){NSInteger s=JKStyle();return s==1 && JKStyleAvailable(s);}
@@ -200,7 +200,7 @@ static void JKStyleApplyAll(void) {
 - (void)changed:(UISegmentedControl *)s {
     if(!JKPickerAvailable(s.selectedSegmentIndex)) {
         s.selectedSegmentIndex=JKStyle();
-        self.note.text=@"هالنمط لسا مو متوفر. Instagram بالنسخة 53، وFacebook بالنسخة 54، وJoker المستقبلي بعد الموافقة على التصميم.";
+        self.note.text=@"هالنمط لسا مو متوفر. Facebook بالنسخة 54، وJoker المستقبلي بعد الموافقة على التصميم.";
         return;
     }
     [[NSUserDefaults standardUserDefaults] setInteger:s.selectedSegmentIndex forKey:JKStyleKey];
@@ -223,7 +223,7 @@ static void JKAddStylePicker(UIStackView *stack) {
     seg.layer.cornerRadius=12;seg.clipsToBounds=YES;
     JKStylePicker *picker=[JKStylePicker new];
     UILabel *note=[UILabel new];note.numberOfLines=0;note.font=[UIFont systemFontOfSize:12];note.textColor=[UIColor colorWithWhite:1 alpha:.74];
-    note.textAlignment=NSTextAlignmentLeft;note.text=@"Facebook وJoker غير متوفرين بعد. Instagram يغيّر أزرار الإعجاب والتعليق والمشاركة والحفظ فقط.";
+    note.textAlignment=NSTextAlignmentLeft;note.text=@"Instagram يغيّر أزرار الإعجاب والتعليق والمشاركة والحفظ فقط. Facebook وJoker غير متوفرين بعد.";
     picker.note=note;objc_setAssociatedObject(seg,"jk.picker",picker,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [seg addTarget:picker action:@selector(changed:) forControlEvents:UIControlEventValueChanged];
     [stack addArrangedSubview:seg];[stack addArrangedSubview:note];

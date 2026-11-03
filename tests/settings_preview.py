@@ -125,7 +125,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         lateWindow.hidden=YES;
         Check([TT50DiagnosticWindows() containsObject:lateWindow],@"50 capture includes newly created hidden windows");
         NSLog(@"PASS 50 exact top classes, lifecycle reapply, reuse, original-state restore and fresh all-window capture");
-        // style_smoke.inc ships with Instagram 53
+        #include "style_smoke.inc"
         #include "sheet_smoke.inc"
         Shot(vc,@"home");
         for(NSInteger page=0;page<7;page++){

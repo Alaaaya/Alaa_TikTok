@@ -32,7 +32,7 @@ assert 'NSPhotoLibraryAddUsageDescription' in p
 assert 'http://' not in p and 'isEqual:@"https"' in p
 assert 'removeItemAtURL' in p
 assert 'tag:100+i' in s and 'sender.tag-100' in s
-assert 'Version: 52' in (root/'control').read_text()
+assert 'Version: 53' in (root/'control').read_text()
 print('PASS 1.21 bar+glyph byte regression, toggles, playback-preserving menus, saved drags, Photos permission guards, HTTPS, cleanup')
 
 assert 'AVAssetExportPresetPassthrough' in p and 'AVMutableComposition composition' in p
