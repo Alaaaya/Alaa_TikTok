@@ -52,3 +52,5 @@ assert 'if(JKStyleOn() && objc_getAssociatedObject(view,kJKPaintAlpha))return 0;
 assert 'item.superview!=view.superview' not in style[style.index('static CGFloat JKStyleAlpha'):style.index('// Per-button state')]
 assert 'JKPaintRestore(native)' in style and 'r.glyph.userInteractionEnabled=NO' in style
 print('PASS 58 scoped renderer handoff, no native root alpha suppression, in-place inert paint and restoration')
+
+assert style.index('TTGRestoreGlyph(native);') < style.index('UIView *icon=JKPaintIcon(native,0);')

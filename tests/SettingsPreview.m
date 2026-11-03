@@ -25,6 +25,7 @@ static void TTToolRefresh(void){}
 - (void)setAttributedText:(NSAttributedString *)text{_attributedText=[text copy];[self setNeedsDisplay];}
 - (void)drawRect:(CGRect)r{[_attributedText drawInRect:self.bounds];}
 @end
+static void TTGRestoreGlyph(UIView *native){} // production renderer is outside the UIKit fixture
 #include "../InterfaceStyle.inc"
 #include "../HierarchyDump.inc"
 @interface TT122Hub:NSObject

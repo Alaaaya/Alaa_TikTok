@@ -275,6 +275,7 @@ static void JKStyleSync(UIView *native) {
     }
     JKKind kind=JKKindOf(native);
     if(kind==JKKindNone){JKPaintRestore(native);JKResult(NO,@"rail-unidentified");return;}
+    TTGRestoreGlyph(native); // release the previous glass paint owner BEFORE saving native alpha
     JKPaintRec *r=objc_getAssociatedObject(native,kJKPaintRec);
     UIView *icon=JKPaintIcon(native,0);
     // Reuse: do not leave old paint attached when a native icon disappears.
