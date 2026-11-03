@@ -11,7 +11,7 @@
     void(^pass65)(CGFloat)=^(CGFloat off){JK65Before(t65);t65.contentOffset=CGPointMake(0,off);[t65 layoutIfNeeded];JK65After(t65);};
     void(^assertNative65)(NSString *)=^(NSString *why){
         for(UITableViewCell *c in t65.visibleCells){
-            Check(CATransform3DIsIdentity(c.layer.transform)&&c.layer.opacity==1&&c.layer.zPosition==0,[@"65 exact native layer state restored: " stringByAppendingString:why]);
+            Check(CATransform3DIsIdentity(c.layer.transform)&&c.layer.opacity==1&&c.layer.zPosition==0,[NSString stringWithFormat:@"65 exact native layer state restored: %@ cell=%@ op=%f z=%f m11=%f m22=%f m42=%f m34=%f recs=%lu",why,NSStringFromClass(c.class),c.layer.opacity,c.layer.zPosition,c.layer.transform.m11,c.layer.transform.m22,c.layer.transform.m42,c.layer.transform.m34,(unsigned long)JK65Records().count]);
         }
         Check(JK65Records().count==0,[@"65 no stale records: " stringByAppendingString:why]);
     };
