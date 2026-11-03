@@ -201,22 +201,25 @@ static NSArray<UIWindow *> *TT48Windows(void);
 - (void)dealloc {[_timer invalidate];}
 @end
 static JKStyleItem *JKItemOf(UIView *native){return objc_getAssociatedObject(native,kJKItemKey);}
-// Called from the UIView setAlpha hook: a replaced native action stays invisible while our item is attached.
+// Only explicitly recorded paint roots may be hidden. Never dim a native
+// action container in response to a forwarding overlay (gesture-only rail safety).
 static CGFloat JKStyleAlpha(UIView *view,CGFloat requested) {
     if(JKStyleOn() && objc_getAssociatedObject(view,kJKPaintAlpha))return 0;
-    JKStyleItem *item=JKItemOf(view);
-    if(!item || item.superview!=view.superview || !JKStyleOn())return requested;
-    if(requested>0)objc_setAssociatedObject(view,kJKOrigAlphaKey,@(requested),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    return 0;
+    return requested;
 }
 static void JKStyleDetach(UIView *native) {
-    JKStyleItem *item=JKItemOf(native);if(!item)return;
-    objc_setAssociatedObject(native,kJKItemKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    if(!JKAlaa())[[native.superview viewWithTag:9156] removeFromSuperview];
-    [item.timer invalidate];item.timer=nil;[item removeFromSuperview];
+    JKStyleItem *item=JKItemOf(native);
     NSNumber *orig=objc_getAssociatedObject(native,kJKOrigAlphaKey);
+    if(!item&&!orig)return;
+    objc_setAssociatedObject(native,kJKItemKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     objc_setAssociatedObject(native,kJKOrigAlphaKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    [[native.superview viewWithTag:9156] removeFromSuperview];
+    [item.timer invalidate];item.timer=nil;[item removeFromSuperview];
+    // Even a missing/orphan replacement must release its old alpha suppression.
     [UIView performWithoutAnimation:^{native.alpha=orig?orig.doubleValue:1;}];
+}
+static BOOL JKStyleOwnsPaint(UIView *native){
+    return JKStyleOn() && JKKindOf(native)!=JKKindNone;
 }
 
 // Per-button state, never stored in the geometry/font/attributed-string slots.
@@ -303,13 +306,13 @@ static const void *kJKRec=&kJKRec,*kJKFontRec=&kJKFontRec,*kJKTextRec=&kJKTextRe
 static NSDictionary *JKRec(UIView *v){return objc_getAssociatedObject(v,kJKRec);}
 static void JKRecSave(UIView *v){
     if(JKRec(v))return;
-    objc_setAssociatedObject(v,kJKRec,@{@"frame":[NSValue valueWithCGRect:v.frame],@"radius":@(v.layer.cornerRadius),
+    objc_setAssociatedObject(v,kJKRec,@{@"frame":[NSValue valueWithCGRect:v.frame],@"bounds":[NSValue valueWithCGRect:v.bounds],@"center":[NSValue valueWithCGPoint:v.center],@"transform":[NSValue valueWithCGAffineTransform:v.transform],@"radius":@(v.layer.cornerRadius),
         @"clip":@(v.layer.masksToBounds),@"bw":@(v.layer.borderWidth),@"bc":v.layer.borderColor?(__bridge id)v.layer.borderColor:(id)NSNull.null,
         @"bg":v.backgroundColor?:(id)NSNull.null},OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 static void JKRecRestore(UIView *v){
     NSDictionary *d=JKRec(v);if(!d)return;
-    v.frame=[d[@"frame"] CGRectValue];v.layer.cornerRadius=[d[@"radius"] doubleValue];v.layer.masksToBounds=[d[@"clip"] boolValue];
+    v.transform=[d[@"transform"] CGAffineTransformValue];v.bounds=[d[@"bounds"] CGRectValue];v.center=[d[@"center"] CGPointValue];v.layer.cornerRadius=[d[@"radius"] doubleValue];v.layer.masksToBounds=[d[@"clip"] boolValue];
     v.layer.borderWidth=[d[@"bw"] doubleValue];id bc=d[@"bc"];v.layer.borderColor=bc==NSNull.null?nil:(__bridge CGColorRef)bc;
     id bg=d[@"bg"];v.backgroundColor=bg==NSNull.null?nil:bg;
     objc_setAssociatedObject(v,kJKRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -390,13 +393,13 @@ static void JKAvatarApply(UIView *avatar,UIWindow *window,BOOL on,int mode){
         [host addSubview:avatar];
     }
     if(avatar.superview!=host)return;
-    if(!r.author && author.transform.tx==0){r.author=author;r.authorTx=author.transform;author.transform=CGAffineTransformMakeTranslation(48,0);}
+    if(!r.author){r.author=author;r.authorTx=author.transform;}
     CGRect a=[author convertRect:author.bounds toView:host];
     CGFloat midY=CGRectGetMidY(a);
     if(mode==0){
         CGFloat k=34.0/44.0;
         avatar.transform=CGAffineTransformMakeScale(k,k);
-        avatar.center=CGPointMake(33,midY+(avatar.bounds.size.height/2-28)*k);
+        CGPoint avc=[host convertPoint:CGPointMake(33,[author convertRect:author.bounds toView:window].origin.y+author.bounds.size.height/2+(avatar.bounds.size.height/2-28)*k) fromView:window];avatar.center=avc;
         for(UIView *rs in avatar.subviews){
             CGSize z=rs.bounds.size;
             if(([rs isKindOfClass:UIButton.class]||[rs isKindOfClass:UIImageView.class]) && z.width>=30 && z.width<=50 && fabs(z.width-z.height)<2){
@@ -405,13 +408,13 @@ static void JKAvatarApply(UIView *avatar,UIWindow *window,BOOL on,int mode){
                 else {JKRecSave(rs);rs.clipsToBounds=YES;}rs.layer.cornerRadius=z.width/2;rs.layer.borderWidth=2;rs.layer.borderColor=UIColor.whiteColor.CGColor;
             }
         }
-        if(window&&JKRailStack(window)){UIView *rs0=nil;for(UIView *rs in avatar.subviews)if(JKRec(rs)){rs0=rs;break;}
-            UIView *stk=JKRailStack(window);JKDecoApply(window,9161,rs0,CGRectMake(stk.bounds.size.width/2-23,-58,46,46),rs0.layer.borderWidth>0?0:2,UIColor.whiteColor,NO,rs0!=nil);}
     } else {
         UIView *nl=JKFindClass(author,@"AWEUserNameLabel",0);
         CGRect nr=nl?[nl convertRect:nl.bounds toView:host]:a;
         avatar.transform=CGAffineTransformIdentity;
-        CGRect f=avatar.frame;f.origin.x=CGRectGetMaxX(nr)+10;f.origin.y=midY-f.size.height/2;avatar.frame=f;
+        CGRect f=avatar.frame;
+        CGRect rail=JKRailStack(window)?[JKRailStack(window) convertRect:JKRailStack(window).bounds toView:host]:CGRectMake(window.bounds.size.width-80,0,80,0);
+        f.origin.x=MIN(CGRectGetMaxX(nr)+10,CGRectGetMinX(rail)-12-f.size.width);f.origin.y=midY-f.size.height/2;avatar.frame=f;
     }
 }
 static const void *kJKTbTx=&kJKTbTx;
@@ -463,6 +466,43 @@ static void JKLog(NSString *line){
     }
 }
 
+
+static const void *kJKTextLayoutRec=&kJKTextLayoutRec;
+static void JKTextTree(UIView *v,BOOL on,NSUInteger depth){
+    if(depth>10)return;
+    SEL align=NSSelectorFromString(@"setTextAlignment:");
+    BOOL has=[v respondsToSelector:align]&&[v respondsToSelector:NSSelectorFromString(@"textAlignment")];
+    NSDictionary *r=objc_getAssociatedObject(v,kJKTextLayoutRec);
+    if(on){
+        if(!r){NSMutableDictionary *d=[@{@"semantic":@(v.semanticContentAttribute)} mutableCopy];
+            if(has)d[@"align"]=@(((NSInteger(*)(id,SEL))objc_msgSend)(v,NSSelectorFromString(@"textAlignment")));
+            objc_setAssociatedObject(v,kJKTextLayoutRec,d,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
+        v.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+        if(has)((void(*)(id,SEL,NSInteger))objc_msgSend)(v,align,NSTextAlignmentLeft);
+    } else if(r){
+        v.semanticContentAttribute=[r[@"semantic"] integerValue];
+        if(has&&r[@"align"])((void(*)(id,SEL,NSInteger))objc_msgSend)(v,align,[r[@"align"] integerValue]);
+        objc_setAssociatedObject(v,kJKTextLayoutRec,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    for(UIView *c in [v.subviews copy])JKTextTree(c,on,depth+1);
+}
+// Physical left region, separated from the actual native rail, not from a guessed
+// RTL coordinate. Keep Y unchanged. UIKit will continue to own text line layout.
+static void JKLeftRegion(UIView *v,BOOL on,CGFloat left){
+    if(!v.window)return;
+    if(on){
+        CGRect wr=[v convertRect:v.bounds toView:v.window];
+        if(CGRectIsEmpty(wr)||!CGRectIntersectsRect(wr,v.window.bounds))return;
+        UIView *rail=JKRailStack(v.window);CGFloat end=v.window.bounds.size.width-88;
+        if(rail)end=MIN(end,CGRectGetMinX([rail convertRect:rail.bounds toView:v.window])-12);
+        JKRecSave(v);
+        CGRect target=CGRectMake(left,wr.origin.y,MAX(1,end-left),wr.size.height);
+        // Setting bounds/center avoids frame math under a native transform.
+        CGPoint c=[v.superview convertPoint:CGPointMake(CGRectGetMidX(target),CGRectGetMidY(target)) fromView:v.window];
+        CGRect bounds=v.bounds;bounds.size.width=target.size.width;v.bounds=bounds;v.center=c;
+        JKTextTree(v,YES,0);JKResult(YES,@"text-physical-left");
+    } else {JKRecRestore(v);JKTextTree(v,NO,0);}
+}
 static BOOL JKSetAttributed(UIView *v,NSAttributedString *text){
     SEL sel=NSSelectorFromString(@"setAttributedText:");
     NSMethodSignature *sig=[v methodSignatureForSelector:sel];
@@ -483,6 +523,10 @@ static void JKCaptionApply(UIView *v,BOOL on){
         saved=[current copy];objc_setAssociatedObject(v,kJKTextRec,saved,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     NSMutableAttributedString *m=[saved mutableCopy];
+    [saved enumerateAttribute:NSParagraphStyleAttributeName inRange:NSMakeRange(0,saved.length) options:0 usingBlock:^(NSParagraphStyle *style,NSRange range,BOOL *stop){
+        NSMutableParagraphStyle *p=style?[style mutableCopy]:[NSMutableParagraphStyle new];p.alignment=NSTextAlignmentLeft;p.baseWritingDirection=NSWritingDirectionNatural;
+        [m addAttribute:NSParagraphStyleAttributeName value:p range:range];
+    }];
     NSRegularExpression *re=[NSRegularExpression regularExpressionWithPattern:@"#[^\\s#]+" options:0 error:nil];
     NSArray *matches=[re matchesInString:m.string options:0 range:NSMakeRange(0,m.length)];
     for(NSTextCheckingResult *r in matches)[m addAttribute:NSForegroundColorAttributeName value:[UIColor colorWithRed:1 green:.71 blue:.278 alpha:1] range:r.range];
@@ -494,6 +538,8 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
         CGRect r=[v convertRect:v.bounds toView:v.window];[JKGeo appendFormat:@" %@@%d,%d,%d,%d",n,(int)r.origin.x,(int)r.origin.y,(int)r.size.width,(int)r.size.height];}
     if(JKHits&&([n hasPrefix:@"TTK"]||[n hasPrefix:@"AWEPlayInteraction"]||[n hasPrefix:@"AWEFeed"]||[n hasPrefix:@"AWETabBar"]||[n hasPrefix:@"AWEUser"]))JKHits[n]=@([JKHits[n] integerValue]+1);
     if([n isEqualToString:@"AWEFeedVideoButton"])JKStyleSync(v);
+    if([n isEqualToString:@"AWEPlayInteractionAuthorView"])JKLeftRegion(v,on&&JKAlaa(),58);
+    if([n isEqualToString:@"AWEPlayInteractionDescriptionLabel"]||[n isEqualToString:@"AWEScrollLabelView"])JKLeftRegion(v,on&&JKAlaa(),12);
     if([n isEqualToString:@"TTKTabBarBlurView"] && [v.superview isKindOfClass:UITabBar.class]==NO && [NSStringFromClass(v.superview.class) isEqualToString:@"TTKTabBar"]==NO){}
     if([n isEqualToString:@"TTKTabBarBlurView"]){
         if(on){JKRecSave(v);CGRect o=[JKRec(v)[@"frame"] CGRectValue];
@@ -507,11 +553,8 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
                 v.frame=[tbar convertRect:CGRectMake(16,wb.size.height-74,wb.size.width-32,62) fromView:v.window];v.layer.cornerRadius=31;}v.backgroundColor=[UIColor colorWithRed:.047 green:.07 blue:.078 alpha:.58];}}
         else {JKDockRestore(v);JKRecRestore(v);}
     } else if([n isEqualToString:@"AWEPlayInteractionMusicView"]){
-        BOOL al=on&&JKAlaa();UIView *st=v.window?JKRailStack(v.window):nil;
-        if(st)JKDecoApply(v.window,9162,v,CGRectMake(st.bounds.size.width/2-21,[v convertRect:v.bounds toView:st].origin.y,42,42),7,[UIColor colorWithRed:.051 green:.071 blue:.078 alpha:1],YES,al);
-        {static const void *kMa=&kMa;
-         if(al){if(!objc_getAssociatedObject(v,kMa))objc_setAssociatedObject(v,kMa,@(v.alpha),OBJC_ASSOCIATION_RETAIN_NONATOMIC);v.alpha=0;}
-         else{NSNumber *oa=objc_getAssociatedObject(v,kMa);if(oa){v.alpha=oa.doubleValue;objc_setAssociatedObject(v,kMa,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}}}
+        // Leave native music control visible and live. Remove old inert disc copies.
+        if(v.window){UIView *st=JKRailStack(v.window);[[st viewWithTag:9162] removeFromSuperview];}
     } else if([n isEqualToString:@"AWETabBarPlusButton"]){
         UIView *ov=[v viewWithTag:9157];
         if(on && JKAlaa()){

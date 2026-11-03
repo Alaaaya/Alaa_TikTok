@@ -22,6 +22,7 @@ static void TTToolRefresh(void){}
 // UIView-based attributed-text fixture for the observed non-UILabel description class.
 @interface JKFixtureAttributedView:UIView
 @property(nonatomic,copy) NSAttributedString *attributedText;
+@property(nonatomic) NSTextAlignment textAlignment;
 @end
 @implementation JKFixtureAttributedView
 - (void)setAttributedText:(NSAttributedString *)text{_attributedText=[text copy];[self setNeedsDisplay];}
@@ -107,7 +108,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
             @"AWELiveFeedEntranceView",@"TTKSearchEntranceButton",@"TikTokFeedTabItemNearbyControl",
             @"TikTokFeedTabItemFollowControl",@"TikTokFeedTabItemMallControl"]) {
             Class cls=NSClassFromString(name);
-            if(!cls){cls=objc_allocateClassPair(UIView.class,name.UTF8String,0);objc_registerClassPair(cls);}
+            if(!cls){cls=objc_allocateClassPair([name isEqualToString:@"TikTokFeedFadeScrollView"]?UIScrollView.class:UIView.class,name.UTF8String,0);objc_registerClassPair(cls);}
             UIView *item=[[cls alloc] initWithFrame:CGRectMake(10,60,44,44)];
             item.alpha=.73;item.userInteractionEnabled=YES;[self.window addSubview:item];[exactTop addObject:item];
         }

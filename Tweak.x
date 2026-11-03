@@ -905,10 +905,16 @@ static UIImage *TTGSnapshotIcon(UIView *icon) {
     return image;
 }
 
+static BOOL JKStyleOwnsPaint(UIView *native);
+static void JKStyleSync(UIView *native);
 static void TTGSyncActionGlass(UIView *button) {
     if (!NSThread.isMainThread || [objc_getAssociatedObject(button, &kGlyphBusyKey) boolValue]) return;
     objc_setAssociatedObject(button, &kGlyphBusyKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     @try {
+        // Style58 owns only inert paint inside the real button. Glass must not
+        // rediscover/dim that glyph or hide its source while the style is active.
+        if(JKStyleOwnsPaint(button)){TTGRestoreGlyph(button);JKStyleSync(button);return;}
+
         if (!TTGEnabled() || !button.window || !TTGActionIdentity(button) || !TTGActionInFeed(button)) {
             TTGRestoreGlyph(button);
             return;

@@ -20,6 +20,11 @@
         UILabel *count=[[UILabel alloc] initWithFrame:CGRectMake(0,32,b.bounds.size.width,16)];count.text=@[@"29.4K",@"163",@"87",@"19K"][i];count.textColor=UIColor.whiteColor;count.textAlignment=NSTextAlignmentCenter;count.font=[UIFont systemFontOfSize:11];[b addSubview:count];
         UITapGestureRecognizer *gr=[[UITapGestureRecognizer alloc] init];[b addGestureRecognizer:gr];[recognizers addObject:gr];[buttons addObject:b];[images addObject:im];
     }
+    // Stale 57 forwarding overlays must not keep a gesture-only original hidden.
+    UIView *legacy=buttons[0];JKStyleItem *old=[JKStyleItem new];old.native=legacy;
+    objc_setAssociatedObject(legacy,kJKItemKey,old,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(legacy,kJKOrigAlphaKey,@1,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    legacy.alpha=0;
     // Touch-down only control, just like the logged comment action.
     NSObject *downTarget=[NSObject new];
     [buttons[1] addTarget:downTarget action:@selector(description) forControlEvents:UIControlEventTouchDown];
@@ -40,6 +45,11 @@
     UIButton *avatarButton=[[UIButton alloc] initWithFrame:CGRectMake(6,6,44,44)];[avatarButton setImage:[UIImage systemImageNamed:@"person.crop.circle.fill"] forState:UIControlStateNormal];[avatar addSubview:avatarButton];
     UIView *follow=[[Fixture(@"AWEPlayInteractionFollowPromptView",UIView.class) alloc] initWithFrame:CGRectMake(0,44,60,40)];[avatar addSubview:follow];
     UITapGestureRecognizer *followGR=[[UITapGestureRecognizer alloc] init];[follow addGestureRecognizer:followGR];
+    UIView *music=[[Fixture(@"AWEPlayInteractionMusicView",UIView.class) alloc] initWithFrame:CGRectMake(25,400,42,42)];[fr addSubview:music];
+    UIImageView *disc=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"opticaldisc"]];disc.frame=music.bounds;disc.tintColor=UIColor.whiteColor;[music addSubview:disc];
+    UITapGestureRecognizer *musicGR=[[UITapGestureRecognizer alloc] init];[music addGestureRecognizer:musicGR];
+    caption.textAlignment=NSTextAlignmentRight;caption.semanticContentAttribute=UISemanticContentAttributeForceRightToLeft;
+    CGRect originalCaption=caption.frame,originalAuthor=author.frame,originalTop=tc.frame;
     Class tabCls=Fixture(@"TTKTabBar",UITabBar.class),blurCls=Fixture(@"TTKTabBarBlurView",UIView.class);
     UITabBar *tab=[[tabCls alloc] initWithFrame:CGRectMake(0,H-83,W,83)];[fd addSubview:tab];
     UIView *blur=[[blurCls alloc] initWithFrame:tab.bounds];[tab insertSubview:blur atIndex:0];
@@ -53,7 +63,7 @@
     for(int i=0;i<4;i++){
         UIControl *b=buttons[i];JKPaintRec *r=objc_getAssociatedObject(b,kJKPaintRec);
         Check(r && r.glyph.image && r.glyph.superview==b && !r.glyph.userInteractionEnabled,@"58 in-place inert glyph on gesture-only native button");
-        Check(b.alpha==1 && b.enabled && b.gestureRecognizers.count==1 && b.gestureRecognizers[0]==recognizers[i],@"58 recognizers, enabled state, native hit region preserved");
+        Check(b.alpha==1 && !b.hidden && CGRectIntersectsRect([b convertRect:b.bounds toView:self.window],self.window.bounds) && b.enabled && b.gestureRecognizers.count==1 && b.gestureRecognizers[0]==recognizers[i],@"58 recognizers, enabled state, native hit region preserved");
         Check(JKItemOf(b)==nil && ((UIView *)images[i]).alpha==0,@"58 no forwarding control, native paint hidden only");
         Check([b hitTest:CGPointMake(25,12) withEvent:nil]==b,@"58 styled glyph never intercepts native hit testing");
     }
@@ -73,12 +83,24 @@
     JKPaintRec *savedPaint=objc_getAssociatedObject(buttons[2],kJKPaintRec);[savedPaint.glyph.tintColor getRed:&ar green:&ag blue:&ab alpha:&aa];
     Check(ar>.99 && ag>.7 && ag<.72,@"58 reused selected save glyph amber");
     for(UIView *b in buttons)Check([b.subviews filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(UIView *v,id x){return v.tag==9258;}]].count==1,@"58 reuse no duplicate glyphs");
+    CGRect capRect=[caption convertRect:caption.bounds toView:self.window],railRect=[fr convertRect:fr.bounds toView:self.window];
+    CGRect authorRect=[author convertRect:author.bounds toView:self.window],avatarRect=[avatar convertRect:avatar.bounds toView:self.window],discRect=[music convertRect:music.bounds toView:self.window];
+    Check(capRect.origin.x==12 && !CGRectIntersectsRect(capRect,railRect) && caption.textAlignment==NSTextAlignmentLeft && caption.semanticContentAttribute==UISemanticContentAttributeForceLeftToRight,@"58 caption physical left, outside rail, no RTL mirror");
+    Check(authorRect.origin.x==58 && !CGRectIntersectsRect(authorRect,avatarRect) && !CGRectIntersectsRect(authorRect,discRect),@"58 author outside avatar/disc bounds");
+    Check(CGRectEqualToRect(tc.frame,originalTop),@"58 top native geometry unchanged");
+    Check(music.alpha>0 && !music.hidden && music.gestureRecognizers[0]==musicGR && ![fr viewWithTag:9162],@"58 original music remains visible and interactive, no inert replacement");
     ShotView(self.window,@"58-alaa-style");
+    TT50EyeActive=YES;TT50Tree(fd);JKStyleApplyAll();
+    Check(fr.hidden && fr.alpha==0 && !fr.userInteractionEnabled && avatar.hidden && follow.hidden && music.hidden,@"58 eye ON hides native rail and moved controls separately");
+    TT50Restore();JKStyleApplyAll();
+    Check(!fr.hidden && fr.alpha>0 && fr.userInteractionEnabled && !avatar.hidden && !follow.hidden && !music.hidden,@"58 eye OFF restores rail, avatar, follow and music");
+    for(UIView *b in buttons)Check(b.alpha>0 && !b.hidden && b.userInteractionEnabled && !JKItemOf(b),@"58 eye OFF no hidden original or forwarding replacement");
     [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();
     for(int i=0;i<4;i++)Check(!objc_getAssociatedObject(buttons[i],kJKPaintRec) && ((UIView *)images[i]).alpha==1 && [buttons[i] gestureRecognizers][0]==recognizers[i],@"58 default restores native icons and recognizers");
     Check(avatar.superview==fr && CGRectEqualToRect(avatar.frame,CGRectMake(20,36,60,88)) && follow.superview==avatar && CGRectEqualToRect(follow.frame,CGRectMake(0,44,60,40)),@"58 avatar and nested follow restore original parents/geometry");
     Check([follow viewWithTag:9159]==nil && [tc viewWithTag:9158]==nil && [plus viewWithTag:9157]==nil && CGAffineTransformIsIdentity(author.transform),@"58 default removes decoration and transforms");
     UIColor *restored=[caption.attributedText attribute:NSForegroundColorAttributeName atIndex:caption.attributedText.length-3 effectiveRange:nil];
+    Check(CGRectEqualToRect(caption.frame,originalCaption) && CGRectEqualToRect(author.frame,originalAuthor) && caption.textAlignment==NSTextAlignmentRight && caption.semanticContentAttribute==UISemanticContentAttributeForceRightToLeft,@"58 default restores caption/author geometry and text direction");
     Check([restored isEqual:UIColor.whiteColor] && nameText.font.pointSize==15 && !objc_getAssociatedObject(nameText,kJKFontRec),@"58 attributed text and font restore independently");
     ShotView(self.window,@"58-restored-default");
     [D() setInteger:3 forKey:JKStyleKey];JKStyleApplyAll();
