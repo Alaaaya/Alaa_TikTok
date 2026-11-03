@@ -1257,7 +1257,7 @@ static void TT122Recover(void);
 
 #include "CustomTools.inc"
 #include "PhaseOne.inc"
-#include "ReactionObserver.inc"
+%include "ReactionObserver.inc"
 #include "LaterFeatures.inc"
 #include "StoryTools.inc"
 #include "ProfileTools.inc"
