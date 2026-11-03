@@ -61,6 +61,14 @@ static void TT61ButtonArt(UIButton *b,NSString *symbol){
     [b setImage:custom?:[UIImage systemImageNamed:symbol] forState:UIControlStateNormal];
     [b setImage:nil forState:UIControlStateHighlighted];[b setBackgroundImage:nil forState:UIControlStateNormal];
 }
+@interface TT61FloatingButton:UIButton
+@end
+@implementation TT61FloatingButton
+- (CGRect)imageRectForContentRect:(CGRect)rect {
+    if((self.tag==1221||self.tag==1222)&&TTToolImage(self.tag))return self.bounds;
+    return [super imageRectForContentRect:rect];
+}
+@end
 static BOOL TT61FloatingHidden(NSString *key){return (!PB(@"tt61.feedFloating",NO)&&PB(@"tt46.emojiBar",NO))||!TT122Enabled(key);}
 static void TT61RefreshMaterial(UIButton *button,BOOL floating){
         UIVisualEffectView *glass=(id)[button viewWithTag:1261];
