@@ -25,6 +25,7 @@ jobs:
           python3 tests/check_settings.py
           python3 tests/check_packs.py
           python3 tests/check_reactions.py
+          python3 tests/check61.py
       - name: Tools
         run: brew install ldid make dpkg
       - name: Build
