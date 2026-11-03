@@ -86,13 +86,13 @@ static BOOL TT51SheetPeers(UIView *root) {
     if(self.toggle)self.toggle();
 }
 - (void)downloadPressed:(id)sender {
-    [self setMode:1];
+    [self showMode:1];
 }
 - (void)optionPressed:(UIButton *)b {
     NSInteger c=b.tag;
-    if(c==100){[self setMode:0];return;}
-    if(c==101){[self setMode:2];return;}
-    if(c==102){[self setMode:1];return;}
+    if(c==100){[self showMode:0];return;}
+    if(c==101){[self showMode:2];return;}
+    if(c==102){[self showMode:1];return;}
     if(self.optionAction)self.optionAction(c);
 }
 - (void)relayoutExtra:(CGFloat)newExtra {
@@ -110,7 +110,7 @@ static BOOL TT51SheetPeers(UIView *root) {
     }
     self.extra=newExtra;
 }
-- (void)setMode:(NSInteger)mode {
+- (void)showMode:(NSInteger)mode {
     if(!self.row2)return;
     for(UIView *v in self.subRows)[v removeFromSuperview];
     self.subRows=nil;self.mode=mode;
