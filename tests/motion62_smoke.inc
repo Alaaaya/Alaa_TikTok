@@ -78,6 +78,13 @@
     Check(fr.hidden&&caption.hidden,@"62 eye ON during entry wins over animation/restore");TT50Restore();assertOriginal();
     TT50EyeActive=YES;TT50Tree(fd);JKRailClosed=YES;JKRailApply(self.window,YES);TT50Restore();JK62Finish();assertClosed();
     JKRailClosed=NO;JKRailApply(self.window,YES);JK62Finish();assertOriginal();
+    // Reparent an already-held native caption to a reused feed cell mid-exit.
+    JKRailClosed=YES;JKRailApply(self.window,YES);
+    UIView *reuseRoot=[UIView new];[fd addSubview:reuseRoot];
+    [reuseRoot addSubview:dim];JK60BeforeDraw(dim);
+    Check(!JK62Hold(dim)&&dim.hidden&&dim.alpha==0&&!dim.userInteractionEnabled&&![dim.layer animationForKey:JK62Track],@"62 reused/reparented outgoing chrome loses hold synchronously without flash");
+    [fd addSubview:dim];[reuseRoot removeFromSuperview];JK62Finish();assertClosed();
+    JKRailClosed=NO;JKRailApply(self.window,YES);JK62Finish();assertOriginal();
     // Rotation during sequence preserves the native model transform and drag pos.
     NSDictionary *position=[[D() dictionaryForKey:@"tt122.position.9156"] copy];CGRect portrait=self.window.frame;
     JKRailClosed=YES;JKRailApply(self.window,YES);self.window.frame=CGRectMake(0,0,portrait.size.height,portrait.size.width);[dots placeFloating];JK62Finish();assertClosed();

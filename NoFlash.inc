@@ -6,8 +6,18 @@ static BOOL JK60Active(void){return !JK60Restoring && JKRailClosed && [NSUserDef
 // Transition records exist only during a dots-tap sequence. Guards remain
 // synchronous for newly inserted cells, which are never added to the sequence.
 static NSMapTable<UIView *,NSArray *> *JK62Held(void){static NSMapTable *m;static dispatch_once_t once;dispatch_once(&once,^{m=[NSMapTable weakToStrongObjectsMapTable];});return m;}
+static NSMapTable<UIView *,UIView *> *JK62Parents(void){static NSMapTable *m;static dispatch_once_t once;dispatch_once(&once,^{m=[NSMapTable weakToWeakObjectsMapTable];});return m;}
 static BOOL JK62Writing=NO;
-static BOOL JK62Hold(UIView *v){return [JK62Held() objectForKey:v]!=nil;}
+static BOOL JK62Hold(UIView *v){
+    if(![JK62Held() objectForKey:v])return NO;
+    // A native reused/reparented cell must not inherit an outgoing animation.
+    // O(1), no per-frame tree scan and no ownership cycle.
+    if([JK62Parents() objectForKey:v]!=v.superview){
+        [v.layer removeAnimationForKey:@"joker62.visibility"];
+        [JK62Held() removeObjectForKey:v];[JK62Parents() removeObjectForKey:v];return NO;
+    }
+    return YES;
+}
 static BOOL JK60Chrome(UIView *view);
 static void JK60Save(UIView *view);
 static CGFloat JK60Alpha(UIView *v,CGFloat a){if(JK60Active()&&JK60Chrome(v)){JK60Save(v);return JK62Hold(v)?a:0;}return a;}

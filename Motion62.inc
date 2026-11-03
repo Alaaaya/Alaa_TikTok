@@ -23,7 +23,7 @@ static void JK62Cancel(void){
         v.alpha=TT50Alpha(v,[r[0] doubleValue]);v.hidden=TT50Hidden(v,[r[1] boolValue]);
         v.userInteractionEnabled=TT50Interaction(v,[r[2] boolValue]);
     }
-    [JK62Held() removeAllObjects];JK62Writing=NO;JK60Restoring=NO;
+    [JK62Held() removeAllObjects];[JK62Parents() removeAllObjects];JK62Writing=NO;JK60Restoring=NO;
 }
 static void JK62Finish(void){
     JK62Cancel();
@@ -75,7 +75,7 @@ static void JK62Animate(UIWindow *w){
     NSHashTable *set=[NSHashTable weakObjectsHashTable];for(UIView *v in chrome)[set addObject:v];
     // Hold all known chrome so nested labels/avatars don't disappear halfway
     // through their parent's exit. An arriving reused cell is deliberately NOT held.
-    for(UIView *v in chrome){JK60Save(v);[JK62Held() setObject:JK62Baseline(v) forKey:v];}
+    for(UIView *v in chrome){JK60Save(v);[JK62Held() setObject:JK62Baseline(v) forKey:v];if(v.superview)[JK62Parents() setObject:v.superview forKey:v];}
     for(UIView *v in chrome){
         BOOL nested=NO;for(UIView *a=v.superview;a&&a!=w;a=a.superview)if([set containsObject:a]){nested=YES;break;}
         if(!nested&&v!=rail)[roots addObject:v];
@@ -84,7 +84,7 @@ static void JK62Animate(UIWindow *w){
         for(UIView *v in [rail.subviews copy]){
             // Direct action bundles include counts/follow/music decoration.
             // Do not animate internal glass layers independently.
-            if(v.bounds.size.width>0&&v.bounds.size.height>0){[buttons addObject:v];if(!JK62Hold(v))[JK62Held() setObject:JK62Baseline(v) forKey:v];}
+            if(v.bounds.size.width>0&&v.bounds.size.height>0){[buttons addObject:v];if(!JK62Hold(v))[JK62Held() setObject:JK62Baseline(v) forKey:v];if(v.superview)[JK62Parents() setObject:v.superview forKey:v];}
         }
         [buttons sortUsingComparator:^NSComparisonResult(UIView *a,UIView *b){
             CGFloat ay=a.center.y,by=b.center.y;return ay<by?NSOrderedAscending:ay>by?NSOrderedDescending:NSOrderedSame;
