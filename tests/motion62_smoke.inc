@@ -1,5 +1,7 @@
 // Same production module, UIKit Arabic/LTR fixture. No private target guesses.
 {
+    for(CALayer *a=fr.layer;a;a=a.superlayer){fprintf(stderr,"62 ancestor speed=%g timeOffset=%g begin=%g class=%s\n",a.speed,a.timeOffset,a.beginTime,NSStringFromClass(a.class).UTF8String);fflush(stderr);}
+    [CATransaction flush];
     banner.text=@"Joker 62 · simulator TEST DATA\nDots motion, native actions preserved";
     JKRailClosed=NO;JK62Finish();JKStyleApplyAll();dots=(id)[self.window viewWithTag:9156];
     NSMutableArray *motionChrome=[NSMutableArray arrayWithObjects:fr,dock,caption,author,avatar,music,nil];
