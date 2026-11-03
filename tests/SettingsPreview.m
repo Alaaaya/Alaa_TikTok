@@ -1160,6 +1160,15 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
                 ShotView(self.window,@"62-motion-picker");
                 [vc dismissViewControllerAnimated:NO completion:^{
                 NSLog(@"PASS 62 real Arabic LTR native motion picker");
+            [vc showCategory:-1 animated:NO];[vc.view layoutIfNeeded];
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.25*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
+            UIButton *arm64=(id)vc.stack.arrangedSubviews[1];
+            Check(arm64.titleLabel.alpha>.99&&arm64.titleLabel.frame.size.width>0&&[arm64.currentTitle containsString:@"تفعيل التقاط"],@"64 arm label visibly laid out after real run-loop settlement");
+            ShotView(self.window,@"64-arm-ready");
+            [arm64 sendActionsForControlEvents:UIControlEventTouchUpInside];
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.35*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
+            Check(arm64.titleLabel.alpha>.99&&[arm64.currentTitle containsString:@"التقاط مفعّل"],@"64 native arm acknowledgement settles visibly");
+            ShotView(self.window,@"64-arm-acknowledged");
             JK64AsyncFixture(self.window,^{
             [vc showCategory:-1 animated:NO];
             UIButton *button=(UIButton *)vc.stack.arrangedSubviews.lastObject;
@@ -1170,6 +1179,8 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
                 NSLog(@"PASS 49 local file and native share presentation");
                 NSLog(@"PASS UIKit grid/category/back/layout/art persistence smoke");
                 fflush(stdout);exit(0);
+            });
+            });
             });
             });
                 }];
