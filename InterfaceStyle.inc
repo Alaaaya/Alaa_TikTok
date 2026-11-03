@@ -384,7 +384,7 @@ static void JKDecoApply(UIWindow *w,NSInteger tag,UIView *src,CGRect fr,CGFloat 
     iv.frame=fr;iv.layer.cornerRadius=fr.size.width/2;iv.layer.borderWidth=(tag==9162)?0:border;iv.layer.borderColor=bc.CGColor;
     if(spin && ![iv.layer animationForKey:@"jkspin"]){CABasicAnimation *a=[CABasicAnimation animationWithKeyPath:@"transform.rotation.z"];a.fromValue=@0;a.toValue=@(M_PI*2);a.duration=6;a.repeatCount=HUGE_VALF;[iv.layer addAnimation:a forKey:@"jkspin"];}
 }
-static NSMutableDictionary *JKHits;static NSUInteger JKNodes,JKDeep;
+static NSMutableString *JKGeo;static NSMutableDictionary *JKHits;static NSUInteger JKNodes,JKDeep;
 static void JKLog(NSString *line){
     NSString *folder=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject;if(!folder)return;
     NSString *path=[folder stringByAppendingPathComponent:@"joker_debug.txt"];
@@ -397,6 +397,8 @@ static void JKLog(NSString *line){
 }
 static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
     NSString *n=NSStringFromClass(v.class);JKNodes++;if(depth>JKDeep)JKDeep=depth;
+    if(JKGeo&&v.window&&([n isEqualToString:@"TikTokFeedTabControl"]||[n isEqualToString:@"TTKFeedTabCornerItemView"]||[n isEqualToString:@"AWEPlayInteractionDescriptionLabel"]||[n isEqualToString:@"TTKFeedRightInteractionStackView"]||[n isEqualToString:@"TTKTabBar"])){
+        CGRect r=[v convertRect:v.bounds toView:v.window];[JKGeo appendFormat:@" %@@%d,%d,%d,%d",n,(int)r.origin.x,(int)r.origin.y,(int)r.size.width,(int)r.size.height];}
     if(JKHits&&([n hasPrefix:@"TTK"]||[n hasPrefix:@"AWEPlayInteraction"]||[n hasPrefix:@"AWEFeed"]||[n hasPrefix:@"AWETabBar"]||[n hasPrefix:@"AWEUser"]))JKHits[n]=@([JKHits[n] integerValue]+1);
     if([n isEqualToString:@"TTKTabBarBlurView"] && [v.superview isKindOfClass:UITabBar.class]==NO && [NSStringFromClass(v.superview.class) isEqualToString:@"TTKTabBar"]==NO){}
     if([n isEqualToString:@"TTKTabBarBlurView"]){
@@ -481,11 +483,11 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
 }
 static void JKInstaApplyAll(void){
     BOOL on=JKStyleOn();static NSString *last;
-    JKHits=[NSMutableDictionary new];JKNodes=0;JKDeep=0;NSArray *ws=TT48Windows();
+    JKHits=[NSMutableDictionary new];JKGeo=[NSMutableString new];JKNodes=0;JKDeep=0;NSArray *ws=TT48Windows();
     for(UIWindow *w in ws)JKInstaPass(w,on,0);
     NSArray *keys=[JKHits.allKeys sortedArrayUsingSelector:@selector(compare:)];NSMutableString *m=[NSMutableString new];
     for(NSString *k in keys)[m appendFormat:@" %@=%@",k,JKHits[k]];
-    NSString *sum=[NSString stringWithFormat:@"apply style=%ld on=%d windows=%lu nodes=%lu deepest=%lu capped=%d hits:%@",(long)JKStyle(),on,(unsigned long)ws.count,(unsigned long)JKNodes,(unsigned long)JKDeep,JKNodes>=8000,m];
+    NSString *sum=[NSString stringWithFormat:@"apply style=%ld on=%d windows=%lu nodes=%lu deepest=%lu capped=%d geo:%@ hits:%@",(long)JKStyle(),on,(unsigned long)ws.count,(unsigned long)JKNodes,(unsigned long)JKDeep,JKNodes>=8000,JKGeo,m];
     if(![sum isEqualToString:last]){last=sum;JKLog(sum);}
     JKHits=nil;
 }
