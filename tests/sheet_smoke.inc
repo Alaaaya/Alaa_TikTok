@@ -116,7 +116,7 @@ Check(!TT51SheetPeers(unrelated),@"51 no insertion without native Report and Not
 // 55 visual fixture: native-like autolayout sheet, gray background, Joker card + peer card below with gap.
 {
     UIView *cover=[[UIView alloc] initWithFrame:self.window.bounds];cover.backgroundColor=UIColor.systemGroupedBackgroundColor;[self.window addSubview:cover];
-    UIScrollView *vs=[[UIScrollView alloc] initWithFrame:CGRectMake(0,200,self.window.bounds.size.width,520)];vs.backgroundColor=UIColor.systemGroupedBackgroundColor;[cover addSubview:vs];
+    UIScrollView *vs=[[UIScrollView alloc] initWithFrame:CGRectMake(0,200,self.window.bounds.size.width,520)];vs.backgroundColor=UIColor.systemGroupedBackgroundColor;[self.window addSubview:vs];
     UIStackView *outer=[[UIStackView alloc] initWithFrame:CGRectMake(14,12,vs.bounds.size.width-28,0)];outer.axis=UILayoutConstraintAxisVertical;outer.spacing=10;outer.translatesAutoresizingMaskIntoConstraints=NO;[vs addSubview:outer];
     [NSLayoutConstraint activateConstraints:@[[outer.topAnchor constraintEqualToAnchor:vs.contentLayoutGuide.topAnchor constant:12],[outer.leadingAnchor constraintEqualToAnchor:vs.contentLayoutGuide.leadingAnchor constant:14],[outer.bottomAnchor constraintEqualToAnchor:vs.contentLayoutGuide.bottomAnchor constant:-12],[outer.widthAnchor constraintEqualToConstant:vs.bounds.size.width-28]]];
     NSMutableArray *cards=[NSMutableArray new];
@@ -135,7 +135,8 @@ Check(!TT51SheetPeers(unrelated),@"51 no insertion without native Report and Not
     CGRect f0=[c0 convertRect:c0.bounds toView:vs],f1=[c1 convertRect:c1.bounds toView:vs];
     Check(f1.origin.y-CGRectGetMaxY(f0)>=9.5,@"55 native gap below Joker card preserved (autolayout)");
     Check(c0.layer.cornerRadius>=12 && c0.layer.masksToBounds && c1.layer.cornerRadius>=12,@"55 both cards rounded");
+    NSLog(@"55 gapdbg c0=%@ c1=%@ outer=%@ vs=%@ win=%@ sub=%lu",NSStringFromCGRect(f0),NSStringFromCGRect(f1),NSStringFromCGRect(outer.frame),NSStringFromCGRect(vs.frame),NSStringFromCGRect(self.window.bounds),(unsigned long)self.window.subviews.count);
     ShotView(self.window,@"55-card-gap");
-    [se3 scanWindows:@[self.window] enabled:NO hidden:NO];[cover removeFromSuperview];
+    [se3 scanWindows:@[self.window] enabled:NO hidden:NO];[vs removeFromSuperview];[cover removeFromSuperview];
 }
 NSLog(@"PASS 51 native sheet stack+scroll row, exact Arabic title, two-way eye, native frames, duplicate prevention, cleanup and symbol fallback");
