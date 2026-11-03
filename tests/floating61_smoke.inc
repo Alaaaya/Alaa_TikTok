@@ -11,6 +11,7 @@
     TT61RefreshMaterial(download,YES);TT61RefreshMaterial(eye,YES);[hub place:download y:210];[hub place:eye y:280];
     Check([hub.overlay hitTest:CGPointMake(200,100) withEvent:nil]==nil,@"61 overlay never steals unrelated native touches");
     Check(![download viewWithTag:1261].hidden&&[JK61Glasses() objectForKey:[download viewWithTag:1261]].tintColor==UIColor.clearColor,@"61 clear floating glass has no opaque plate");
+    for(UIButton *b in @[download,eye])Check([b.subviews indexOfObject:b.imageView]>[b.subviews indexOfObject:[b viewWithTag:1261]],@"61 floating symbols are above glass at creation, not only after refresh");
     NSInteger taps=hub.tapCount;[eye sendActionsForControlEvents:UIControlEventTouchDown];[eye sendActionsForControlEvents:UIControlEventTouchUpInside];Check(hub.tapCount==taps+1,@"61 native tap remains actionable");
     JK60TestPan *pan=[JK60TestPan new];[eye addGestureRecognizer:pan];
     for(NSValue *point in @[[NSValue valueWithCGPoint:CGPointMake(-900,-900)],[NSValue valueWithCGPoint:CGPointMake(160,230)],[NSValue valueWithCGPoint:CGPointMake(1800,1800)]]){

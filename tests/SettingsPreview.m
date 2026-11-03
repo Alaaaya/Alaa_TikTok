@@ -60,6 +60,7 @@ static void TT61ButtonArt(UIButton *b,NSString *symbol){
     b.contentEdgeInsets=UIEdgeInsetsZero;b.imageEdgeInsets=custom?UIEdgeInsetsZero:UIEdgeInsetsMake(12,12,12,12);
     [b setImage:custom?:[UIImage systemImageNamed:symbol] forState:UIControlStateNormal];
     [b setImage:nil forState:UIControlStateHighlighted];[b setBackgroundImage:nil forState:UIControlStateNormal];
+    [b bringSubviewToFront:b.imageView];
 }
 @interface TT61FloatingButton:UIButton
 @end

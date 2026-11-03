@@ -25,6 +25,10 @@
     [vc showCategory:0 animated:NO];UISwitch *floating=(id)[vc.stack viewWithTag:261],*emoji=(id)[vc.stack viewWithTag:246];
     Check(floating&&emoji&&!floating.on,@"61 readable main-feed floating switch defaults OFF");floating.on=YES;[floating sendActionsForControlEvents:UIControlEventValueChanged];emoji.on=YES;[emoji sendActionsForControlEvents:UIControlEventValueChanged];
     [vc showCategory:-1 animated:NO];[vc showCategory:0 animated:NO];Check(((UISwitch *)[vc.stack viewWithTag:261]).on&&((UISwitch *)[vc.stack viewWithTag:246]).on,@"61 both independent switches persist on reopen");
+    [vc.view layoutIfNeeded];floating=(id)[vc.stack viewWithTag:261];emoji=(id)[vc.stack viewWithTag:246];
+    CGRect toggleRect=CGRectUnion([floating.superview convertRect:floating.superview.bounds toView:vc.pageScroll],[emoji.superview convertRect:emoji.superview.bounds toView:vc.pageScroll]);
+    [vc.pageScroll scrollRectToVisible:toggleRect animated:NO];[vc.view layoutIfNeeded];
+    Check(CGRectIntersectsRect(vc.pageScroll.bounds,[floating convertRect:floating.bounds toView:vc.pageScroll])&&CGRectIntersectsRect(vc.pageScroll.bounds,[emoji convertRect:emoji.bounds toView:vc.pageScroll]),@"61 screenshot shows both independently enabled main-feed and emoji switches");
     Shot(vc,@"61-floating-toggle");[D() setBool:NO forKey:@"tt61.feedFloating"];[D() setBool:NO forKey:@"tt46.emojiBar"];[vc showCategory:-1 animated:NO];
     [vc showCategory:4 animated:NO];[vc.view layoutIfNeeded];Check([vc.stack viewWithTag:620]&&[vc.stack viewWithTag:626]&&[vc.stack viewWithTag:627],@"61 bar swatches custom picker and reset reachable");Shot(vc,@"61-bar-color-swatches");
     UIButton *swatch=(id)[vc.stack viewWithTag:621];[swatch sendActionsForControlEvents:UIControlEventTouchUpInside];Check(JK61BarColor()!=nil,@"61 swatch action persists color");// Real UIKit picker presentation runs asynchronously after this long fixture block returns.
