@@ -15,6 +15,7 @@ static BOOL PB(NSString *key,BOOL fallback){id v=[D() objectForKey:key];return v
 static NSInteger TTGStyle(void){return [D() integerForKey:kPrefStyle];}
 static void TTGRefreshAll(void){}
 static void TTToolRefresh(void){}
+#include "../Glass61.inc"
 #include "../Mascot.inc"
 #include "../EmojiBar.inc"
 #include "../TopFeed.inc"
@@ -98,7 +99,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         Check(vc.stack.arrangedSubviews.count==2,@"one physical grid");
         NSInteger tiles=0;
         for(UIView *row in vc.stack.arrangedSubviews)for(UIView *v in row.subviews)if([v isKindOfClass:UIButton.class])tiles++;
-        Check(tiles==6,@"six tiles when Shijima absent");
+        Check(tiles==7,@"six tiles when Shijima absent");
         for(UIView *tile in vc.stack.arrangedSubviews.firstObject.subviews)Check(tile.tag!=5,@"no absent Shijima tile");
         Check(vc.pageHeader.superview==vc.panel.contentView,@"pinned header");
         [vc.view setNeedsLayout];[vc.view layoutIfNeeded];
@@ -162,7 +163,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         #include "style_smoke.inc"
         #include "sheet_smoke.inc"
         Shot(vc,@"home");
-        for(NSInteger page=0;page<7;page++){
+        for(NSInteger page=0;page<8;page++){
             [vc showCategory:page animated:NO];
             Check(!vc.backButton.hidden,@"back on category");
             Check(vc.category==page && vc.stack.arrangedSubviews.count>0,@"category populated");
@@ -201,7 +202,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         Check(!((UISwitch *)[vc.stack viewWithTag:246]).on,@"47 OFF survives reopen");
         InstalledSettings *installed=[InstalledSettings new];[installed loadViewIfNeeded];
         [installed showCategory:-1 animated:NO];
-        Check(installed.stack.arrangedSubviews.firstObject.subviews.count==7,@"installed Shijima tile retained");
+        Check(installed.stack.arrangedSubviews.firstObject.subviews.count==8,@"installed Shijima tile retained");
         // Original mascot rendering, physics, settings, and pause-state smoke.
         [D() setBool:YES forKey:@"tt.pet.enabled"];
         TTJokerPet *pet=[TTJokerPet shared];[pet attach:vc];[pet refresh];

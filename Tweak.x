@@ -4,6 +4,7 @@
 #import <objc/runtime.h>
 #import <AVFoundation/AVFoundation.h>
 #import <MetalKit/MetalKit.h>
+#include "Glass61.inc"
 static char kBtnsKey;
 
 static const NSInteger kGlassTag = 0x61A55;
@@ -271,6 +272,7 @@ static void TTGExtend(UIView *v, CGFloat barTop, CGFloat bottom, UIView *skip, i
     TTGCapsule(glass, TTGFloating());
     if (TTGStyle() == 0 && NSClassFromString(@"UIGlassEffect")) glass.layer.borderWidth = 0;
     glass.layer.borderWidth = TTGFloating() ? 0.6 : 0;
+    JK61Register(glass,nil,@"dock");
 
     // Instagram-style layout: move buttons into the pill with transforms (TikTok re-lays frames, not transforms).
     NSMutableArray *targets = [NSMutableArray array];
@@ -304,6 +306,7 @@ static void TTGExtend(UIView *v, CGFloat barTop, CGFloat bottom, UIView *skip, i
         }
         sel.tag = kSelTag;
         sel.userInteractionEnabled = NO;
+        JK61Register(sel,nil,@"dock-selection");
         [self insertSubview:sel aboveSubview:glass];
     }
     NSInteger selIdx = -1;
@@ -690,6 +693,7 @@ static NSArray<UIImage *> *TTGCommentMasks(CGSize size, CGFloat scale) {
     _glassMask.tintColor = UIColor.whiteColor;
     _glass.maskView = _glassMask;
     [self addSubview:_glass];
+    JK61Register(_glass,nil,@"rail-decor");
     _body = [UIImageView new];
     _body.tintColor = [UIColor colorWithWhite:1 alpha:0.065];
     [self addSubview:_body];
@@ -1605,8 +1609,8 @@ static UIVisualEffect *TTJokerGlass(void) {
     [[TTToolPicker shared] choose:sender.tag presenter:self source:sender];
 }
 - (UIButton *)categoryTile:(NSInteger)index {
-    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima",@"شخصية Joker"];
-    NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3",@"pawprint",@"cat"];
+    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima",@"شخصية Joker",@"الزجاج"];
+    NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3",@"pawprint",@"cat",@"square.on.square"];
     TTJokerTile *tile=[TTJokerTile buttonWithType:UIButtonTypeCustom];tile.tag=index;
     tile.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
     tile.backgroundColor=[UIColor colorWithWhite:1 alpha:.10];tile.layer.cornerRadius=18;
@@ -1644,7 +1648,7 @@ static UIVisualEffect *TTJokerGlass(void) {
 - (void)openCategory:(UIButton *)tile { [self showCategory:tile.tag animated:YES]; }
 - (void)goBack { [self showCategory:-1 animated:YES]; }
 - (void)showCategory:(NSInteger)category animated:(BOOL)animated {
-    if(self.pageAnimating || category < -1 || category > 6)return;
+    if(self.pageAnimating || category < -1 || category > 7)return;
     BOOL back=category==-1;
     UIView *snapshot=animated?[self.pageScroll snapshotViewAfterScreenUpdates:NO]:nil;
     if(snapshot){snapshot.frame=[self.pageScroll convertRect:self.pageScroll.bounds toView:self.panel.contentView];[self.panel.contentView addSubview:snapshot];}
@@ -1653,13 +1657,13 @@ static UIVisualEffect *TTJokerGlass(void) {
         [self.stack removeArrangedSubview:view];[view removeFromSuperview];
     }
     self.category=category;self.backButton.hidden=back;
-    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima",@"شخصية Joker"];
+    NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima",@"شخصية Joker",@"الزجاج"];
     self.pageTitle.text=back?@"Joker":names[category];
     if(back) {
         TTJokerGrid *grid=[TTJokerGrid new];
         grid.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
-        [grid.heightAnchor constraintEqualToConstant:([self shijimaInstalled]?274:180)].active=YES;
-        for(NSInteger i=0;i<7;i++){if(i==5 && ![self shijimaInstalled])continue;[grid addSubview:[self categoryTile:i]];}
+        [grid.heightAnchor constraintEqualToConstant:274].active=YES;
+        for(NSInteger i=0;i<8;i++){if(i==5 && ![self shijimaInstalled])continue;[grid addSubview:[self categoryTile:i]];}
         [self.stack addArrangedSubview:grid];
         [self.stack addArrangedSubview:[self diagnosticsRow]];
     } else {
@@ -1670,6 +1674,15 @@ static UIVisualEffect *TTJokerGlass(void) {
         if ((category==0 && i!=1) || (category==1 && i==1))
         [self.stack addArrangedSubview:[self row:featureTitles[i] symbol:featureSymbols[i] key:featureKeys[i] defaultValue:YES tag:100+i]];
 
+    if(category==7){
+        NSArray *labels=@[@"درجة التعتيم / الشفافية",@"قوة الضبابية",@"لمعة الحواف"];
+        for(NSInteger i=0;i<3;i++){
+            [self.stack addArrangedSubview:[self label:labels[i] size:15 weight:UIFontWeightMedium]];
+            UISlider *slider=[UISlider new];slider.tag=610+i;slider.minimumValue=0;slider.maximumValue=1;slider.value=JK61Value(JK61Keys()[i]);slider.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+            [slider addTarget:self action:@selector(glassChanged:) forControlEvents:UIControlEventValueChanged];[self.stack addArrangedSubview:slider];
+        }
+        UIButton *reset=[UIButton buttonWithType:UIButtonTypeSystem];[reset setTitle:@"إعادة الزجاج للوضع الافتراضي" forState:UIControlStateNormal];[reset addTarget:self action:@selector(glassReset:) forControlEvents:UIControlEventTouchUpInside];[self.stack addArrangedSubview:reset];
+    }
     if(category==0) {
     [self.stack addArrangedSubview:[self row:@"العين والتنزيل العائمان بالشاشة الرئيسية" symbol:@"eye.circle" key:@"tt61.feedFloating" defaultValue:NO tag:261]];
     [self.stack addArrangedSubview:[self row:@"إظهار بشريط الإيموجي" symbol:@"face.smiling" key:@"tt46.emojiBar" defaultValue:NO tag:246]];
@@ -1834,6 +1847,7 @@ static UIVisualEffect *TTJokerGlass(void) {
     self.panel.contentView.backgroundColor = [UIColor colorWithWhite:0 alpha:0.40];
     self.panel.semanticContentAttribute = UISemanticContentAttributeForceLeftToRight;
     [self.view addSubview:self.panel];
+    JK61Register(self.panel,self.panel.contentView,@"panel");
     self.sheen=[CAGradientLayer layer];
     self.sheen.colors=@[(id)[UIColor colorWithWhite:1 alpha:.20].CGColor,
                         (id)[UIColor colorWithWhite:1 alpha:0].CGColor,
@@ -1979,6 +1993,8 @@ static UIVisualEffect *TTJokerGlass(void) {
     menu.popoverPresentationController.sourceView=sender;menu.popoverPresentationController.sourceRect=sender.bounds;
     [self presentViewController:menu animated:YES completion:nil];
 }
+- (void)glassChanged:(UISlider *)sender {if(sender.tag>=610&&sender.tag<=612)JK61Set(JK61Keys()[sender.tag-610],sender.value);}
+- (void)glassReset:(UIButton *)sender {JK61Reset();for(UIView *v in self.stack.arrangedSubviews)if([v isKindOfClass:UISlider.class]&&v.tag>=610&&v.tag<=612)((UISlider *)v).value=JK61Value(JK61Keys()[v.tag-610]);}
 - (void)petSize:(UISlider *)sender {[D() setDouble:sender.value forKey:@"tt.pet.size"];[[TTJokerPet shared] refresh];}
 - (void)petKind:(UISegmentedControl *)sender {[D() setInteger:sender.selectedSegmentIndex forKey:@"tt.pet.kind"];[[TTJokerPet shared] refresh];}
 - (void)changed:(UISwitch *)sender {

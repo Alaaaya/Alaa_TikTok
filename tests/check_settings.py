@@ -10,7 +10,7 @@ assert 'TWEAK_NAME = Alaa_TikTok' in (root/'Makefile').read_text()
 assert 'brand.text=copy?@"Joker · نسخ":@"Joker · تنزيل"' in p
 page=s[s.index('- (void)showCategory:'):s.index('- (void)loadView {',s.index('- (void)showCategory:'))]
 home=page[page.index('    if(back) {'):page.index('    } else {')]
-assert 'for(NSInteger i=0;i<7;i++)' in home and '[self categoryTile:i]' in home
+assert 'for(NSInteger i=0;i<8;i++)' in home and '[self categoryTile:i]' in home
 assert 'TTJokerGrid *grid=' in home
 assert 'self row:' not in home
 assert '[self showCategory:-1 animated:YES]' in s
@@ -30,7 +30,7 @@ assert 'startAccessingSecurityScopedResource' in c and 'stopAccessingSecuritySco
 assert '20*1024*1024' in c and 'kCGImageSourceThumbnailMaxPixelSize:@256' in c
 assert 'NSDocumentDirectory' in c and 'NSDataWritingAtomic' in c
 assert 'إعادة الافتراضي' in c and 'removeItemAtPath:path' in c
-assert 'TTToolGlyph(1222,self.uiHidden?' in p and 'TTToolGlyph(1221,@"arrow.down")' in p
+assert 'TT61ButtonArt(self.eyeButton,self.uiHidden?' in p and 'TT61ButtonArt(self.downloadButton,@"arrow.down")' in p
 assert 'requestAuthorization' not in c # PHPicker requires no broad Photo Library access.
 assert 'TTToolRefresh();' in c
 print('PASS five LTR category tiles, scoped toggles, back/slide/reduced-motion, Joker display-only rename, safe persisted custom tool art')
@@ -54,7 +54,7 @@ assert '@"com.pixelomer.shijimademoprefs"' in s
 assert 'sw.on=installed;sw.enabled=NO' in s
 assert 'not installed' in s
 
-assert 'category > 6' in s
+assert 'category > 7' in s
 
 assert 'if(sender.tag==246){[D() setBool:sender.on forKey:@"tt46.emojiBar"]' in settings
 assert '@"إظهار بشريط الإيموجي"' in settings

@@ -142,6 +142,21 @@ static UIVisualEffect *TT61ClearEffect(void){
     if(cls&&[cls respondsToSelector:make])return ((id(*)(id,SEL,NSInteger))objc_msgSend)(cls,make,1);
     return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialLight];
 }
+// Main-feed UIButton identities only. Emoji bar and sheet never call this.
+static void TT61ButtonArt(UIButton *b,NSString *symbol){
+    if(b.tag!=1221&&b.tag!=1222)return;
+    UIImage *custom=TTToolImage(b.tag);UIView *glass=[b viewWithTag:1261];
+    glass.hidden=custom!=nil;
+    b.backgroundColor=UIColor.clearColor;b.layer.borderWidth=0;b.layer.shadowOpacity=0;
+    b.layer.cornerRadius=0;b.clipsToBounds=NO;b.layer.masksToBounds=NO;
+    b.imageView.clipsToBounds=NO;b.imageView.layer.cornerRadius=0;
+    b.imageView.contentMode=UIViewContentModeScaleAspectFit;
+    b.adjustsImageWhenHighlighted=custom?NO:YES;
+    b.contentEdgeInsets=UIEdgeInsetsZero;b.imageEdgeInsets=custom?UIEdgeInsetsZero:UIEdgeInsetsMake(14,14,14,14);
+    [b setImage:custom?:[UIImage systemImageNamed:symbol] forState:UIControlStateNormal];
+    [b setImage:nil forState:UIControlStateHighlighted];[b setBackgroundImage:nil forState:UIControlStateNormal];
+}
+static BOOL TT61FloatingHidden(NSString *key){return (!PB(@"tt61.feedFloating",NO)&&PB(@"tt46.emojiBar",NO))||!TT122Enabled(key);}
 static UIView *TT122Material(CGRect frame) {
     UIVisualEffectView *v = [[UIVisualEffectView alloc] initWithEffect:TTGEffect()];
     v.frame = frame; v.layer.cornerRadius = MIN(22, frame.size.height/2); v.clipsToBounds = YES;
@@ -150,6 +165,7 @@ static UIView *TT122Material(CGRect frame) {
     tint.backgroundColor = [UIColor colorWithWhite:0 alpha:.38]; tint.userInteractionEnabled = NO;
     [v.contentView addSubview:tint];
     v.layer.borderColor = [UIColor colorWithWhite:1 alpha:.3].CGColor; v.layer.borderWidth = .65;
+    JK61Register(v,tint,@"sheet-card");
     return v;
 }
 @implementation TT122Hub
@@ -174,7 +190,7 @@ static UIView *TT122Material(CGRect frame) {
         if (s.numberOfArguments == 4) @try { ((void(*)(id,SEL,BOOL,id))objc_msgSend)(target,sel,NO,nil); } @catch (__unused NSException *e) {}
     }
     self.uiHidden = NO; self.hiddenInteraction = nil;
-    [self.eyeButton setImage:TTToolGlyph(1222,@"eye") forState:UIControlStateNormal];
+    TT61ButtonArt(self.eyeButton,@"eye");
 }
 - (void)track:(UIViewController *)controller {
     if (!controller.isViewLoaded || !controller.view.window || controller.view.hidden) return;
@@ -244,7 +260,7 @@ static UIView *TT122Material(CGRect frame) {
     @try {
         ((void(*)(id,SEL,BOOL,id))objc_msgSend)(interaction,selector,YES,nil);
         self.hiddenInteraction=interaction;
-        [self.eyeButton setImage:TTToolGlyph(1222,@"eye.slash") forState:UIControlStateNormal];
+        TT61ButtonArt(self.eyeButton,@"eye.slash");
     } @catch (__unused NSException *error) {}
 }
 - (UIButton *)floating:(NSString *)symbol tag:(NSInteger)tag {
@@ -256,6 +272,7 @@ static UIView *TT122Material(CGRect frame) {
     [b addTarget:self action:@selector(tapped:) forControlEvents:UIControlEventTouchUpInside];
     UIPanGestureRecognizer *pan=[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(pan:)];pan.cancelsTouchesInView=YES;[b addGestureRecognizer:pan];
     [b addTarget:self action:@selector(beginFloatingTap:) forControlEvents:UIControlEventTouchDown];
+    TT61ButtonArt(b,symbol);
     return b;
 }
 - (void)beginFloatingTap:(UIButton *)sender {self.dragExceeded=NO;}
@@ -327,17 +344,24 @@ static UIView *TT122Material(CGRect frame) {
     self.overlay.hidden = !onScreen || !feedTop;
     if(!self.overlay.hidden && self.overlay.superview.subviews.lastObject!=self.overlay)[window bringSubviewToFront:self.overlay];
     BOOL floating=PB(@"tt61.feedFloating",NO);
-    BOOL hideFloating=(!floating && PB(@"tt46.emojiBar",NO));
-    self.downloadButton.hidden = hideFloating || !TT122Enabled(@"tt122.download");
-    self.eyeButton.hidden = hideFloating || !TT122Enabled(@"tt122.eye");
+    self.downloadButton.hidden = TT61FloatingHidden(@"tt122.download");
+    self.eyeButton.hidden = TT61FloatingHidden(@"tt122.eye");
     for(UIButton *button in @[self.downloadButton,self.eyeButton]){
         UIVisualEffectView *glass=(id)[button viewWithTag:1261];
-        if(glass){glass.effect=floating?TT61ClearEffect():TTGEffect();for(UIView *tint in glass.contentView.subviews)tint.backgroundColor=floating?UIColor.clearColor:[UIColor colorWithWhite:0 alpha:.38];}
+        if(glass){
+            JK61GlassRecord *record=[JK61Glasses() objectForKey:glass];
+            NSString *role=floating?@"floating-clear":@"floating-legacy";
+            if(![record.role isEqual:role]){
+                [record.animator stopAnimation:YES];[JK61Glasses() removeObjectForKey:glass];glass.effect=floating?TT61ClearEffect():TTGEffect();
+                UIView *tint=glass.contentView.subviews.firstObject;tint.backgroundColor=floating?UIColor.clearColor:[UIColor colorWithWhite:0 alpha:.38];
+                JK61Register(glass,tint,role);
+            }
+        }
     }
     self.progressButton.hidden = !self.busy || !TT122Enabled(@"tt122.progress");
     if (!TT122Enabled(@"tt122.eye") && self.uiHidden) [self restoreUI];
-    [self.downloadButton setImage:TTToolGlyph(1221,@"arrow.down") forState:UIControlStateNormal];
-    [self.eyeButton setImage:TTToolGlyph(1222,self.uiHidden?@"eye.slash":@"eye") forState:UIControlStateNormal];
+    TT61ButtonArt(self.downloadButton,@"arrow.down");
+    TT61ButtonArt(self.eyeButton,self.uiHidden?@"eye.slash":@"eye");
     self.eyeButton.accessibilityValue=self.uiHidden?@"العناصر مخفية":@"العناصر ظاهرة";
     self.downloadButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
     self.eyeButton.imageView.contentMode=UIViewContentModeScaleAspectFit;

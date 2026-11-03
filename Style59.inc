@@ -105,7 +105,7 @@ static void JK59Dock(UIView *bar,BOOL on){
     bar.layer.borderWidth=1;bar.layer.borderColor=[UIColor colorWithRed:239/255.0 green:244/255.0 blue:241/255.0 alpha:.14].CGColor;
     UIVisualEffectView *glass=(UIVisualEffectView *)[bar viewWithTag:9358];
     if(!glass){glass=[[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleDark]];glass.tag=9358;glass.userInteractionEnabled=NO;[bar insertSubview:glass atIndex:0];}
-    glass.frame=bar.bounds;glass.layer.cornerRadius=31;glass.clipsToBounds=YES;
+    glass.frame=bar.bounds;glass.layer.cornerRadius=31;glass.clipsToBounds=YES;JK61Register(glass,nil,@"alaa-dock");
     UITabBar *fake=JK59FakeBar(bar);NSUInteger selectedIndex=NSNotFound;
     if(fake.items.count==4 && fake.selectedItem){NSUInteger j=[fake.items indexOfObjectIdenticalTo:fake.selectedItem];if(j<4)selectedIndex=j<2?j:j+1;}
     if(fake && !fake.userInteractionEnabled)JK59HidePaint(fake,bg);
