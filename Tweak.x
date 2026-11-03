@@ -1136,7 +1136,6 @@ static void TT48Added(UIView *view);
 }
 - (void)setUserInteractionEnabled:(BOOL)enabled {%orig(JK60Interaction(self,TT50Interaction(self,enabled)));}
 - (void)willMoveToWindow:(UIWindow *)window {JK60Tree(self);TT50Lifecycle(self);%orig;}
-- (void)layoutSubviews {%orig;JK60BeforeDraw(self);}
 - (void)didAddSubview:(UIView *)view {
     JK60Tree(view);TT50Tree(view);%orig;TT48Added(view);
     if (!self.window || view.tag == kActionGlassTag || [self isKindOfClass:UIVisualEffectView.class]) return;
@@ -1275,7 +1274,7 @@ static void TT122Recover(void);
 #include "HierarchyDump.inc"
 #include "ReactionObserver.inc"
 %hook UIView
-- (void)layoutSubviews {%orig;TT50Lifecycle((UIView *)self);}
+- (void)layoutSubviews {%orig;JK60BeforeDraw(self);TT50Lifecycle((UIView *)self);}
 - (void)didMoveToWindow {%orig;TT50Lifecycle((UIView *)self);if(self.window)TT48Added((UIView *)self);else TT48Schedule();}
 - (void)addGestureRecognizer:(UIGestureRecognizer *)gesture {%orig;TT48ObserveGesture(gesture);}
 %end
