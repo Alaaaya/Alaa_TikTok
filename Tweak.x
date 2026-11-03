@@ -1457,6 +1457,45 @@ static UIVisualEffect *TTJokerGlass(void) {
 @property(nonatomic,strong) UIView *panelShadow;
 @end
 @implementation TTGSettingsController
+- (NSURL *)diagnosticLogURL {
+    NSString *folder=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject;
+    if(!folder)return nil;
+    NSString *path=[folder stringByAppendingPathComponent:@"joker_debug.txt"];
+    @synchronized(NSFileManager.defaultManager) {
+        if(![NSFileManager.defaultManager fileExistsAtPath:path]) {
+            NSString *notice=@"Joker 49\nNo diagnostics recorded yet. Enable the emoji-bar option and long-press comments, then share again.\n";
+            if(![notice writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil])return nil;
+        }
+    }
+    return [NSURL fileURLWithPath:path];
+}
+- (void)shareDiagnostics:(UIButton *)sender {
+    if(self.presentedViewController)return;
+    NSURL *url=[self diagnosticLogURL];
+    if(!url) {
+        UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"تعذّر فتح السجل" message:@"جرّب مرة ثانية" preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"حسناً" style:UIAlertActionStyleCancel handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];return;
+    }
+    UIActivityViewController *share=[[UIActivityViewController alloc] initWithActivityItems:@[url] applicationActivities:nil];
+    share.popoverPresentationController.sourceView=sender;
+    share.popoverPresentationController.sourceRect=sender.bounds;
+    [self presentViewController:share animated:YES completion:nil];
+}
+- (UIButton *)diagnosticsRow {
+    UIButton *row=[UIButton buttonWithType:UIButtonTypeSystem];
+    row.backgroundColor=[UIColor colorWithWhite:1 alpha:.08];row.layer.cornerRadius=18;
+    row.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    row.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft;
+    [row setTitle:@"  مشاركة سجل التشخيص" forState:UIControlStateNormal];
+    [row setImage:[UIImage systemImageNamed:@"square.and.arrow.up"] forState:UIControlStateNormal];
+    row.tintColor=UIColor.whiteColor;row.titleLabel.font=[UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
+    row.titleLabel.adjustsFontSizeToFitWidth=YES;
+    row.accessibilityLabel=@"مشاركة سجل التشخيص";
+    [row.heightAnchor constraintEqualToConstant:58].active=YES;
+    [row addTarget:self action:@selector(shareDiagnostics:) forControlEvents:UIControlEventTouchUpInside];
+    TTJokerForceLTR(row);return row;
+}
 - (BOOL)shijimaInstalled {
     for(NSString *root in @[@"/var/jb/Applications",@"/Applications"])
         if([NSFileManager.defaultManager fileExistsAtPath:[root stringByAppendingPathComponent:@"ShijimaPrefs.app/Info.plist"]]) return YES;
@@ -1590,6 +1629,7 @@ static UIVisualEffect *TTJokerGlass(void) {
         [grid.heightAnchor constraintEqualToConstant:([self shijimaInstalled]?274:180)].active=YES;
         for(NSInteger i=0;i<7;i++){if(i==5 && ![self shijimaInstalled])continue;[grid addSubview:[self categoryTile:i]];}
         [self.stack addArrangedSubview:grid];
+        [self.stack addArrangedSubview:[self diagnosticsRow]];
     } else {
     NSArray *featureTitles = @[@"زر التنزيل العائم",@"زر إخفاء العناصر",@"حلقة تقدم التنزيل",@"تنزيل عادي",@"تنزيل HD",@"أعلى جودة متاحة",@"تنزيل الصوت (ملفات)",@"قائمة النسخ"];
     NSArray *featureSymbols = @[@"arrow.down.circle",@"eye",@"circle.dotted",@"arrow.down",@"h.circle",@"sparkles",@"waveform",@"doc.on.doc"];

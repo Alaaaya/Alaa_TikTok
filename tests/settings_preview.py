@@ -57,7 +57,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC),dispatch_get_main_queue(), ^{
         Check([vc.pageTitle.text isEqual:@"Joker"],@"brand");
         Check(vc.backButton.hidden,@"home back hidden");
-        Check(vc.stack.arrangedSubviews.count==1,@"one physical grid");
+        Check(vc.stack.arrangedSubviews.count==2,@"one physical grid");
         NSInteger tiles=0;
         for(UIView *row in vc.stack.arrangedSubviews)for(UIView *v in row.subviews)if([v isKindOfClass:UIButton.class])tiles++;
         Check(tiles==6,@"six tiles when Shijima absent");
@@ -69,6 +69,13 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         UIView *grid=vc.stack.arrangedSubviews.firstObject;[grid layoutIfNeeded];
         Check(grid.subviews[0].frame.origin.x<grid.subviews[1].frame.origin.x,@"download first left");
         Check(grid.subviews[2].frame.origin.y==grid.subviews[0].frame.origin.y,@"three columns");
+        UIButton *shareRow=(UIButton *)vc.stack.arrangedSubviews.lastObject;
+        Check([shareRow.accessibilityLabel isEqual:@"مشاركة سجل التشخيص"],@"49 share row bottom");
+        NSURL *logURL=[vc diagnosticLogURL];
+        Check([logURL.lastPathComponent isEqual:@"joker_debug.txt"],@"49 correct file");
+        Check([NSFileManager.defaultManager fileExistsAtPath:logURL.path],@"49 missing log created");
+        [@"fixture-class-only" writeToURL:logURL atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        Check([[NSString stringWithContentsOfURL:[vc diagnosticLogURL] encoding:NSUTF8StringEncoding error:nil] isEqual:@"fixture-class-only"],@"49 existing log preserved");
         Shot(vc,@"home");
         for(NSInteger page=0;page<7;page++){
             [vc showCategory:page animated:NO];
@@ -87,7 +94,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
             }
             Shot(vc,[NSString stringWithFormat:@"category-%ld",(long)page]);
             [vc showCategory:-1 animated:NO];
-            Check(vc.category==-1 && vc.stack.arrangedSubviews.count==1,@"back restores grid");
+            Check(vc.category==-1 && vc.stack.arrangedSubviews.count==2,@"back restores grid");
         }
         // Regression 47: persist both toggle directions and reopen the category.
         [vc showCategory:0 animated:NO];[vc.view layoutIfNeeded];
