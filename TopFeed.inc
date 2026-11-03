@@ -9,6 +9,7 @@ static void TT49RestoreTop(void) {
     [map removeAllObjects];
 }
 static BOOL TT49TabText(NSString *s) {
+    if(!s.length)return NO;
     return [@[@"المجتمع",@"بالقرب مني",@"أتابعه",@"التسوق",@"لك",@"أتابع",@"For You",@"Following",@"Shop",@"Nearby",@"Friends"] containsObject:[s stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]];
 }
 static void TT49HideTop(UIWindow *window) {
