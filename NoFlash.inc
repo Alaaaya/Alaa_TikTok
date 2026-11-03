@@ -1,3 +1,13 @@
+// 60 collapse and independent eye state compose without poisoning snapshots.
+static BOOL JKRailClosed=YES;
+static BOOL JK60Restoring=NO;
+static NSMapTable<UIView *,NSArray *> *JK60Saved(void){static NSMapTable *m;static dispatch_once_t once;dispatch_once(&once,^{m=[NSMapTable weakToStrongObjectsMapTable];});return m;}
+static BOOL JK60Active(void){return !JK60Restoring && JKRailClosed && [NSUserDefaults.standardUserDefaults integerForKey:@"tt.interface.style"]==3;}
+static BOOL JK60Chrome(UIView *view);
+static void JK60Save(UIView *view);
+static CGFloat JK60Alpha(UIView *v,CGFloat a){if(JK60Active()&&JK60Chrome(v)){JK60Save(v);return 0;}return a;}
+static BOOL JK60Hidden(UIView *v,BOOL h){if(JK60Active()&&JK60Chrome(v)){JK60Save(v);return YES;}return h;}
+static BOOL JK60Interaction(UIView *v,BOOL i){if(JK60Active()&&JK60Chrome(v)){JK60Save(v);return NO;}return i;}
 // Synchronous eye-state guards. Never hide a video container, cell, or interaction root.
 static BOOL TT50EyeActive=NO;
 static NSMapTable<UIView *,NSArray *> *TT50Saved(void) {
@@ -14,7 +24,7 @@ static BOOL TT50Chrome(UIView *view) {
 }
 static void TT50Save(UIView *view) {
     if(![TT50Saved() objectForKey:view])
-        [TT50Saved() setObject:@[@(view.alpha),@(view.hidden),@(view.userInteractionEnabled)] forKey:view];
+        [TT50Saved() setObject:([JK60Saved() objectForKey:view]?:@[@(view.alpha),@(view.hidden),@(view.userInteractionEnabled)]) forKey:view];
 }
 static CGFloat TT50Alpha(UIView *view,CGFloat requested) {
     if(!TT50EyeActive || !TT50Chrome(view))return requested;
@@ -51,8 +61,8 @@ static void TT50Restore(void) {
     [UIView performWithoutAnimation:^{
         for(UIView *view in TT50Saved().keyEnumerator.allObjects) {
             NSArray *state=[TT50Saved() objectForKey:view];
-            view.alpha=[state[0] doubleValue];view.hidden=[state[1] boolValue];
-            view.userInteractionEnabled=[state[2] boolValue];
+            view.alpha=JK60Alpha(view,[state[0] doubleValue]);view.hidden=JK60Hidden(view,[state[1] boolValue]);
+            view.userInteractionEnabled=JK60Interaction(view,[state[2] boolValue]);
         }
     }];
     [TT50Saved() removeAllObjects];
@@ -64,3 +74,14 @@ static void TT50Lifecycle(UIView *view) {
        [name isEqual:@"TTKFeedInteractionMainView"])TT50Tree(view);
     else TT50BeforeDraw(view);
 }
+
+static BOOL JK60Chrome(UIView *view){
+    NSString *n=NSStringFromClass(view.class);
+    // Never hide a feed/cell/video container, window, mascot or floating trigger.
+    return TT50Chrome(view)||[@[@"TTKTabBar",@"TTKFakeTabBar",@"TTKFeedTabCornerItemView",@"TTKFeedBaseBottomBarView",@"AWEUserNameLabel",@"AWEAwemeMusicInfoView"] containsObject:n]||view.tag==9360||view.tag==9361||view.tag==1221||view.tag==1222||view.tag==1223;
+}
+static void JK60Save(UIView *v){if(![JK60Saved() objectForKey:v])[JK60Saved() setObject:([TT50Saved() objectForKey:v]?:@[@(v.alpha),@(v.hidden),@(v.userInteractionEnabled)]) forKey:v];}
+static void JK60BeforeDraw(UIView *v){if(!JK60Active()||!JK60Chrome(v))return;JK60Save(v);[UIView performWithoutAnimation:^{v.alpha=0;v.hidden=YES;v.userInteractionEnabled=NO;[v.layer removeAnimationForKey:@"opacity"];}];}
+static void JK60Tree(UIView *root){if(!JK60Active()||!root)return;NSMutableArray *q=[NSMutableArray arrayWithObject:root];for(NSUInteger i=0;i<q.count&&i<8000;i++){UIView *v=q[i];JK60BeforeDraw(v);[q addObjectsFromArray:[v.subviews copy]];}}
+static void JK60Restore(void){JK60Restoring=YES;for(UIView *v in JK60Saved().keyEnumerator.allObjects){NSArray *r=[JK60Saved() objectForKey:v];v.alpha=TT50Alpha(v,[r[0] doubleValue]);v.hidden=TT50Hidden(v,[r[1] boolValue]);v.userInteractionEnabled=TT50Interaction(v,[r[2] boolValue]);}[JK60Saved() removeAllObjects];JK60Restoring=NO;}
+static BOOL JK60PaintVisible(UIView *v){NSArray *r=[JK60Saved() objectForKey:v];return r?([r[0] doubleValue]>.01&&![r[1] boolValue]):v.alpha>.01&&!v.hidden;}

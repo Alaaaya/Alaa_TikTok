@@ -10,6 +10,10 @@ prefix=prefix.replace('static void TTJokerPetSync(void);\n','').replace('    TTJ
 # 58 exact scoped handoff avoids competing paint owners; renderer stays unchanged otherwise.
 prefix=prefix.replace('static BOOL JKStyleOwnsPaint(UIView *native);\nstatic void JKStyleSync(UIView *native);\n','')
 prefix=prefix.replace('        // Style58 owns only inert paint inside the real button. Glass must not\n        // rediscover/dim that glyph or hide its source while the style is active.\n        if(JKStyleOwnsPaint(button)){TTGRestoreGlyph(button);JKStyleSync(button);return;}\n\n','')
+# 60 exact collapse wrappers and pre-draw lifecycle, no renderer rewrite.
+prefix=prefix.replace('%orig(JK60Alpha(self,JKStyleAlpha(self,TTGGuardRendererAlpha(self, TT50Alpha(self,alpha)))))','%orig(JKStyleAlpha(self,TTGGuardRendererAlpha(self, TT50Alpha(self,alpha))))')
+prefix=prefix.replace('%orig(JK60Hidden(self,TT50Hidden(self,hidden)));','%orig(TT50Hidden(self,hidden));').replace('%orig(JK60Interaction(self,TT50Interaction(self,enabled)));','%orig(TT50Interaction(self,enabled));')
+prefix=prefix.replace('JK60Tree(self);','').replace('JK60Tree(view);','').replace('- (void)layoutSubviews {%orig;JK60BeforeDraw(self);}\n','')
 # 52 interface style hooks, normalized narrowly.
 prefix=prefix.replace('static void JKStyleSync(UIView *native);\nstatic CGFloat JKStyleAlpha(UIView *view,CGFloat requested);\n','')
 prefix=prefix.replace('%orig(JKStyleAlpha(self,TTGGuardRendererAlpha(self, TT50Alpha(self,alpha))))','%orig(TTGGuardRendererAlpha(self, TT50Alpha(self,alpha)))')

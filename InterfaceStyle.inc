@@ -90,7 +90,7 @@ static NSString *JKCountText(UIView *view,NSUInteger depth) {
 }
 
 // Alaa rail collapse trigger. Dragging affects this 48pt control only, never native inputs.
-static BOOL JKRailClosed=YES;
+
 static const void *kJKCollapseAlpha=&kJKCollapseAlpha,*kJKDockPaintAlpha=&kJKDockPaintAlpha;
 static void JKRailApply(UIWindow *window,BOOL animated);
 @interface JKAlaaToggle:UIControl
@@ -377,8 +377,8 @@ static const void *kJKAvaRec=&kJKAvaRec;
 @end
 static UIView *JKFindClass(UIView *root,NSString *name,NSUInteger depth){
     if([NSStringFromClass(root.class) isEqualToString:name] && root.window){
-        CGRect wr=[root convertRect:root.bounds toView:root.window];BOOL visible=!root.hidden&&root.alpha>.01&&CGRectIntersectsRect(wr,root.window.bounds)&&!CGRectIsEmpty(wr);
-        for(UIView *p=root.superview;visible&&p;p=p.superview)if(p.hidden||p.alpha<=.01)visible=NO;
+        CGRect wr=[root convertRect:root.bounds toView:root.window];BOOL visible=JK60PaintVisible(root)&&CGRectIntersectsRect(wr,root.window.bounds)&&!CGRectIsEmpty(wr);
+        for(UIView *p=root.superview;visible&&p;p=p.superview)if(!JK60PaintVisible(p))visible=NO;
         if(visible)return root;
     }
     if(depth>80)return nil;
@@ -630,7 +630,7 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
 static void JKInstaApplyAll(void){
     BOOL on=JKStyleOn();static NSString *last;
     JKHits=[NSMutableDictionary new];JKGeo=[NSMutableString new];JKReasons=[NSMutableDictionary new];JKStyled=JKSkipped=0;JKNodes=0;JKDeep=0;NSArray *ws=TT48Windows();
-    for(UIWindow *w in ws){JKInstaPass(w,on,0);JK59Window(w,on&&JKAlaa());}
+    for(UIWindow *w in ws){JKInstaPass(w,on,0);JK59Window(w,on&&JKAlaa());if(on&&JKAlaa())JK60Tree(w);}
     NSArray *keys=[JKHits.allKeys sortedArrayUsingSelector:@selector(compare:)];NSMutableString *m=[NSMutableString new];
     for(NSString *k in keys)[m appendFormat:@" %@=%@",k,JKHits[k]];
     NSString *sum=[NSString stringWithFormat:@"apply style=%ld on=%d windows=%lu nodes=%lu deepest=%lu capped=%d styled=%lu skipped=%lu reasons=%@ geo:%@ hits:%@",(long)JKStyle(),on,(unsigned long)ws.count,(unsigned long)JKNodes,(unsigned long)JKDeep,JKNodes>=8000,(unsigned long)JKStyled,(unsigned long)JKSkipped,JKReasons,JKGeo,m];

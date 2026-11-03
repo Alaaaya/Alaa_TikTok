@@ -1,53 +1,33 @@
-// 60 narrow regression: collapse never owns the native dock visibility.
+// 60 final owner scope: ALL feed UI hidden, only dots and mascot survive.
 {
-    banner.text=@"Joker 60 simulator TEST DATA\nNative controls fixture, NOT real TikTok";
-    void(^checkDock)(void)=^{
-        CGRect r=[dock convertRect:dock.bounds toView:self.window];
-        Check(!dock.hidden&&dock.alpha>.99&&CGRectContainsRect(self.window.bounds,r)&&dock.window==self.window,@"60 native dock visible inside screen in both rail states");
-        for(UIView *a=dock.superview;a;a=a.superview)Check(!a.hidden&&a.alpha>.01,@"60 dock ancestors are not collapse-hidden");
-        for(UIView *b in tabs)Check(!b.hidden&&b.alpha>.99&&b.userInteractionEnabled,@"60 all native dock controls remain visible and live");
-    };
-    JK60TestModalRoot *modalFixture=[JK60TestModalRoot new];Check(!JK60ModalCovered(modalFixture),@"60 no modal leaves floating input available");
-    modalFixture.fixturePresented=[UIViewController new];Check(JK60ModalCovered(modalFixture),@"60 native settings/modal sheet covers floating input independently");
-    checkDock();
-    [dots sendActionsForControlEvents:UIControlEventTouchUpInside];JKRailApply(self.window,NO);checkDock();
-    Check(JKRailClosed,@"60 tap collapses without hiding dock");
-    ShotView(self.window,@"60-collapsed-dock-visible");
-    [dots sendActionsForControlEvents:UIControlEventTouchUpInside];JKRailApply(self.window,NO);checkDock();
-    Check(!JKRailClosed,@"60 tap expands without hiding dock");
-    ShotView(self.window,@"60-expanded-dock-visible");
-    // A realistic shared feed ancestor, then a stricter reuse/nested-dock
-    // adversarial shape: no collapse branch may touch navigation ancestors.
-    CGRect originalDockRect=[dock convertRect:dock.bounds toView:self.window];
-    CGRect originalRailFrame=fr.frame;UIView *originalRailParent=fr.superview;
-    [fr removeFromSuperview];
-    UIView *nestedRail=[[Fixture(@"TTKFeedRightInteractionStackView",UIView.class) alloc] initWithFrame:fd.bounds];[fd addSubview:nestedRail];
-    UIView *shared=[[UIView alloc] initWithFrame:nestedRail.bounds];shared.clipsToBounds=NO;[nestedRail addSubview:shared];
-    [dock removeFromSuperview];[shared addSubview:dock];dock.frame=[shared convertRect:originalDockRect fromView:self.window];
-    UIView *railOnly=[[UIView alloc] initWithFrame:CGRectMake(w-66,300,48,300)];[shared addSubview:railOnly];
-    UIControl *nativeRailButton=[[UIControl alloc] initWithFrame:CGRectMake(0,0,48,48)];[railOnly addSubview:nativeRailButton];
-    CGAffineTransform sharedTx=shared.transform,rootTx=nestedRail.transform;
-    __block NSInteger nestedActions=0;[tabs[0] addAction:[UIAction actionWithHandler:^(__unused UIAction *a){nestedActions++;}] forControlEvents:UIControlEventTouchDown];
-    for(NSNumber *closed in @[@YES,@NO,@YES,@NO]){
-        JKRailClosed=closed.boolValue;JKRailApply(self.window,NO);JKStyleApplyAll();
-        checkDock();Check(CGRectEqualToRect([dock convertRect:dock.bounds toView:self.window],originalDockRect)&&CGAffineTransformEqualToTransform(shared.transform,sharedTx)&&CGAffineTransformEqualToTransform(nestedRail.transform,rootTx),@"60 shared rail/dock ancestors never receive collapse alpha hidden transform or frame changes");
-        Check(shared.alpha==1&&!shared.hidden&&shared.userInteractionEnabled&&nestedRail.alpha==1&&!nestedRail.hidden&&nestedRail.userInteractionEnabled,@"60 shared native navigation ancestry stays visible and interactive");
-        Check(!objc_getAssociatedObject(shared,kJKCollapseAlpha)&&!objc_getAssociatedObject(dock,kJKCollapseAlpha),@"60 shared dock ancestors excluded from synchronous collapse alpha guard");
-        Check(closed.boolValue?railOnly.alpha==0:railOnly.alpha==1,@"60 nested rail-only content still collapses and restores");
-        [tabs[0] sendActionsForControlEvents:UIControlEventTouchDown];
-        Check([tabs[0] hitTest:CGPointMake(((UIView *)tabs[0]).bounds.size.width/2,20) withEvent:nil]==tabs[0],@"60 nested dock button retains native input target");
+    banner.text=@"Joker 60 simulator TEST DATA\nAll-feed collapse + draggable dots";
+    NSMutableArray *chrome=[NSMutableArray arrayWithObjects:fr,dock,author,caption,avatar,music,nil];
+    NSMutableArray *added=[NSMutableArray new];
+    for(NSString *n in @[@"TikTokFeedTabControl",@"TikTokFeedFadeScrollView",@"AWELiveFeedEntranceView",@"TTKSearchEntranceButton",@"TTKFeedBaseBottomBarView",@"AWEUserNameLabel"]){
+        UIView *v=[[Fixture(n,UIView.class) alloc] initWithFrame:CGRectMake(10,100,100,25)];[fd addSubview:v];[chrome addObject:v];[added addObject:v];
     }
-    Check(nestedActions==4,@"60 nested native dock actions work collapsed and expanded");
-    // Native context visibility is not a reason to force-show navigation.
-    dock.hidden=YES;JKStyleApplyAll();Check(dock.hidden,@"60 native screen-level hidden dock stays native-hidden, not forcibly resurrected");dock.hidden=NO;
-    [dock removeFromSuperview];[fd addSubview:dock];dock.frame=[fd convertRect:originalDockRect fromView:self.window];
-    JKRailRestore(nestedRail);[nestedRail removeFromSuperview];[originalRailParent addSubview:fr];fr.frame=originalRailFrame;JKRailClosed=NO;JKStyleApplyAll();
-    dots=(id)[self.window viewWithTag:9156];checkDock();
+    UIView *mascot=[[UIView alloc] initWithFrame:CGRectMake(170,400,30,30)];mascot.backgroundColor=UIColor.orangeColor;mascot.accessibilityLabel=@"Enabled mascot fixture";[self.window addSubview:mascot];
+    UIView *priorHidden=added[1];priorHidden.hidden=YES;priorHidden.alpha=.42;priorHidden.userInteractionEnabled=NO;
+    UIView *priorDim=added[2];priorDim.alpha=.37;
+    NSMutableArray *baseline=[NSMutableArray new];for(UIView *v in chrome)[baseline addObject:@[@(v.alpha),@(v.hidden),@(v.userInteractionEnabled)]];
+    void(^checkHidden)(void)=^{for(UIView *v in chrome)Check(v.hidden&&v.alpha==0&&!v.userInteractionEnabled,@"60 ALL rail dock top tabs LIVE search author caption bottom-search chrome hidden");Check(!dots.hidden&&dots.alpha==1&&dots.userInteractionEnabled&&!mascot.hidden&&mascot.alpha==1&&mascot.userInteractionEnabled,@"60 only floating dots and enabled mascot remain live; video container untouched");Check(!fd.hidden&&fd.alpha==1&&!pv.hidden,@"60 never hides feed/video/shared ancestors");};
+    void(^checkRestored)(void)=^{for(NSUInteger i=0;i<chrome.count;i++){UIView *v=chrome[i];NSArray *r=baseline[i];Check(v.alpha==[r[0] doubleValue]&&v.hidden==[r[1] boolValue]&&v.userInteractionEnabled==[r[2] boolValue],@"60 tap restores EXACT prior visibility/alpha/input, including previously hidden/dim views");}};
+    Check(!JKRailClosed,@"60 fixture begins expanded");ShotView(self.window,@"60-expanded");
+    [dots sendActionsForControlEvents:UIControlEventTouchUpInside];JKRailApply(self.window,NO);checkHidden();ShotView(self.window,@"60-collapsed");
+    // New cell/tab chrome before display: synchronous setter guards and subtree
+    // lifecycle are the same functions called by production UIView hooks.
+    UIView *newDock=[[Fixture(@"TTKTabBar",UIView.class) alloc] initWithFrame:CGRectMake(0,h-80,w,80)];[fd addSubview:newDock];JK60Tree(newDock);
+    Check(newDock.hidden&&newDock.alpha==0&&!newDock.userInteractionEnabled&&JK60Alpha(newDock,1)==0&&JK60Hidden(newDock,NO)&&!JK60Interaction(newDock,YES),@"60 newly re-added dock cannot flash via native setters");
+    UIView *cell=[UIView new];UIView *newCaption=[[Fixture(@"AWEPlayInteractionDescriptionLabel",UIView.class) alloc] init];[cell addSubview:newCaption];[fd addSubview:cell];JK60Tree(cell);JK60BeforeDraw(newCaption);
+    Check(newCaption.hidden&&newCaption.alpha==0&&!cell.hidden,@"60 reused/new feed cell hides only chrome before layout, not video container");
+    [dots sendActionsForControlEvents:UIControlEventTouchUpInside];JKRailApply(self.window,NO);checkRestored();Check(!newDock.hidden&&newDock.alpha==1&&!newCaption.hidden,@"60 expansion restores newly attached UI baseline too");[newDock removeFromSuperview];[cell removeFromSuperview];
+    [dots sendActionsForControlEvents:UIControlEventTouchUpInside];JKRailApply(self.window,NO);checkHidden();
     JK60TestPan *pan=[JK60TestPan new];
     BOOL before=JKRailClosed;
     dots.dragged=NO;pan.fixtureState=UIGestureRecognizerStateBegan;pan.fixtureDelta=CGPointMake(2,2);[dots drag:pan];pan.fixtureState=UIGestureRecognizerStateEnded;[dots drag:pan];
     Check(!dots.dragged,@"60 sub8pt movement remains a tap");
     [dots sendActionsForControlEvents:UIControlEventTouchUpInside];Check(JKRailClosed!=before,@"60 movement below drag threshold still taps");
+    JKRailClosed=YES;JKRailApply(self.window,NO);
     for(NSValue *delta in @[[NSValue valueWithCGPoint:CGPointMake(-300,-330)],[NSValue valueWithCGPoint:CGPointMake(-9999,-9999)],[NSValue valueWithCGPoint:CGPointMake(9999,9999)],[NSValue valueWithCGPoint:CGPointMake(-9999,0)]]){
         BOOL closed=JKRailClosed;dots.dragged=NO;
         pan.fixtureState=UIGestureRecognizerStateBegan;pan.fixtureDelta=CGPointZero;[dots drag:pan];
@@ -64,7 +44,7 @@
         Check(dots.superview==self.window&&dots.gestureRecognizers.count==1&&dots.dragRecognizer.cancelsTouchesInView,@"60 drag recognizer local to button, no full-screen input interception");
         CGPoint outside=CGPointMake(CGRectGetMidX(self.window.bounds),CGRectGetMinY(self.window.bounds)+100);
         if(!CGRectContainsPoint(dots.frame,outside))Check([self.window hitTest:outside withEvent:nil]!=dots,@"60 outside button touches retain native hit testing");
-        checkDock();
+        checkHidden();
     }
     // Persisted normalized center adapts to a new window size, not a pixel cache.
     NSDictionary *saved=[[NSUserDefaults.standardUserDefaults dictionaryForKey:@"tt122.position.9156"] copy];CGRect portrait=self.window.frame;
@@ -74,17 +54,19 @@
     [dots removeFromSuperview];JKStyleApplyAll();dots=(id)[self.window viewWithTag:9156];Check(hypot(dots.center.x-expect.x,dots.center.y-expect.y)<.01,@"60 position persists after recreation in rotated size");
     self.window.frame=portrait;[dots placeFloating];
     Check([[NSUserDefaults.standardUserDefaults dictionaryForKey:@"tt122.position.9156"] isEqual:saved],@"60 rotation does not overwrite persisted normalized preference");
-    [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();Check(![self.window viewWithTag:9156]&&!objc_getAssociatedObject(dock,kJK59DockState),@"60 default cleans up draggable trigger and dock decoration");
-    [D() setInteger:3 forKey:JKStyleKey];JKStyleApplyAll();dots=(id)[self.window viewWithTag:9156];
-    Check([[NSUserDefaults.standardUserDefaults dictionaryForKey:@"tt122.position.9156"] isEqual:saved],@"60 persisted position survives style-off and style-on");
-    BOOL collapsed=JKRailClosed;TT50EyeActive=YES;TT50Tree(fd);JKStyleApplyAll();Check(dots.hidden&&!dots.userInteractionEnabled,@"60 eye hides and disables drag trigger");
-    pan.fixtureState=UIGestureRecognizerStateBegan;pan.fixtureDelta=CGPointMake(100,100);[dots drag:pan];Check([[NSUserDefaults.standardUserDefaults dictionaryForKey:@"tt122.position.9156"] isEqual:saved],@"60 hidden eye-state drag cannot mutate saved position");
-    checkDock();TT50Restore();JKStyleApplyAll();Check(!dots.hidden&&dots.userInteractionEnabled&&JKRailClosed==collapsed,@"60 eye restores trigger without changing collapse or position");
-    dots.dragged=NO;[dots sendActionsForControlEvents:UIControlEventTouchUpInside];Check(JKRailClosed!=collapsed,@"60 tap toggles after eye and drag recreation");
-    dots.dragged=NO;[dots sendActionsForControlEvents:UIControlEventTouchUpInside];Check(JKRailClosed==collapsed,@"60 second tap restores both states");
-    if(!JKRailClosed){dots.dragged=NO;[dots flip];}JKRailApply(self.window,NO);checkDock();
-    ShotView(self.window,@"60-dragged-left-collapsed-dock-visible");
-    dots.dragged=NO;[dots flip];JKRailApply(self.window,NO);
-    Check(!JKRailClosed,@"60 leaves existing 59 restore fixture expanded");
-    NSLog(@"PASS 60 dock visible expanded+collapsed; threshold-safe drag, all edges, normalized persistence, recreation, rotation, tap, eye and default cleanup");
+
+    // Eye ON while collapsed, expand while eye remains ON, then eye OFF.
+    TT50EyeActive=YES;TT50Tree(fd);JKStyleApplyAll();Check(dots.hidden&&!dots.userInteractionEnabled,@"60 eye independently disables floating trigger");
+    JKRailClosed=NO;JKRailApply(self.window,NO);Check(fr.hidden&&caption.hidden,@"60 expand does not override independent eye");
+    TT50Restore();JKStyleApplyAll();checkRestored();
+    // Opposite order: eye starts first, then collapse, then eye clears.
+    TT50EyeActive=YES;TT50Tree(fd);JKRailClosed=YES;JKRailApply(self.window,NO);TT50Restore();JKStyleApplyAll();checkHidden();
+    dots.dragged=NO;[dots sendActionsForControlEvents:UIControlEventTouchUpInside];JKRailApply(self.window,NO);checkRestored();
+    NSDictionary *position=[[NSUserDefaults.standardUserDefaults dictionaryForKey:@"tt122.position.9156"] copy];
+    dots.dragged=NO;[dots flip];JKRailApply(self.window,NO);checkHidden();
+    [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();Check(![self.window viewWithTag:9156]&&JK60Saved().count==0&&!dock.hidden&&fr.alpha==1,@"60 style-off cleans collapse snapshots and restores native UI");
+    [D() setInteger:3 forKey:JKStyleKey];JKRailClosed=NO;JKStyleApplyAll();dots=(id)[self.window viewWithTag:9156];Check([[NSUserDefaults.standardUserDefaults dictionaryForKey:@"tt122.position.9156"] isEqual:position],@"60 saved drag survives default and style recreation");
+    JK60TestModalRoot *modalFixture=[JK60TestModalRoot new];Check(!JK60ModalCovered(modalFixture),@"60 absent modal permits floating input");modalFixture.fixturePresented=[UIViewController new];Check(JK60ModalCovered(modalFixture),@"60 native settings sheet covers floating input independently");
+    for(UIView *v in added)[v removeFromSuperview];[mascot removeFromSuperview];
+    NSLog(@"PASS 60 ALL feed chrome collapse exact restore; independent eye both orders; fresh-cell no flicker hooks; drag threshold edge clamp persistence recreation rotation default modal");
 }

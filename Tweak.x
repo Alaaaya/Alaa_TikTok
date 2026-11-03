@@ -1127,17 +1127,18 @@ static CGFloat JKStyleAlpha(UIView *view,CGFloat requested);
 #include "NoFlash.inc"
 static void TT48Added(UIView *view);
 %hook UIView
-- (void)setAlpha:(CGFloat)alpha { %orig(JKStyleAlpha(self,TTGGuardRendererAlpha(self, TT50Alpha(self,alpha)))); }
+- (void)setAlpha:(CGFloat)alpha { %orig(JK60Alpha(self,JKStyleAlpha(self,TTGGuardRendererAlpha(self, TT50Alpha(self,alpha))))); }
 - (void)setHidden:(BOOL)hidden {
-    %orig(TT50Hidden(self,hidden));
+    %orig(JK60Hidden(self,TT50Hidden(self,hidden)));
     NSHashTable *owners = objc_getAssociatedObject(self, &kRendererOwnerKey);
     UIView *button = owners.anyObject;
     if (button && ![objc_getAssociatedObject(button, &kGlyphBusyKey) boolValue]) TTGQueueActionGlass(button);
 }
-- (void)setUserInteractionEnabled:(BOOL)enabled {%orig(TT50Interaction(self,enabled));}
-- (void)willMoveToWindow:(UIWindow *)window {TT50Lifecycle(self);%orig;}
+- (void)setUserInteractionEnabled:(BOOL)enabled {%orig(JK60Interaction(self,TT50Interaction(self,enabled)));}
+- (void)willMoveToWindow:(UIWindow *)window {JK60Tree(self);TT50Lifecycle(self);%orig;}
+- (void)layoutSubviews {%orig;JK60BeforeDraw(self);}
 - (void)didAddSubview:(UIView *)view {
-    TT50Tree(view);%orig;TT48Added(view);
+    JK60Tree(view);TT50Tree(view);%orig;TT48Added(view);
     if (!self.window || view.tag == kActionGlassTag || [self isKindOfClass:UIVisualEffectView.class]) return;
     UIView *button = TTGOwnerAction(self);
     if (!button || [objc_getAssociatedObject(button, &kGlyphBusyKey) boolValue]) return;

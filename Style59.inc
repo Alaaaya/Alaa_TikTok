@@ -202,68 +202,16 @@ static void JKRailRestore(UIView *rail){
     objc_setAssociatedObject(rail,kJK59RailState,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     NSValue *t=objc_getAssociatedObject(rail,kJK59RailGeometry);if(t){rail.transform=t.CGAffineTransformValue;objc_setAssociatedObject(rail,kJK59RailGeometry,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
 }
-// Native navigation is an absolute boundary, even when TikTok nests a dock
-// under an interaction/shared container. Never hide/transform its ancestors.
-static BOOL JK60ContainsDock(UIView *root){
-    NSMutableArray *q=[NSMutableArray arrayWithObject:root];
-    for(NSUInteger i=0;i<q.count&&i<8000;i++){
-        UIView *v=q[i];NSString *n=NSStringFromClass(v.class);
-        if([n isEqualToString:@"TTKTabBar"]||[n isEqualToString:@"TTKFakeTabBar"]||[v isKindOfClass:UITabBar.class])return YES;
-        [q addObjectsFromArray:[v.subviews copy]];
-    }
-    // A capped walk cannot prove a branch safe to collapse.
-    return q.count>=8000;
-}
-static void JK60RailTargets(UIView *root,NSMutableArray *targets,NSUInteger depth){
-    if(depth>80)return;
-    for(UIView *v in [root.subviews copy]){
-        NSString *n=NSStringFromClass(v.class);
-        if([n isEqualToString:@"TTKTabBar"]||[n isEqualToString:@"TTKFakeTabBar"]||[v isKindOfClass:UITabBar.class]||v.tag==9156)continue;
-        if(JK60ContainsDock(v))JK60RailTargets(v,targets,depth+1);
-        else [targets addObject:v];
-    }
-}
+// 60 owner change: collapse ALL exact feed chrome, not just rail children.
+// Snapshot each native view independently. Never touch shared ancestors/video.
 static void JKRailApply(UIWindow *w,BOOL animated){
     if(!w)return;
-    UIView *rail=JKRailStack(w);JKAlaaToggle *toggle=(JKAlaaToggle *)[w viewWithTag:9156];
-    if(!rail)return;
-    NSMapTable *states=objc_getAssociatedObject(rail,kJK59RailState);
-    if(!states){states=[NSMapTable weakToStrongObjectsMapTable];objc_setAssociatedObject(rail,kJK59RailState,states,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
-    NSMutableArray *targets=[NSMutableArray new];JK60RailTargets(rail,targets,0);
-    // Repair only our previously recorded collapse paint if reuse/reparenting
-    // has turned an old target into a shared dock ancestor. Never force-show
-    // a native-hidden dock or overwrite native alpha/hidden state otherwise.
-    for(UIView *v in states.keyEnumerator.allObjects)if(JK60ContainsDock(v)){
-        NSDictionary *r=[states objectForKey:v];objc_setAssociatedObject(v,kJKCollapseAlpha,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        [v.layer removeAllAnimations];v.transform=[r[@"transform"] CGAffineTransformValue];v.alpha=[r[@"alpha"] doubleValue];v.hidden=[r[@"hidden"] boolValue];v.userInteractionEnabled=[r[@"interaction"] boolValue];[states removeObjectForKey:v];
-    }
-    BOOL shared=JK60ContainsDock(rail);
-    NSValue *savedGeometry=objc_getAssociatedObject(rail,kJK59RailGeometry);
-    if(shared){
-        if(savedGeometry){rail.transform=savedGeometry.CGAffineTransformValue;objc_setAssociatedObject(rail,kJK59RailGeometry,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
-        JKResult(NO,@"rail-dock-ancestor-protected");
-    }else{
-        if(!savedGeometry){savedGeometry=[NSValue valueWithCGAffineTransform:rail.transform];objc_setAssociatedObject(rail,kJK59RailGeometry,savedGeometry,OBJC_ASSOCIATION_RETAIN_NONATOMIC);}
-        CGAffineTransform original=savedGeometry.CGAffineTransformValue;
-        rail.transform=original;CGRect rr=[rail convertRect:rail.bounds toView:w];CGFloat toggleY=w.bounds.size.height-170;
-        rail.transform=CGAffineTransformConcat(original,CGAffineTransformMakeTranslation(0,-MAX(0,CGRectGetMaxY(rr)-(toggleY-16))));
-    }
-    NSUInteger index=0,total=targets.count;
-    for(UIView *v in targets){
-        if(v==toggle)continue;
-        NSDictionary *r=[states objectForKey:v];
-        if(!r){r=@{@"alpha":@(v.alpha),@"hidden":@(v.hidden),@"interaction":@(v.userInteractionEnabled),@"transform":[NSValue valueWithCGAffineTransform:v.transform]};[states setObject:r forKey:v];}
-        NSUInteger k=++index;BOOL closed=JKRailClosed;
-        if(closed)objc_setAssociatedObject(v,kJKCollapseAlpha,@YES,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        else objc_setAssociatedObject(v,kJKCollapseAlpha,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        v.hidden=[r[@"hidden"] boolValue];v.userInteractionEnabled=closed?NO:[r[@"interaction"] boolValue];
-        void(^state)(void)=^{
-            v.alpha=closed?0:[r[@"alpha"] doubleValue];
-            v.transform=closed?CGAffineTransformConcat([r[@"transform"] CGAffineTransformValue],CGAffineTransformConcat(CGAffineTransformMakeTranslation(0,k*60),CGAffineTransformMakeScale(.25,.25))):[r[@"transform"] CGAffineTransformValue];
-        };
-        if(animated && !UIAccessibilityIsReduceMotionEnabled())[UIView animateWithDuration:.5 delay:closed?(total-k)*.025:(k-1)*.045 usingSpringWithDamping:.62 initialSpringVelocity:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowUserInteraction animations:state completion:nil];else state();
-    }
-    [toggle paint];JKResult(YES,JKRailClosed?@"rail-all-native-children-collapsed":@"rail-all-native-children-expanded");
+    // Clean any 59 per-child spring state first, before taking 60 snapshots.
+    NSMutableArray *q=[NSMutableArray arrayWithObject:w];
+    for(NSUInteger i=0;i<q.count&&i<8000;i++){UIView *v=q[i];if(objc_getAssociatedObject(v,kJK59RailState))JKRailRestore(v);[q addObjectsFromArray:[v.subviews copy]];}
+    if(JK60Active())JK60Tree(w);else JK60Restore();
+    JKAlaaToggle *toggle=(id)[w viewWithTag:9156];[toggle paint];
+    JKResult(YES,JKRailClosed?@"all-feed-chrome-collapsed":@"all-feed-chrome-restored");
 }
 // Window-level floating trigger must never sit above a native presented sheet,
 // settings page or system prompt. This changes neither eye nor collapse state.
@@ -271,6 +219,7 @@ static BOOL JK60ModalCovered(UIViewController *root){return root.presentedViewCo
 static void JK59Window(UIWindow *w,BOOL on){
     UIView *rail=JKRailStack(w);JKAlaaToggle *toggle=(JKAlaaToggle *)[w viewWithTag:9156];
     if(!on){
+        JK60Restore();
         // Find rails even if hidden by eye. Restore is independent of style selection.
         NSMutableArray *q=[NSMutableArray arrayWithObject:w];
         for(NSUInteger i=0;i<q.count&&i<8000;i++){UIView *v=q[i];if(objc_getAssociatedObject(v,kJK59RailState))JKRailRestore(v);[q addObjectsFromArray:[v.subviews copy]];}

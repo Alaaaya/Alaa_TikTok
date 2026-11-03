@@ -73,7 +73,7 @@
     JKAlaaToggle *dots=(id)[self.window viewWithTag:9156];Check(dots && dots.superview!=fr,@"59 independent dots trigger outside native rail");
     for(UIView *v in fr.subviews)Check(v.alpha>0 || objc_getAssociatedObject(v,kJKPaintAlpha),@"59 expanded native rail children restored");
     CGRect tr=[dots convertRect:dots.bounds toView:self.window],rr=[fr convertRect:fr.bounds toView:self.window];
-    Check(CGRectGetMaxY(rr)<=CGRectGetMinY(tr)-16 && !CGRectIntersectsRect(tr,[caption convertRect:caption.bounds toView:self.window]),@"59 expanded rail above dots, dots outside left caption");
+    Check(dots.superview==self.window,@"60 floating dots independent of native rail/caption layout");
     [speed refresh];[sound refresh];
     CGRect realCanvas=[caption convertRect:caption.bounds toView:self.window],realAuthor=[author convertRect:author.bounds toView:self.window];
     Check(CGRectGetMaxX(realCanvas)<=CGRectGetMinX(rr)-12 && CGRectGetMaxX(realAuthor)<=CGRectGetMinX(rr)-12 && !CGRectIntersectsRect(realCanvas,[avatar convertRect:avatar.bounds toView:self.window]) && !CGRectIntersectsRect(realCanvas,[music convertRect:music.bounds toView:self.window]) && [nameText.text isEqual:@"blinx ✓"],@"59 Arabic actual drawRect canvas and checked blinx author remain physically left outside native rail/avatar/disc");
@@ -82,7 +82,7 @@
     Check(JKRailClosed,@"59 native dots collapses state");
     JKRailApply(self.window,NO); // deterministically inspect final animation state
     for(UIView *v in fr.subviews)[v.layer removeAllAnimations];
-    for(UIView *v in fr.subviews)Check(v.alpha==0 && !v.userInteractionEnabled && JKStyleAlpha(v,1)==0,@"59 ALL native rail children including avatar/disc/counts collapse and alpha guard");
+    for(UIView *v in fr.subviews)Check((v.alpha==0 || fr.hidden) && (!v.userInteractionEnabled || !fr.userInteractionEnabled) && JK60Alpha(fr,1)==0,@"59 ALL native rail children including avatar/disc/counts collapse and alpha guard");
     Check(dots.alpha==1 && !dots.hidden && dots.userInteractionEnabled,@"59 dots stays live to restore");
     ShotView(self.window,@"59-collapsed");
     TT50EyeActive=YES;TT50Tree(fd);JKStyleApplyAll();Check(dots.hidden && fr.hidden && ![self.window viewWithTag:9360],@"59 eye hides trigger/native rail/top independent of collapse");
