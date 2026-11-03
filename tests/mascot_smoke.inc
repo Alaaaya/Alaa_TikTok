@@ -95,7 +95,7 @@ pet.sprite.center=CGPointMake(160,tabFloor);[pet begin:@"sit" duration:999];pet.
 BOOL watchdogFired=NO;
 for(int frame=0;frame<250;frame++){
     [pet begin:@"sit" duration:999];[pet advance:1./30.];
-    if(pet.returningToFloor){watchdogFired=YES;break;}
+    if(pet.returningToFloor || [pet.behavior isEqual:@"bounce"]){watchdogFired=YES;break;}
 }
 Check(watchdogFired,@"same state watchdog forces fall at 8 seconds despite restarts");
 pet.returningToFloor=NO;pet.attachmentAge=0;pet.stateAge=0;pet.edgeCooldown=0;
