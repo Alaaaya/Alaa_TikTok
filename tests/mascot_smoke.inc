@@ -66,6 +66,7 @@ NSLog(@"PASS native Shimeji 22-action mapping, real Goku, XML overrides, swing, 
 // 45 regression: top-right hanging must touch-and-drop all the way to tab-bar floor.
 UITabBar *testBar=[[UITabBar alloc] initWithFrame:CGRectMake(0,self.window.bounds.size.height-83,self.window.bounds.size.width,83)];
 [self.window addSubview:testBar];pet.bar=testBar;
+[self.window bringSubviewToFront:pet.sprite];
 UIEdgeInsets priorInsets=vc.additionalSafeAreaInsets;
 vc.additionalSafeAreaInsets=UIEdgeInsetsMake(32,0,0,0);
 CGFloat safeTop=[pet topY],tabFloor=[pet floorY];
