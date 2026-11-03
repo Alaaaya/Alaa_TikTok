@@ -41,8 +41,13 @@ sheetEye.row.toggleSwitch.on=YES;[sheetEye.row.toggleSwitch sendActionsForContro
 [sheetEye scanWindows:@[self.window] enabled:YES hidden:YES];Check(sheetEye.row.toggleSwitch.on,@"52 switch reflects eye state");
 sheetEye.row.toggleSwitch.on=NO;[sheetEye.row.toggleSwitch sendActionsForControlEvents:UIControlEventValueChanged];Check(!eyeHidden,@"52 switch restores");
 [sheetEye scanWindows:@[self.window] enabled:YES hidden:NO];Check(!sheetEye.row.toggleSwitch.on,@"52 switch off when UI shown");
-__block NSInteger menuCalls=0;sheetEye.downloadAction=^{menuCalls++;};
-[sheetEye.row2 sendActionsForControlEvents:UIControlEventTouchUpInside];Check(menuCalls==1,@"52 Joker download row dispatches existing menu action");
+__block NSInteger lastCode=-1;sheetEye.optionAction=^(NSInteger c){lastCode=c;};
+CGFloat rowBefore=sheetEye.row2.bounds.size.height;
+[sheetEye.row2 sendActionsForControlEvents:UIControlEventTouchUpInside];
+Check(sheetEye.subRows.count==7,@"54 download options expand in the sheet");
+[sheetEye.subRows[1] sendActionsForControlEvents:UIControlEventTouchUpInside];Check(lastCode==1,@"54 HD option dispatches");
+[sheetEye.subRows[6] sendActionsForControlEvents:UIControlEventTouchUpInside];Check(sheetEye.subRows==nil && sheetEye.row2.caption.alpha==1,@"54 back collapses");
+(void)rowBefore;
 [sheetEye scanWindows:@[self.window] enabled:YES hidden:YES];Check(sheetStack.arrangedSubviews.count==5,@"51 no duplicate insertion");
 NSLog(@"51 geometry before=%f row=%f after=%f",originalStackHeight,addedRowHeight,sheetStack.bounds.size.height);
 Check(sheetStack.bounds.size.height>=originalStackHeight+2*addedRowHeight-.5,@"51 expands fixed-frame stack to fit fourth row");
