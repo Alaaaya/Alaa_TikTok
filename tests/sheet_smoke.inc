@@ -116,7 +116,7 @@ Check(!TT51SheetPeers(unrelated),@"51 no insertion without native Report and Not
 // 55 visual fixture: native-like autolayout sheet, gray background, Joker card + peer card below with gap.
 {
     UIView *cover=[[UIView alloc] initWithFrame:self.window.bounds];cover.backgroundColor=UIColor.systemGroupedBackgroundColor;[self.window addSubview:cover];
-    UIScrollView *vs=[[UIScrollView alloc] initWithFrame:CGRectMake(0,40,self.window.bounds.size.width,820)];vs.backgroundColor=UIColor.systemGroupedBackgroundColor;[self.window addSubview:vs];
+    UIScrollView *vs=[[UIScrollView alloc] initWithFrame:CGRectMake(0,200,self.window.bounds.size.width,674)];vs.backgroundColor=UIColor.systemGroupedBackgroundColor;[self.window addSubview:vs];
     UIStackView *outer=[[UIStackView alloc] initWithFrame:CGRectMake(14,12,vs.bounds.size.width-28,0)];outer.axis=UILayoutConstraintAxisVertical;outer.spacing=10;outer.translatesAutoresizingMaskIntoConstraints=NO;[vs addSubview:outer];
     UIView *holder=[[UIView alloc] initWithFrame:CGRectMake(0,0,vs.bounds.size.width,900)];[vs addSubview:holder];vs.contentSize=holder.bounds.size;[outer removeFromSuperview];[holder addSubview:outer];[NSLayoutConstraint activateConstraints:@[[outer.topAnchor constraintEqualToAnchor:holder.topAnchor constant:12],[outer.leadingAnchor constraintEqualToAnchor:holder.leadingAnchor constant:14],[outer.widthAnchor constraintEqualToConstant:vs.bounds.size.width-28]]];
     NSMutableArray *cards=[NSMutableArray new];
