@@ -1,4 +1,4 @@
-# Joker release 63 (integer version; package version comes from control)
+# Joker release 64 (integer version; package version comes from control)
 TARGET := iphone:clang:latest:15.0
 ARCHS = arm64 arm64e
 INSTALL_TARGET_PROCESSES = TikTok

@@ -1277,10 +1277,19 @@ static void TT122Recover(void);
 #include "PhaseOne.inc"
 #include "InterfaceStyle.inc"
 #include "HierarchyDump.inc"
+#include "AutoCapture64.inc"
 #include "ReactionObserver.inc"
+%hook UIViewController
+- (void)presentViewController:(UIViewController *)controller animated:(BOOL)animated completion:(void (^)(void))completion {
+    %orig;
+    if(!JK64IgnoreController(controller))JK64Event(@"controller-present");
+}
+- (void)viewDidAppear:(BOOL)animated {%orig;if(!JK64IgnoreController(self))JK64Event(@"controller-appear");}
+- (void)didMoveToParentViewController:(UIViewController *)parent {%orig;if(parent&&!JK64IgnoreController(self))JK64Event(@"controller-child");}
+%end
 %hook UIView
 - (void)layoutSubviews {%orig;JK60BeforeDraw(self);TT50Lifecycle((UIView *)self);}
-- (void)didMoveToWindow {%orig;TT50Lifecycle((UIView *)self);if(self.window)TT48Added((UIView *)self);else TT48Schedule();}
+- (void)didMoveToWindow {%orig;TT50Lifecycle((UIView *)self);if(self.window){TT48Added((UIView *)self);JK64Event(@"view-window");}else TT48Schedule();}
 - (void)addGestureRecognizer:(UIGestureRecognizer *)gesture {%orig;TT48ObserveGesture(gesture);}
 %end
 %hook UIWindow
@@ -1503,8 +1512,8 @@ static UIVisualEffect *TTJokerGlass(void) {
 - (NSURL *)diagnosticLogURL {
     NSString *folder=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject;
     if(!folder)return nil;
-    NSString *path=[folder stringByAppendingPathComponent:@"joker_comments63.txt"];
-    JKAppendCapture(path);
+    NSString *path=[folder stringByAppendingPathComponent:@"joker_comments64.txt"];
+    JK64Export(path);
     return [NSURL fileURLWithPath:path];
 }
 - (void)shareDiagnostics:(UIButton *)sender {
@@ -1519,6 +1528,24 @@ static UIVisualEffect *TTJokerGlass(void) {
     share.popoverPresentationController.sourceView=sender;
     share.popoverPresentationController.sourceRect=sender.bounds;
     [self presentViewController:share animated:YES completion:nil];
+}
+- (void)armComments:(UIButton *)sender {
+    JK64Arm();
+    [sender setTitle:@"التقاط مفعّل · افتح التعليقات خلال 45 ثانية" forState:UIControlStateNormal];
+    sender.accessibilityLabel=@"التقاط مفعّل · افتح التعليقات خلال 45 ثانية";
+}
+- (UIButton *)armCommentsRow {
+    UIButton *row=[UIButton buttonWithType:UIButtonTypeSystem];
+    row.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    row.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft;
+    [row setTitle:@"تفعيل التقاط التعليقات · مرة واحدة" forState:UIControlStateNormal];
+    row.accessibilityLabel=@"تفعيل التقاط التعليقات · مرة واحدة";
+    row.titleLabel.font=[UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    row.titleLabel.adjustsFontSizeToFitWidth=YES;row.tintColor=UIColor.whiteColor;
+    row.backgroundColor=[UIColor colorWithWhite:1 alpha:.08];row.layer.cornerRadius=18;
+    [row.heightAnchor constraintEqualToConstant:58].active=YES;
+    [row addTarget:self action:@selector(armComments:) forControlEvents:UIControlEventTouchUpInside];
+    TTJokerForceLTR(row);return row;
 }
 - (UIButton *)diagnosticsRow {
     UIButton *row=[UIButton buttonWithType:UIButtonTypeSystem];
@@ -1660,6 +1687,7 @@ static UIVisualEffect *TTJokerGlass(void) {
         [grid.heightAnchor constraintEqualToConstant:274].active=YES;
         for(NSInteger i=0;i<8;i++){if(i==5 && ![self shijimaInstalled])continue;[grid addSubview:[self categoryTile:i]];}
         [self.stack addArrangedSubview:grid];
+        [self.stack addArrangedSubview:[self armCommentsRow]];
         [self.stack addArrangedSubview:[self diagnosticsRow]];
     } else {
     NSArray *featureTitles = @[@"زر التنزيل العائم",@"زر إخفاء العناصر",@"حلقة تقدم التنزيل",@"تنزيل عادي",@"تنزيل HD",@"أعلى جودة متاحة",@"تنزيل الصوت (ملفات)",@"قائمة النسخ"];
@@ -2064,7 +2092,7 @@ static void TTGShowSettings(UITabBar *bar) {
     UIViewController *top = bar.window.rootViewController;
     while (top.presentedViewController) top = top.presentedViewController;
     if (!top || [top isKindOfClass:TTGSettingsController.class]) return;
-    JK63RememberBeforeSettings(); // Explicit settings entry, before covering a native sheet.
+    // 64 retains the armed sheet independently; settings must never replace it.
     [TTJokerPet shared].covered=YES;[[TTJokerPet shared] refresh];
     TTGSettingsController *controller = [TTGSettingsController new]; controller.bar = bar;
     controller.modalPresentationStyle = UIModalPresentationOverFullScreen;

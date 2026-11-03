@@ -38,6 +38,7 @@ static BOOL JK62FixtureReduceMotion(void){return JK62FixtureReduce;}
 #include "../InterfaceStyle.inc"
 #undef UIAccessibilityIsReduceMotionEnabled
 #include "../HierarchyDump.inc"
+#include "../AutoCapture64.inc"
 static UIVisualEffect *TTGEffect(void){return [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark];}
 static BOOL TT122Enabled(NSString *key){return PB(key,YES);}
 @interface TT122Passthrough : UIView
@@ -312,8 +313,8 @@ static UIVisualEffect *TTJokerGlass(void) {
 - (NSURL *)diagnosticLogURL {
     NSString *folder=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject;
     if(!folder)return nil;
-    NSString *path=[folder stringByAppendingPathComponent:@"joker_comments63.txt"];
-    JKAppendCapture(path);
+    NSString *path=[folder stringByAppendingPathComponent:@"joker_comments64.txt"];
+    JK64Export(path);
     return [NSURL fileURLWithPath:path];
 }
 - (void)shareDiagnostics:(UIButton *)sender {
@@ -328,6 +329,24 @@ static UIVisualEffect *TTJokerGlass(void) {
     share.popoverPresentationController.sourceView=sender;
     share.popoverPresentationController.sourceRect=sender.bounds;
     [self presentViewController:share animated:YES completion:nil];
+}
+- (void)armComments:(UIButton *)sender {
+    JK64Arm();
+    [sender setTitle:@"التقاط مفعّل · افتح التعليقات خلال 45 ثانية" forState:UIControlStateNormal];
+    sender.accessibilityLabel=@"التقاط مفعّل · افتح التعليقات خلال 45 ثانية";
+}
+- (UIButton *)armCommentsRow {
+    UIButton *row=[UIButton buttonWithType:UIButtonTypeSystem];
+    row.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
+    row.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft;
+    [row setTitle:@"تفعيل التقاط التعليقات · مرة واحدة" forState:UIControlStateNormal];
+    row.accessibilityLabel=@"تفعيل التقاط التعليقات · مرة واحدة";
+    row.titleLabel.font=[UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    row.titleLabel.adjustsFontSizeToFitWidth=YES;row.tintColor=UIColor.whiteColor;
+    row.backgroundColor=[UIColor colorWithWhite:1 alpha:.08];row.layer.cornerRadius=18;
+    [row.heightAnchor constraintEqualToConstant:58].active=YES;
+    [row addTarget:self action:@selector(armComments:) forControlEvents:UIControlEventTouchUpInside];
+    TTJokerForceLTR(row);return row;
 }
 - (UIButton *)diagnosticsRow {
     UIButton *row=[UIButton buttonWithType:UIButtonTypeSystem];
@@ -469,6 +488,7 @@ static UIVisualEffect *TTJokerGlass(void) {
         [grid.heightAnchor constraintEqualToConstant:274].active=YES;
         for(NSInteger i=0;i<8;i++){if(i==5 && ![self shijimaInstalled])continue;[grid addSubview:[self categoryTile:i]];}
         [self.stack addArrangedSubview:grid];
+        [self.stack addArrangedSubview:[self armCommentsRow]];
         [self.stack addArrangedSubview:[self diagnosticsRow]];
     } else {
     NSArray *featureTitles = @[@"زر التنزيل العائم",@"زر إخفاء العناصر",@"حلقة تقدم التنزيل",@"تنزيل عادي",@"تنزيل HD",@"أعلى جودة متاحة",@"تنزيل الصوت (ملفات)",@"قائمة النسخ"];
@@ -883,6 +903,7 @@ static void ShotView(UIView *view,NSString *name) {
     [UIImagePNGRepresentation(im) writeToFile:[folder stringByAppendingPathComponent:[name stringByAppendingString:@".png"]] atomically:YES];
 }
 static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,name);}
+#include "hierarchy64_async.inc"
 @interface InstalledSettings:TTGSettingsController
 @end
 @implementation InstalledSettings
@@ -926,7 +947,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,5*NSEC_PER_SEC),dispatch_get_main_queue(), ^{
         Check([vc.pageTitle.text isEqual:@"Joker"],@"brand");
         Check(vc.backButton.hidden,@"home back hidden");
-        Check(vc.stack.arrangedSubviews.count==2,@"one physical grid");
+        Check(vc.stack.arrangedSubviews.count==3,@"one physical grid");
         NSInteger tiles=0;
         for(UIView *row in vc.stack.arrangedSubviews)for(UIView *v in row.subviews)if([v isKindOfClass:UIButton.class])tiles++;
         Check(tiles==7,@"six tiles when Shijima absent");
@@ -941,11 +962,11 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         UIButton *shareRow=(UIButton *)vc.stack.arrangedSubviews.lastObject;
         Check([shareRow.accessibilityLabel isEqual:@"مشاركة سجل التشخيص"],@"49 share row bottom");
         NSURL *logURL=[vc diagnosticLogURL];
-        Check([logURL.lastPathComponent isEqual:@"joker_comments63.txt"],@"63 dedicated structure-only file");
+        Check([logURL.lastPathComponent isEqual:@"joker_comments64.txt"],@"63 dedicated structure-only file");
         Check([NSFileManager.defaultManager fileExistsAtPath:logURL.path],@"49 missing log created");
         [@"fixture-class-only" writeToURL:logURL atomically:YES encoding:NSUTF8StringEncoding error:nil];
         Check(![[NSString stringWithContentsOfURL:[vc diagnosticLogURL] encoding:NSUTF8StringEncoding error:nil] containsString:@"fixture-class-only"],@"63 export replaces untrusted contents, legacy log untouched");
-        #include "hierarchy63_smoke.inc"
+        #include "hierarchy64_smoke.inc"
         for(TTJokerTile *tile in grid.subviews) {
             Check(tile.caption.text.length>0 && tile.glyph.image!=nil,@"49 all tile content present");
             Check(CGRectContainsRect(tile.bounds,tile.caption.frame) && CGRectContainsRect(tile.bounds,tile.glyph.frame),@"49 tile glyph and label contained");
@@ -1016,7 +1037,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
             }
             Shot(vc,[NSString stringWithFormat:@"category-%ld",(long)page]);
             [vc showCategory:-1 animated:NO];
-            Check(vc.category==-1 && vc.stack.arrangedSubviews.count==2,@"back restores grid");
+            Check(vc.category==-1 && vc.stack.arrangedSubviews.count==3,@"back restores grid");
         }
         // Regression 47: persist both toggle directions and reopen the category.
         [vc showCategory:0 animated:NO];[vc.view layoutIfNeeded];
@@ -1139,6 +1160,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
                 ShotView(self.window,@"62-motion-picker");
                 [vc dismissViewControllerAnimated:NO completion:^{
                 NSLog(@"PASS 62 real Arabic LTR native motion picker");
+            JK64AsyncFixture(self.window,^{
             [vc showCategory:-1 animated:NO];
             UIButton *button=(UIButton *)vc.stack.arrangedSubviews.lastObject;
             [button sendActionsForControlEvents:UIControlEventTouchUpInside];
@@ -1148,6 +1170,7 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
                 NSLog(@"PASS 49 local file and native share presentation");
                 NSLog(@"PASS UIKit grid/category/back/layout/art persistence smoke");
                 fflush(stdout);exit(0);
+            });
             });
                 }];
             });

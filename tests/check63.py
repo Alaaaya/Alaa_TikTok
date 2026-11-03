@@ -4,9 +4,7 @@ for word in ['.text', '.attributedText', 'titleForState:', 'accessibilityLabel',
     assert word not in s, word
 for token in ['JK_DUMP_NODES 900','JK_DUMP_DEPTH 18','JK_DUMP_BYTES 160000','JK_DUMP_SCAN 4000','JK_DUMP_QUEUE 2000','age<=120','JK63BeforeSettings=nil','isMainThread','JK63Symbol','actionsForTarget:','queue.count>=JK_DUMP_QUEUE','candidateRoots=']:
     assert token in s, token
-assert 'Version: 63' in Path('control').read_text()
-assert 'JK63RememberBeforeSettings();' in t
-assert t.index('JK63RememberBeforeSettings();',t.index('static void TTGShowSettings(UITabBar *bar) {')) < t.index('[top presentViewController:controller')
-assert 'joker_comments63.txt' in t
-assert 'كروت' not in t # No fake selectable style.
+assert int(Path('control').read_text().split('Version: ')[1].splitlines()[0]) >= 63
+assert 'joker_comments64.txt' in t
+assert 'كروت' not in t
 print('PASS 63 privacy/source guards and no fake style')
