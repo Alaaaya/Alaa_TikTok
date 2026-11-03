@@ -131,7 +131,9 @@ static void JK62Animate(UIWindow *w){
             tx.fromValue=startTx;tx.toValue=endTx;tx.duration=duration;[tracks addObject:tx];
         }
         CAAnimationGroup *group=[CAAnimationGroup animation];group.animations=tracks;
-        group.duration=duration;group.beginTime=[v.layer convertTime:now+delay fromLayer:nil];
+        group.duration=duration;// Delay belongs to the receiving layer's local timeline. Converting
+        // (now + delay) loses the delay under a paused UIKit ancestor.
+        group.beginTime=[v.layer convertTime:now fromLayer:nil]+delay;
         group.timingFunction=[CAMediaTimingFunction functionWithControlPoints:.23 :1 :.32 :1];
         group.fillMode=kCAFillModeBoth;group.removedOnCompletion=NO;
         [v.layer addAnimation:group forKey:JK62Track];
