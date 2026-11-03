@@ -232,7 +232,7 @@ static void JKStyleSync(UIView *native) {
     UIView *tg=[native.superview viewWithTag:9156];
     if(JKAlaa()){
         if(!tg){CGFloat mx=0;for(UIView *v in native.superview.subviews)if(!v.hidden && v.tag!=9156)mx=MAX(mx,CGRectGetMaxY(v.frame));
-            JKAlaaToggle *t=[[JKAlaaToggle alloc] initWithFrame:CGRectMake((native.superview.bounds.size.width-48)/2,mx+8,48,48)];
+            JKAlaaToggle *t=[[JKAlaaToggle alloc] initWithFrame:CGRectMake((native.superview.bounds.size.width-48)/2,MAX(native.superview.bounds.size.height-48,0),48,48)];
             [native.superview addSubview:t];tg=t;}
         JKAlaaToggle *t=(JKAlaaToggle *)tg;[t paint];[t applyAnimated:NO];
     } else if(tg){[tg removeFromSuperview];}

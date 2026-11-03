@@ -174,6 +174,12 @@
         UIView *c1=[[cic alloc] initWithFrame:CGRectMake(8,61,40,40)],*c2=[[cic alloc] initWithFrame:CGRectMake(382,61,40,40)];[fd addSubview:c1];[fd addSubview:c2];
         Class fpc=NSClassFromString(@"AWEPlayInteractionFollowPromptView");if(!fpc){fpc=objc_allocateClassPair(UIView.class,"AWEPlayInteractionFollowPromptView",0);objc_registerClassPair(fpc);}
         UIView *fp=[[fpc alloc] initWithFrame:CGRectMake(W-70,H-122-330-70,60,40)];[fd addSubview:fp];
+        Class auc=NSClassFromString(@"AWEPlayInteractionAuthorView");if(!auc){auc=objc_allocateClassPair(UIView.class,"AWEPlayInteractionAuthorView",0);objc_registerClassPair(auc);}
+        UIView *au=[[auc alloc] initWithFrame:CGRectMake(12,H-232,318,22)];[fd addSubview:au];
+        UIButton *unb=[btnClass buttonWithType:UIButtonTypeCustom];unb.frame=CGRectMake(0,0,90,22);[unb setTitle:@"ليالي الكثبان" forState:UIControlStateNormal];[au addSubview:unb];
+        Class avc=NSClassFromString(@"AWEPlayInteractionUserAvatarView");if(!avc){avc=objc_allocateClassPair(UIView.class,"AWEPlayInteractionUserAvatarView",0);objc_registerClassPair(avc);}
+        UIView *av=[[avc alloc] initWithFrame:CGRectMake(W-70,H-232-100,60,88)];[fd addSubview:av];
+        __block int avHits=0;UIButton *avb=[btnClass buttonWithType:UIButtonTypeCustom];avb.frame=CGRectMake(6,6,44,44);avb.backgroundColor=UIColor.grayColor;[av addSubview:avb];JKTestWire(avb,^{avHits++;});
         JKStyleApplyAll();
         Check([plusB viewWithTag:9157]!=nil && ![plusB viewWithTag:9157].userInteractionEnabled,@"56 amber plus overlay, inert");
         {CGFloat r1,g1,b1,a1;[tabbar.tintColor getRed:&r1 green:&g1 blue:&b1 alpha:&a1];Check(r1>.99&&g1>.7&&g1<.72,@"56 dock tint amber");}
@@ -181,8 +187,11 @@
         t1.selected=NO;JKStyleApplyAll();Check([tc viewWithTag:9158]==nil,@"56 no selected tab -> no underline (fail closed)");t1.selected=YES;JKStyleApplyAll();
         Check(c1.layer.cornerRadius==20 && c2.layer.cornerRadius==20,@"56 corner items glass circles");
         Check([fp viewWithTag:9159]!=nil && ![fp viewWithTag:9159].userInteractionEnabled,@"56 follow chip presentational");
+        Check(av.superview==self.window && CGRectGetMaxY(av.frame)<=au.frame.origin.y+1 && fabs(av.frame.origin.x-12)<20,@"56 avatar sits above username, left aligned");
+        [avb sendActionsForControlEvents:UIControlEventTouchUpInside];Check(avHits==1 && avb.superview==av,@"56 avatar native action preserved");
+        JKStyleApplyAll();Check(av.superview==self.window,@"56 avatar reuse stable");
         UIView *tgl=[fr viewWithTag:9156];
-        Check(tgl!=nil && JKRailClosed,@"56 rail toggle present and closed by default");
+        Check(tgl!=nil && CGRectGetMaxY(tgl.frame)>=fr.bounds.size.height-1 && JKRailClosed,@"56 rail toggle present and closed by default");
         for(UIView *v in fr.subviews)if([v isKindOfClass:JKStyleItem.class])Check(v.alpha==0 && !v.userInteractionEnabled,@"56 collapsed items hidden and inert");
         ShotView(self.window,@"56-alaa-collapsed");
         [(UIControl *)tgl sendActionsForControlEvents:UIControlEventTouchUpInside];
@@ -197,6 +206,7 @@
         Check(hr>.99 && hg>.7 && hg<.72,@"56 hashtags amber");
         ShotView(self.window,@"56-alaa-expanded");
         [D() setInteger:0 forKey:JKStyleKey];JKStyleApplyAll();JKRailClosed=YES;
+        Check(av.superview==fd && CGRectEqualToRect(av.frame,CGRectMake(W-70,H-232-100,60,88)) && CGAffineTransformIsIdentity(av.transform),@"56 avatar restored to original place");
         Check([fr viewWithTag:9156]==nil && JKItemOf(fn[0])==nil && fn[0].alpha==1,@"56 default restore removes toggle and overlays");
         Check([plusB viewWithTag:9157]==nil && [tc viewWithTag:9158]==nil && [fp viewWithTag:9159]==nil && c1.layer.cornerRadius==0 && [tabbar.tintColor isEqual:tintBefore],@"56 dock/tabs/chip/corners restored");
         UIColor *rc=[dl.attributedText attribute:NSForegroundColorAttributeName atIndex:dl.attributedText.length-3 effectiveRange:nil];
