@@ -1282,14 +1282,14 @@ static void TT122Recover(void);
 %hook UIViewController
 - (void)presentViewController:(UIViewController *)controller animated:(BOOL)animated completion:(void (^)(void))completion {
     %orig;
-    if(!JK64IgnoreController(controller))JK64Event(@"controller-present");
+    if(!JK64IgnoreController(controller))JK64Event(@"controller_present");
 }
-- (void)viewDidAppear:(BOOL)animated {%orig;if(!JK64IgnoreController(self))JK64Event(@"controller-appear");}
-- (void)didMoveToParentViewController:(UIViewController *)parent {%orig;if(parent&&!JK64IgnoreController(self))JK64Event(@"controller-child");}
+- (void)viewDidAppear:(BOOL)animated {%orig;if(!JK64IgnoreController(self))JK64Event(@"controller_appear");}
+- (void)didMoveToParentViewController:(UIViewController *)parent {%orig;if(parent&&!JK64IgnoreController(self))JK64Event(@"controller_child");}
 %end
 %hook UIView
 - (void)layoutSubviews {%orig;JK60BeforeDraw(self);TT50Lifecycle((UIView *)self);}
-- (void)didMoveToWindow {%orig;TT50Lifecycle((UIView *)self);if(self.window){TT48Added((UIView *)self);JK64Event(@"view-window");}else TT48Schedule();}
+- (void)didMoveToWindow {%orig;TT50Lifecycle((UIView *)self);if(self.window){TT48Added((UIView *)self);JK64Event(@"view_window");}else TT48Schedule();}
 - (void)addGestureRecognizer:(UIGestureRecognizer *)gesture {%orig;TT48ObserveGesture(gesture);}
 %end
 %hook UIWindow

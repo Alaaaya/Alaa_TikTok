@@ -118,7 +118,7 @@ static void JK64Event(NSString *trigger){
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.25*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
         if(gen!=JK64Generation)return;JK64Pending=NO;JK64Scan(trigger);
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(.65*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
-            if(gen==JK64Generation)JK64Scan(@"settle-retry");
+            if(gen==JK64Generation)JK64Scan(@"settle_retry");
         });
     });
 }

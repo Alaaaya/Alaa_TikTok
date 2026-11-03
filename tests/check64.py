@@ -7,7 +7,7 @@ for token in ['JK64_SESSION 45','JK64_TTL 600','JK64_SCAN_BUDGET 12','JK64_VISIT
  assert token in s,token
 assert 'Version: 64' in Path('control').read_text()
 assert '#include "AutoCapture64.inc"' in t
-for token in ['JK64Event(@"controller-present")','JK64Event(@"controller-appear")','JK64Event(@"controller-child")','JK64Event(@"view-window")','JK64Arm();','JK64Export(path);','joker_comments64.txt','armCommentsRow']:
+for token in ['JK64Event(@"controller_present")','JK64Event(@"controller_appear")','JK64Event(@"controller_child")','JK64Event(@"view_window")','JK64Arm();','JK64Export(path);','joker_comments64.txt','armCommentsRow']:
  assert token in t,token
 assert 'JK63RememberBeforeSettings();' not in t
 # No optional feed-transition picker, cards or guessed private class hooks.
