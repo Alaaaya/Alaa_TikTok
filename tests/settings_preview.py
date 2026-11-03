@@ -16,6 +16,7 @@ static void TTGRefreshAll(void){}
 static void TTToolRefresh(void){}
 #include "../Mascot.inc"
 #include "../EmojiBar.inc"
+#include "../TopFeed.inc"
 @interface TT122Hub:NSObject
 +(instancetype)shared;
 -(void)refresh;
@@ -76,6 +77,19 @@ static void Shot(TTGSettingsController *vc,NSString *name) {ShotView(vc.view,nam
         Check([NSFileManager.defaultManager fileExistsAtPath:logURL.path],@"49 missing log created");
         [@"fixture-class-only" writeToURL:logURL atomically:YES encoding:NSUTF8StringEncoding error:nil];
         Check([[NSString stringWithContentsOfURL:[vc diagnosticLogURL] encoding:NSUTF8StringEncoding error:nil] isEqual:@"fixture-class-only"],@"49 existing log preserved");
+        for(TTJokerTile *tile in grid.subviews) {
+            Check(tile.caption.text.length>0 && tile.glyph.image!=nil,@"49 all tile content present");
+            Check(CGRectContainsRect(tile.bounds,tile.caption.frame) && CGRectContainsRect(tile.bounds,tile.glyph.frame),@"49 tile glyph and label contained");
+            Check(tile.glyph.frame.origin.x<tile.bounds.size.width*.5,@"49 icon top left");
+        }
+        UIView *headerFixture=[[UIView alloc] initWithFrame:CGRectMake(0,60,self.window.bounds.size.width,60)];
+        UILabel *tabA=[[UILabel alloc] initWithFrame:CGRectMake(40,8,70,30)];tabA.text=@"لك";
+        UILabel *tabB=[[UILabel alloc] initWithFrame:CGRectMake(120,8,80,30)];tabB.text=@"أتابعه";
+        UIButton *searchFixture=[[UIButton alloc] initWithFrame:CGRectMake(210,8,30,30)];
+        [headerFixture addSubview:tabA];[headerFixture addSubview:tabB];[headerFixture addSubview:searchFixture];[self.window addSubview:headerFixture];
+        TT49HideTop(self.window);Check(headerFixture.hidden,@"49 hides entire top tabs plus icons");
+        TT49HideTop(self.window);TT49RestoreTop();Check(!headerFixture.hidden,@"49 repeated hide restores original visibility");
+        [headerFixture removeFromSuperview];
         Shot(vc,@"home");
         for(NSInteger page=0;page<7;page++){
             [vc showCategory:page animated:NO];

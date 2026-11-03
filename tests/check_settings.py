@@ -38,7 +38,7 @@ print('PASS five LTR category tiles, scoped toggles, back/slide/reduced-motion, 
 assert 'multiplier:.70' in s
 assert 'SystemThinMaterialDark' in s and 'SystemThickMaterialDark' not in s
 assert 'TTJokerPhysicalFrame(self.closeView,CGRectMake(hw-32' in s
-assert 'TTJokerPhysicalFrame(self.subviews[i],CGRectMake((i%3)' in s
+assert 'TTJokerPhysicalFrame(tile,CGRectMake((i%3)' in s
 assert "TTJokerHeader new" in s
 
 settings=s[s.index('// Physical LTR containers'):]

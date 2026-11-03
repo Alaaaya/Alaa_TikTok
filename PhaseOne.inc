@@ -1,3 +1,4 @@
+#include "TopFeed.inc"
 #include "EmojiBar.inc"
 // Phase one is isolated from the 1.21 glyph renderer and tab bar.
 #import <Photos/Photos.h>
@@ -155,6 +156,7 @@ static UIView *TT122Material(CGRect frame) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 3*NSEC_PER_SEC), dispatch_get_main_queue(), ^{[label removeFromSuperview];});
 }
 - (void)restoreUI {
+    TT49RestoreTop();
     if (self.uiHidden) {
         id target = self.hiddenInteraction;
         SEL sel = NSSelectorFromString(@"hideAllElements:exceptArray:");
@@ -220,6 +222,7 @@ static UIView *TT122Material(CGRect frame) {
 }
 - (void)applyHiddenUI {
     if(!self.uiHidden || !TT122Enabled(@"tt122.eye"))return;
+    TT49HideTop(self.feed.view.window);
     id interaction=TTGActionObject(self.feed,@"interactionController");
     SEL selector=NSSelectorFromString(@"hideAllElements:exceptArray:");
     NSMethodSignature *sig=[interaction methodSignatureForSelector:selector];

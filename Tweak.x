@@ -1351,6 +1351,7 @@ static void TTJokerForceLTR(UIView *view) {
         ((UIButton *)view).titleLabel.textAlignment=NSTextAlignmentLeft;
 
     }
+    if([view isKindOfClass:UIControl.class])return;
     for(UIView *child in view.subviews) TTJokerForceLTR(child);
 }
 // Physical layer coordinates avoid host-app UIView frame mirroring swizzles.
@@ -1358,7 +1359,8 @@ static void TTJokerForceLTR(UIView *view) {
 static void TTJokerPhysicalFrame(UIView *view,CGRect frame) {
     view.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
     view.transform=CGAffineTransformIdentity;
-    view.layer.bounds=(CGRect){CGPointZero,frame.size};
+    view.bounds=(CGRect){CGPointZero,frame.size};
+    view.layer.bounds=view.bounds;
     view.layer.position=CGPointMake(frame.origin.x+frame.size.width*view.layer.anchorPoint.x,
                                    frame.origin.y+frame.size.height*view.layer.anchorPoint.y);
 }
@@ -1401,6 +1403,24 @@ static void TTJokerPhysicalFrame(UIView *view,CGRect frame) {
 }
 @end
 
+@interface TTJokerTile : UIButton
+@property(nonatomic,strong) UIImageView *glyph;
+@property(nonatomic,strong) UILabel *caption;
+@property(nonatomic,strong) UIView *glass;
+@end
+@implementation TTJokerTile
+- (UISemanticContentAttribute)semanticContentAttribute {return UISemanticContentAttributeForceLeftToRight;}
+- (void)setSemanticContentAttribute:(UISemanticContentAttribute)v {[super setSemanticContentAttribute:UISemanticContentAttributeForceLeftToRight];}
+- (UIUserInterfaceLayoutDirection)effectiveUserInterfaceLayoutDirection {return UIUserInterfaceLayoutDirectionLeftToRight;}
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGFloat w=self.bounds.size.width;
+    TTJokerPhysicalFrame(self.glass,self.bounds);
+    TTJokerPhysicalFrame(self.glyph,CGRectMake(10,12,25,25));
+    TTJokerPhysicalFrame(self.caption,CGRectMake(8,44,MAX(0,w-16),34));
+    self.caption.textAlignment=NSTextAlignmentLeft;
+}
+@end
 @interface TTJokerGrid : UIView
 @end
 @implementation TTJokerGrid
@@ -1411,7 +1431,10 @@ static void TTJokerPhysicalFrame(UIView *view,CGRect frame) {
     [super layoutSubviews];
     CGFloat gap=8,w=(self.bounds.size.width-gap*2)/3;
     for(NSInteger i=0;i<(NSInteger)self.subviews.count;i++)
-        TTJokerPhysicalFrame(self.subviews[i],CGRectMake((i%3)*(w+gap),(i/3)*94,w,86));
+        {
+        UIView *tile=self.subviews[i];TTJokerPhysicalFrame(tile,CGRectMake((i%3)*(w+gap),(i/3)*94,w,86));
+        [tile setNeedsLayout];[tile layoutIfNeeded];
+        }
 }
 @end
 @interface TTJokerHeader : UIView
@@ -1568,27 +1591,20 @@ static UIVisualEffect *TTJokerGlass(void) {
 - (UIButton *)categoryTile:(NSInteger)index {
     NSArray *names=@[@"التنزيل",@"الخصوصية",@"الخلاصة",@"الملف الشخصي",@"المظهر",@"Shijima",@"شخصية Joker"];
     NSArray *symbols=@[@"arrow.down.circle",@"hand.raised",@"play.rectangle",@"person.crop.square",@"slider.horizontal.3",@"pawprint",@"cat"];
-    UIButton *tile=[UIButton buttonWithType:UIButtonTypeCustom];tile.tag=index;
+    TTJokerTile *tile=[TTJokerTile buttonWithType:UIButtonTypeCustom];tile.tag=index;
     tile.semanticContentAttribute=UISemanticContentAttributeForceLeftToRight;
     tile.backgroundColor=[UIColor colorWithWhite:1 alpha:.10];tile.layer.cornerRadius=18;
     tile.layer.cornerCurve=kCACornerCurveContinuous;tile.layer.borderWidth=1.0/UIScreen.mainScreen.scale;
     tile.layer.borderColor=[UIColor colorWithWhite:1 alpha:.48].CGColor;tile.clipsToBounds=YES;
     UIView *glass=[UIView new];glass.backgroundColor=[UIColor colorWithWhite:1 alpha:.045];
-    glass.userInteractionEnabled=NO;glass.translatesAutoresizingMaskIntoConstraints=NO;[tile addSubview:glass];
+    glass.userInteractionEnabled=NO;glass.translatesAutoresizingMaskIntoConstraints=YES;[tile addSubview:glass];tile.glass=glass;
     UIImageView *icon=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbols[index]]];
     icon.tintColor=[UIColor colorWithRed:.86 green:.91 blue:1 alpha:1];icon.contentMode=UIViewContentModeScaleAspectFit;
     UILabel *label=[self label:names[index] size:11 weight:UIFontWeightSemibold];
     label.textAlignment=NSTextAlignmentCenter;label.numberOfLines=2;
-    for(UIView *view in @[icon,label]){view.userInteractionEnabled=NO;view.translatesAutoresizingMaskIntoConstraints=NO;[tile addSubview:view];}
-    [NSLayoutConstraint activateConstraints:@[
-        [tile.heightAnchor constraintGreaterThanOrEqualToConstant:86],
-        [glass.leftAnchor constraintEqualToAnchor:tile.leftAnchor],[glass.rightAnchor constraintEqualToAnchor:tile.rightAnchor],
-        [glass.topAnchor constraintEqualToAnchor:tile.topAnchor],[glass.bottomAnchor constraintEqualToAnchor:tile.bottomAnchor],
-        [icon.centerXAnchor constraintEqualToAnchor:tile.centerXAnchor],[icon.topAnchor constraintEqualToAnchor:tile.topAnchor constant:14],
-        [icon.widthAnchor constraintEqualToConstant:25],[icon.heightAnchor constraintEqualToConstant:25],
-        [label.leftAnchor constraintEqualToAnchor:tile.leftAnchor constant:8],[label.rightAnchor constraintEqualToAnchor:tile.rightAnchor constant:-8],
-        [label.topAnchor constraintEqualToAnchor:icon.bottomAnchor constant:9],
-        [label.bottomAnchor constraintLessThanOrEqualToAnchor:tile.bottomAnchor constant:-8]]];
+    for(UIView *view in @[icon,label]){view.userInteractionEnabled=NO;view.translatesAutoresizingMaskIntoConstraints=YES;[tile addSubview:view];}
+    tile.glyph=icon;tile.caption=label;
+    [tile.heightAnchor constraintGreaterThanOrEqualToConstant:86].active=YES;
     // A restrained two-tone SF Symbol treatment preserves crisp geometry.
     NSArray *palette=@[[UIColor colorWithRed:.65 green:.88 blue:1 alpha:1],
                       [UIColor colorWithRed:1 green:.86 blue:.60 alpha:1]];

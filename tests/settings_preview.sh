@@ -28,6 +28,8 @@ EOF
 UDID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys;d=json.load(sys.stdin);print(next(x["udid"] for devices in d["devices"].values() for x in devices if "iPhone" in x["name"]))')
 xcrun simctl boot "$UDID" || true
 xcrun simctl bootstatus "$UDID" -b
+xcrun simctl spawn "$UDID" defaults write NSGlobalDomain AppleLanguages -array ar
+xcrun simctl spawn "$UDID" defaults write NSGlobalDomain AppleLocale ar_SA
 xcrun simctl install "$UDID" "$APP"
 set +e
 xcrun simctl launch --console "$UDID" test.joker.preview 2>&1 | tee /tmp/joker-preview.log
