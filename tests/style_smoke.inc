@@ -75,7 +75,7 @@
     UIColor *amber=[caption.attributedText attribute:NSForegroundColorAttributeName atIndex:caption.attributedText.length-3 effectiveRange:nil];CGFloat ar,ag,ab,aa;[amber getRed:&ar green:&ag blue:&ab alpha:&aa];
     Check(ar>.99 && ag>.7 && ag<.72 && [caption.attributedText.string hasSuffix:@"#desert"],@"58 non-UILabel attributed caption hashtags amber, text preserved");
     Check(JKFindClass(self.window,@"AWEPlayInteractionAuthorView",0)==author && CGAffineTransformIsIdentity(offscreen.transform),@"58 lookup skips offscreen first author");
-    Check([follow viewWithTag:9159] && follow.superview!=avatar && [follow.gestureRecognizers containsObject:followGR],@"58 nested follow subtree visited and recognizer preserved");
+    Check([follow viewWithTag:9159] && follow.superview==avatar && [follow.gestureRecognizers containsObject:followGR],@"58 nested follow subtree visited in-place and recognizer preserved");
     Check(objc_getAssociatedObject(nameText,kJKFontRec)!=nil && JKRec(nameText)==nil,@"58 font record separate from geometry");
     JKRecSave(nameText);JKRecRestore(nameText);
     Check([objc_getAssociatedObject(nameText,kJKFontRec) isKindOfClass:UIFont.class],@"58 geometry restore cannot cast font as dictionary");
@@ -86,8 +86,9 @@
     CGRect capRect=[caption convertRect:caption.bounds toView:self.window],railRect=[fr convertRect:fr.bounds toView:self.window];
     CGRect authorRect=[author convertRect:author.bounds toView:self.window],avatarRect=[avatar convertRect:avatar.bounds toView:self.window],discRect=[music convertRect:music.bounds toView:self.window];
     Check(capRect.origin.x==12 && !CGRectIntersectsRect(capRect,railRect) && caption.textAlignment==NSTextAlignmentLeft && caption.semanticContentAttribute==UISemanticContentAttributeForceLeftToRight,@"58 caption physical left, outside rail, no RTL mirror");
-    Check(authorRect.origin.x==58 && !CGRectIntersectsRect(authorRect,avatarRect) && !CGRectIntersectsRect(authorRect,discRect),@"58 author outside avatar/disc bounds");
+    Check(authorRect.origin.x==12 && !CGRectIntersectsRect(authorRect,avatarRect) && !CGRectIntersectsRect(authorRect,discRect),@"58 author outside avatar/disc bounds");
     Check(CGRectEqualToRect(tc.frame,originalTop),@"58 top native geometry unchanged");
+    Check(avatar.superview==fr && follow.superview==avatar && avatar.alpha>0 && !avatar.hidden,@"58 real avatar remains visible inside the native rail");
     Check(music.alpha>0 && !music.hidden && music.gestureRecognizers[0]==musicGR && ![fr viewWithTag:9162],@"58 original music remains visible and interactive, no inert replacement");
     ShotView(self.window,@"58-alaa-style");
     TT50EyeActive=YES;TT50Tree(fd);JKStyleApplyAll();

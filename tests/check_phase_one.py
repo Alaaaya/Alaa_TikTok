@@ -45,3 +45,10 @@ assert 'UIActivityViewController' in p and 'renderAudioCover:audio image:cover' 
 assert 'AVAssetWriter' in p and 'audioAsVideo' in p
 assert '%hook' not in (root/'LaterFeatures.inc').read_text()
 print('PASS no silent-save path, mux verification, audio share+cover option, Logos includes')
+
+style=(root/'InterfaceStyle.inc').read_text()
+assert 'if(JKStyleOwnsPaint(button)){TTGRestoreGlyph(button);JKStyleSync(button);return;}' in s
+assert 'if(JKStyleOn() && objc_getAssociatedObject(view,kJKPaintAlpha))return 0;' in style
+assert 'item.superview!=view.superview' not in style[style.index('static CGFloat JKStyleAlpha'):style.index('// Per-button state')]
+assert 'JKPaintRestore(native)' in style and 'r.glyph.userInteractionEnabled=NO' in style
+print('PASS 58 scoped renderer handoff, no native root alpha suppression, in-place inert paint and restoration')

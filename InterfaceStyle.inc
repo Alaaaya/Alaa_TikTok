@@ -364,58 +364,25 @@ static void JKAvatarRestore(UIView *avatar){
     avatar.frame=r.frame;avatar.transform=r.transform;
 }
 static void JKAvatarApply(UIView *avatar,UIWindow *window,BOOL on,int mode){
-    JKAvaRec *r=objc_getAssociatedObject(avatar,kJKAvaRec);
-    UIView *author=JKFindClass(window,@"AWEPlayInteractionAuthorView",0);
-    CGRect vr=[avatar convertRect:avatar.bounds toView:window];
-    if(!r && (avatar.hidden||!CGRectIntersectsRect(vr,window.bounds)))return;
-    if(!on || !author || !author.window){if(r)JKAvatarRestore(avatar);return;}
-    UIView *host=nil;
-    if(r){host=avatar.superview;}
-    else{
-        UIView *parent=avatar.superview;if(!parent)return;
-        for(UIView *p=parent.superview;p;p=p.superview){
-            if([author isDescendantOfView:p] && p.bounds.size.width>=window.bounds.size.width*.9){host=p;break;}
+    // Keep real avatar/follow controls inside the native rail. Reparenting the
+    // avatar to an RTL author container hid it outside that container's bounds,
+    // bypassed eye-hide ancestry and collided with the caption on the device.
+    if(objc_getAssociatedObject(avatar,kJKAvaRec))JKAvatarRestore(avatar);
+    UIView *rail=window?JKRailStack(window):nil;
+    [[rail viewWithTag:9161] removeFromSuperview];
+    if(mode!=0)return; // follow subtree still traversed normally by JKInstaPass
+    CGRect wr=[avatar convertRect:avatar.bounds toView:window];
+    if(on && (!avatar.window||CGRectIsEmpty(wr)||!CGRectIntersectsRect(wr,window.bounds)))return;
+    for(UIView *rs in avatar.subviews){
+        CGSize z=rs.bounds.size;
+        if(([rs isKindOfClass:UIButton.class]||[rs isKindOfClass:UIImageView.class]) &&
+           z.width>=30 && z.width<=50 && fabs(z.width-z.height)<2){
+            if(on){JKRecSave(rs);rs.layer.cornerRadius=z.width/2;rs.clipsToBounds=YES;
+                rs.layer.borderWidth=2;rs.layer.borderColor=UIColor.whiteColor.CGColor;}
+            else JKRecRestore(rs);
         }
-        if(!host)return;
-        r=[JKAvaRec new];r.parent=parent;r.frame=avatar.frame;r.transform=avatar.transform;
-        r.subIndex=[parent.subviews indexOfObject:avatar];
-        UIView *spacer=[UIView new];spacer.userInteractionEnabled=NO;spacer.backgroundColor=UIColor.clearColor;spacer.hidden=NO;
-        r.spacer=spacer;
-        if([parent isKindOfClass:UIStackView.class] && [((UIStackView *)parent).arrangedSubviews containsObject:avatar]){
-            UIStackView *st=(UIStackView *)parent;r.wasArranged=YES;r.arrIndex=[st.arrangedSubviews indexOfObject:avatar];
-            spacer.translatesAutoresizingMaskIntoConstraints=NO;
-            [spacer.widthAnchor constraintEqualToConstant:avatar.bounds.size.width].active=YES;
-            [spacer.heightAnchor constraintEqualToConstant:avatar.bounds.size.height].active=YES;
-            [st insertArrangedSubview:spacer atIndex:r.arrIndex];
-        } else {spacer.frame=avatar.frame;[parent insertSubview:spacer atIndex:r.subIndex];}
-        objc_setAssociatedObject(avatar,kJKAvaRec,r,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        [avatar removeFromSuperview];avatar.transform=CGAffineTransformIdentity;
-        [host addSubview:avatar];
     }
-    if(avatar.superview!=host)return;
-    if(!r.author){r.author=author;r.authorTx=author.transform;}
-    CGRect a=[author convertRect:author.bounds toView:host];
-    CGFloat midY=CGRectGetMidY(a);
-    if(mode==0){
-        CGFloat k=34.0/44.0;
-        avatar.transform=CGAffineTransformMakeScale(k,k);
-        CGPoint avc=[host convertPoint:CGPointMake(33,[author convertRect:author.bounds toView:window].origin.y+author.bounds.size.height/2+(avatar.bounds.size.height/2-28)*k) fromView:window];avatar.center=avc;
-        for(UIView *rs in avatar.subviews){
-            CGSize z=rs.bounds.size;
-            if(([rs isKindOfClass:UIButton.class]||[rs isKindOfClass:UIImageView.class]) && z.width>=30 && z.width<=50 && fabs(z.width-z.height)<2){
-                UIView *stk=window?JKRailStack(window):nil;
-                if(stk){UIImage *im0=JKSnap(rs);JKRecSave(rs);rs.clipsToBounds=YES;(void)im0;}
-                else {JKRecSave(rs);rs.clipsToBounds=YES;}rs.layer.cornerRadius=z.width/2;rs.layer.borderWidth=2;rs.layer.borderColor=UIColor.whiteColor.CGColor;
-            }
-        }
-    } else {
-        UIView *nl=JKFindClass(author,@"AWEUserNameLabel",0);
-        CGRect nr=nl?[nl convertRect:nl.bounds toView:host]:a;
-        avatar.transform=CGAffineTransformIdentity;
-        CGRect f=avatar.frame;
-        CGRect rail=JKRailStack(window)?[JKRailStack(window) convertRect:JKRailStack(window).bounds toView:host]:CGRectMake(window.bounds.size.width-80,0,80,0);
-        f.origin.x=MIN(CGRectGetMaxX(nr)+10,CGRectGetMinX(rail)-12-f.size.width);f.origin.y=midY-f.size.height/2;avatar.frame=f;
-    }
+    if(on)JKResult(YES,@"avatar-native-rail");
 }
 static const void *kJKTbTx=&kJKTbTx;
 static void JKDockRestore(UIView *blur){
@@ -538,7 +505,7 @@ static void JKInstaPass(UIView *v,BOOL on,NSUInteger depth){
         CGRect r=[v convertRect:v.bounds toView:v.window];[JKGeo appendFormat:@" %@@%d,%d,%d,%d",n,(int)r.origin.x,(int)r.origin.y,(int)r.size.width,(int)r.size.height];}
     if(JKHits&&([n hasPrefix:@"TTK"]||[n hasPrefix:@"AWEPlayInteraction"]||[n hasPrefix:@"AWEFeed"]||[n hasPrefix:@"AWETabBar"]||[n hasPrefix:@"AWEUser"]))JKHits[n]=@([JKHits[n] integerValue]+1);
     if([n isEqualToString:@"AWEFeedVideoButton"])JKStyleSync(v);
-    if([n isEqualToString:@"AWEPlayInteractionAuthorView"])JKLeftRegion(v,on&&JKAlaa(),58);
+    if([n isEqualToString:@"AWEPlayInteractionAuthorView"])JKLeftRegion(v,on&&JKAlaa(),12);
     if([n isEqualToString:@"AWEPlayInteractionDescriptionLabel"]||[n isEqualToString:@"AWEScrollLabelView"])JKLeftRegion(v,on&&JKAlaa(),12);
     if([n isEqualToString:@"TTKTabBarBlurView"] && [v.superview isKindOfClass:UITabBar.class]==NO && [NSStringFromClass(v.superview.class) isEqualToString:@"TTKTabBar"]==NO){}
     if([n isEqualToString:@"TTKTabBarBlurView"]){
