@@ -7,7 +7,11 @@
     UITableView *feedList=[[UITableView alloc] initWithFrame:feed.bounds];[feed addSubview:feedList];
     // Existing full-screen feed + composer must not count as a newly presented sheet.
     UITextField *feedInput=[[UITextField alloc] initWithFrame:CGRectMake(0,700,300,40)];[feed addSubview:feedInput];
-    JK64Arm();JK64Scan(@"fixture_feed");Check(!JK64Last,@"64 baseline feed not captured");
+    [vc showCategory:-1 animated:NO];
+    UIButton *arm=(id)vc.stack.arrangedSubviews[1];
+    [arm sendActionsForControlEvents:UIControlEventTouchUpInside];
+    Check(JK64Armed&&arm.semanticContentAttribute==UISemanticContentAttributeForceLeftToRight,@"64 explicit native Arabic LTR arm action");
+    JK64Scan(@"fixture_feed");Check(!JK64Last,@"64 baseline feed not captured");
     UIView *panel=[[UIView alloc] initWithFrame:CGRectMake(0,200,testWindow.bounds.size.width,testWindow.bounds.size.height-200)];
     UITableView *list=[[UITableView alloc] initWithFrame:CGRectMake(0,0,300,400)];[panel addSubview:list];
     UITextField *input=[[UITextField alloc] initWithFrame:CGRectMake(0,420,300,40)];input.text=@"SECRET_INPUT_64";input.secureTextEntry=YES;[panel addSubview:input];
@@ -52,6 +56,8 @@
     [strip addSubview:list];[strip addSubview:input];[root.view addSubview:strip];
     JK64Scan(@"fixture_small_strip");Check(!JK64Last,@"64 small feed emoji strip never qualifies");
     [strip removeFromSuperview];[panel addSubview:list];[panel addSubview:input];
+    JK64Export(path);export=[NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+    Check([export containsString:@"lastDiscoveryCapped="]&&[export containsString:@"nodeLimit=900"]&&[export containsString:@"No retained sheet."],@"64 empty result still reports discovery and snapshot bound flags");
     JK64Stop();Check(!JK64Active(),@"64 observer idle after stop");
     // Restore baseline fixtures and clean memory before 62 gesture/drag/reuse suites.
     testWindow.hidden=YES;testWindow.rootViewController=nil;JK64Last=nil;JK64Best=0;JK64LastTime=0;

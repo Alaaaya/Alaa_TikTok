@@ -3,8 +3,8 @@
 #define JK64_TTL 600
 #define JK64_SCAN_BUDGET 12
 #define JK64_VISITS 1800
-static BOOL JK64Armed,JK64Pending;
-static NSUInteger JK64Generation,JK64Scans,JK64Events;
+static BOOL JK64Armed,JK64Pending,JK64BaselineCapped,JK64DiscoveryCapped;
+static NSUInteger JK64Generation,JK64Scans,JK64Events,JK64DiscoveryVisits;
 static NSTimeInterval JK64Deadline,JK64LastTime;
 static NSString *JK64Last,*JK64Filter=@"not-armed",*JK64Trigger=@"none";
 static NSInteger JK64Best;
@@ -60,6 +60,7 @@ static void JK64Arm(void){
         BOOL visible=YES;UIView *a=v;for(NSUInteger d=0;a&&d<32;d++,a=a.superview)if(a.hidden||a.alpha<.05){visible=NO;break;}
         if(visible)[JK64Baseline addObject:v];
     }
+    JK64BaselineCapped=capped;JK64DiscoveryCapped=NO;JK64DiscoveryVisits=0;
     JK64Deadline=JK64Now()+JK64_SESSION;JK64Armed=YES;
     JK64Filter=capped?@"armed-baseline-capped":@"armed";
     NSUInteger gen=JK64Generation;
@@ -72,6 +73,7 @@ static void JK64Scan(NSString *trigger){
     if(!JK64Active())return;JK64Scans++;JK64Trigger=trigger;
     NSHashTable *ex=[NSHashTable hashTableWithOptions:NSPointerFunctionsObjectPointerPersonality],*modal=[NSHashTable hashTableWithOptions:NSPointerFunctionsObjectPointerPersonality];
     BOOL capped=NO;NSArray<UIView *> *views=JK64Views(ex,modal,&capped);
+    JK64DiscoveryCapped=capped;JK64DiscoveryVisits=views.count;
     // Summaries propagated in reverse BFS, O(nodes * bounded ancestor depth), no per-candidate subtree walks.
     NSMapTable *lists=[NSMapTable strongToStrongObjectsMapTable],*inputs=[NSMapTable strongToStrongObjectsMapTable];
     for(UIView *v in views.reverseObjectEnumerator){
@@ -125,6 +127,7 @@ static void JK64Event(NSString *trigger){
 static void JK64Export(NSString *path){
     if(!NSThread.isMainThread)return;JK64Expire();
     NSMutableString *out=[NSMutableString stringWithFormat:@"Joker 64 DIAGNOSTIC ONLY. No cards styling.\nNo text, input, accessibility strings, credentials, images or uploads.\narmed=%d scans=%lu/%d events=%lu/24 lastFilter=%@ lastTrigger=%@\n",JK64Active(),(unsigned long)JK64Scans,JK64_SCAN_BUDGET,(unsigned long)JK64Events,JK64Filter,JK63Symbol(JK64Trigger)];
+    [out appendFormat:@"baselineCapped=%d lastDiscoveryCapped=%d lastDiscoveryVisits=%lu discoveryLimit=%d windowLimit=16 controllerLimit=96 windowControllerBoundsMayApply=1 nodeLimit=%d depthLimit=%d byteLimit=%d queueLimit=%d\n",JK64BaselineCapped,JK64DiscoveryCapped,(unsigned long)JK64DiscoveryVisits,JK64_VISITS,JK_DUMP_NODES,JK_DUMP_DEPTH,JK_DUMP_BYTES,JK_DUMP_QUEUE];
     if(JK64Last){[out appendFormat:@"retainedAgeSeconds=%.1f ttlSeconds=%d\n%@\n",JK64Now()-JK64LastTime,JK64_TTL,JK64Last];}
     else [out appendString:@"No retained sheet. Arm capture, open comments within 45 seconds, close comments, then reopen Joker and share within 10 minutes. Unknown sheets must contain a list and composer; discovery can miss custom renderers.\n"];
     [out writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
